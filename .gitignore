@@ -1,0 +1,40 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Dependency directories (kept broad since the technology stack is not yet finalized in an Accepted document)
+node_modules/
+vendor/
+
+# Build output
+dist/
+build/
+.next/
+.cache/
+
+# Test / coverage output
+coverage/
+.phpunit.cache/
+
+# Local database files
+*.sqlite
+*.sqlite3
+
+# This file is intentionally technology-neutral until 03_SYSTEM_ARCHITECTURE.md
+# and later documents finalize the actual stack. Revisit and tighten once
+# 09_ENGINEERING_STANDARD.md and 11_DEPLOYMENT_STANDARD.md are Accepted.
