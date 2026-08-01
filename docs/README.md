@@ -6,9 +6,9 @@ This folder is the single source of truth for neXgen Core. Documents are authori
 
 | # | Document | Status | Owner |
 |---|----------|--------|-------|
-| 00 | [PROJECT_GOVERNANCE](00_PROJECT_GOVERNANCE.md) | Accepted (v1.1) | Product Owner |
-| 01 | [PRODUCT_VISION](01_PRODUCT_VISION.md) | Draft (v0.1) — pending independent review | Product & Solution Architect |
-| 02 | PRODUCT_PRINCIPLES | Not started | Product & Solution Architect |
+| 00 | [PROJECT_GOVERNANCE](00_PROJECT_GOVERNANCE.md) | **Accepted (v1.2)** | Product & Solution Architect |
+| 01 | [PRODUCT_VISION](01_PRODUCT_VISION.md) | **Accepted (v0.2)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 02 | PRODUCT_PRINCIPLES | Draft — in progress | Chief Software Architect & Lead Engineer |
 | 03 | SYSTEM_ARCHITECTURE | Not started | Product & Solution Architect |
 | 04 | MODULE_ARCHITECTURE | Not started | Product & Solution Architect |
 | 05 | DATABASE_ARCHITECTURE | Not started | Product & Solution Architect |

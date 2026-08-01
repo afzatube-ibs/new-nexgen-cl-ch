@@ -6,14 +6,12 @@
 | **Title** | Product Vision |
 | **Document ID** | VISION |
 | **Version** | 0.2 |
-| **Status** | Draft — pending independent review by Product & Solution Architect, then Product Owner approval |
-| **Author** | Chief Software Architect & Lead Engineer (drafted at Product Owner's direction; ordinarily owned by Product & Solution Architect — see note below) |
+| **Status** | Accepted |
+| **Author** | Chief Software Architect & Lead Engineer (drafted at Product Owner's direction; independently reviewed and approved by Product & Solution Architect) |
 | **Last Updated** | 2026-08-01 |
 | **Parent Document** | 00_PROJECT_GOVERNANCE |
-| **Related Documents** | None yet (02_PRODUCT_PRINCIPLES will derive from this document once drafted) |
+| **Related Documents** | None yet (02_PRODUCT_PRINCIPLES derives from this document) |
 | **Applies To** | All neXgen Core product, architecture, and engineering decisions |
-
-**Process note:** Per `GOVERNANCE:DECISION_AUTHORITY`, Product Vision is ordinarily drafted by the Product & Solution Architect. This draft was authored by the Chief Software Architect & Lead Engineer at the Product Owner's explicit direction. It should not move to Accepted without an independent review pass from the Product & Solution Architect, to preserve the separation of drafting and review this project's governance is built on.
 
 ## Change Log
 
@@ -21,6 +19,7 @@
 |---|---|---|---|
 | 0.1 | 2026-08-01 | Initial draft | First Product Vision draft, following the 10-section structure agreed under `GOVERNANCE` |
 | 0.2 | 2026-08-01 | Replaced raw section-number references in the Decision Filter (`VISION:DECISION_FILTER`) with the corresponding `VISION:*` stable identifiers | Final pre-review consistency check found the Decision Filter itself was not following the stable-identifier convention the document defines |
+| 0.2 → Accepted | 2026-08-01 | Status changed to Accepted following independent review by the Product & Solution Architect and Product Owner approval | Document completed the full review cycle defined in `GOVERNANCE:DECISION_AUTHORITY` |
 
 ---
 

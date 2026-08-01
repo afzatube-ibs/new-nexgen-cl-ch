@@ -20,6 +20,7 @@
 | 1.0 | — | Initial draft | First governance draft covering roles, workflow, hierarchy, ADR process |
 | 1.1 | 2026-08-01 | Restored two-track disagreement escalation (§4); restored ADR ownership split (§9); revised Technology Leakage into three tiers including Module Architecture (§10); added `GOVERNANCE:*` stable identifiers (§8); clarified Delivery Lifecycle (§5) vs. Document Lifecycle (§7) as distinct processes | Engineering review identified that v1.0 had silently dropped three previously-agreed governance rules |
 | 1.2 | 2026-08-01 | Removed `ADR` as a standalone rung at the bottom of the Documentation Hierarchy (§6) and clarified that each ADR inherits the authority of the document it originates from; clarified what "Product Approval" means for Engineering ADRs vs. Product ADRs, consistent with the Track 1 / Track 2 model (§9); tied Change Management approval authority explicitly back to Section 4 instead of leaving it unspecified (§13) | Final pre-acceptance consistency review identified three remaining ambiguities before the document could be considered fully internally consistent |
+| 1.2 (formal) | 2026-08-01 | Status formally confirmed as Accepted by Product Owner | Completed the Document Lifecycle defined in `GOVERNANCE:DOCUMENT_LIFECYCLE` |
 
 ---
 
