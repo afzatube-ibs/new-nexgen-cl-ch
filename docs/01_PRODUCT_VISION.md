@@ -5,7 +5,7 @@
 |---|---|
 | **Title** | Product Vision |
 | **Document ID** | VISION |
-| **Version** | 0.1 |
+| **Version** | 0.2 |
 | **Status** | Draft — pending independent review by Product & Solution Architect, then Product Owner approval |
 | **Author** | Chief Software Architect & Lead Engineer (drafted at Product Owner's direction; ordinarily owned by Product & Solution Architect — see note below) |
 | **Last Updated** | 2026-08-01 |
@@ -20,6 +20,7 @@
 | Version | Date | Change | Reason |
 |---|---|---|---|
 | 0.1 | 2026-08-01 | Initial draft | First Product Vision draft, following the 10-section structure agreed under `GOVERNANCE` |
+| 0.2 | 2026-08-01 | Replaced raw section-number references in the Decision Filter (`VISION:DECISION_FILTER`) with the corresponding `VISION:*` stable identifiers | Final pre-review consistency check found the Decision Filter itself was not following the stable-identifier convention the document defines |
 
 ---
 
@@ -157,10 +158,10 @@ Success is not measured by revenue, valuation, or adoption numbers. Those may fo
 
 Every significant proposal — an architecture decision, an ADR, a major feature — must be able to answer the following before it can be accepted:
 
-1. **Which merchant problem does this solve?** If the answer is not a real, specific operational problem described in Section 2, reconsider the proposal.
-2. **Which belief or principle from this document does it support?** A proposal with no connection to Sections 3–8 has not yet justified its place in the platform.
-3. **Does it violate any Platform Promise (Section 8)?** If yes, the proposal cannot proceed as written, regardless of its other merits.
-4. **Does it violate anything in What neXgen Core Is Not (Section 7)?** If yes, the proposal is rejected, not merely reconsidered.
+1. **Which merchant problem does this solve?** If the answer is not a real, specific operational problem described under `VISION:PROBLEM`, reconsider the proposal.
+2. **Which belief or principle from this document does it support?** A proposal with no connection to `VISION:BELIEFS`, `VISION:MISSION`, `VISION:AUDIENCE`, `VISION:WHAT_IT_IS`, `VISION:NON_GOALS`, or `VISION:PLATFORM_PROMISES` has not yet justified its place in the platform.
+3. **Does it violate any Platform Promise (`VISION:PLATFORM_PROMISES`)?** If yes, the proposal cannot proceed as written, regardless of its other merits.
+4. **Does it violate anything in What neXgen Core Is Not (`VISION:NON_GOALS`)?** If yes, the proposal is rejected, not merely reconsidered.
 5. **Which business capability does this technology or approach provide, and how would that capability be preserved if the underlying technology disappeared tomorrow?** A proposal that cannot separate the capability it provides from the specific technology implementing it has not yet been thought through at the right level.
 6. **Can this be supported for the next decade?** A proposal that only makes sense under current constraints, current team size, or current technology trends should be flagged as such, even if it is otherwise approved.
 

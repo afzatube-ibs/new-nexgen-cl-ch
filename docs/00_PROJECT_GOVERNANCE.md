@@ -5,7 +5,7 @@
 |---|---|
 | **Title** | Project Governance |
 | **Document ID** | GOVERNANCE |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Status** | Accepted |
 | **Author** | Product & Solution Architect |
 | **Last Updated** | 2026-08-01 |
@@ -19,6 +19,7 @@
 |---|---|---|---|
 | 1.0 | — | Initial draft | First governance draft covering roles, workflow, hierarchy, ADR process |
 | 1.1 | 2026-08-01 | Restored two-track disagreement escalation (§4); restored ADR ownership split (§9); revised Technology Leakage into three tiers including Module Architecture (§10); added `GOVERNANCE:*` stable identifiers (§8); clarified Delivery Lifecycle (§5) vs. Document Lifecycle (§7) as distinct processes | Engineering review identified that v1.0 had silently dropped three previously-agreed governance rules |
+| 1.2 | 2026-08-01 | Removed `ADR` as a standalone rung at the bottom of the Documentation Hierarchy (§6) and clarified that each ADR inherits the authority of the document it originates from; clarified what "Product Approval" means for Engineering ADRs vs. Product ADRs, consistent with the Track 1 / Track 2 model (§9); tied Change Management approval authority explicitly back to Section 4 instead of leaving it unspecified (§13) | Final pre-acceptance consistency review identified three remaining ambiguities before the document could be considered fully internally consistent |
 
 ---
 
@@ -229,11 +230,9 @@ Project documents are authoritative in this order:
 
 11_DEPLOYMENT_STANDARD
 
-↓
-
-ADR
-
 A lower-level document must never contradict a higher-level document.
+
+**ADRs are not a separate rung in this hierarchy.** Each ADR inherits the authority of the document it originates from. An ADR created during the drafting of `03_SYSTEM_ARCHITECTURE` is authoritative at the same level as `03_SYSTEM_ARCHITECTURE` itself — not subordinate to documents that come later in this list, such as `11_DEPLOYMENT_STANDARD`. An ADR must never contradict the document it originates from, or any document above that document in this hierarchy.
 
 ---
 
@@ -308,7 +307,12 @@ Examples: why a Commerce Operating System, why configuration over customization,
 
 Examples: modular monolith vs. microservices, REST vs. GraphQL, authentication strategy, caching strategy, search strategy, queue strategy.
 
-All ADRs, regardless of owner, follow the same review cycle: Draft → Engineering Review → Product Approval → Accepted.
+All ADRs, regardless of owner, follow the same review cycle: Draft → Engineering Review → Product Approval → Accepted. What "Product Approval" means differs by ADR type, consistent with the Track 1 / Track 2 model in Section 4:
+
+- For a **Product ADR**, Product Approval is full business-judgment approval by the Product Owner — the same authority exercised over any product-direction decision.
+- For an **Engineering ADR**, Product Approval is a lighter confirmation: the Product Owner (or, where delegated, the Product & Solution Architect) confirms the decision does not conflict with approved product direction. It is not a re-litigation of the technical decision itself, which was already settled through Engineering Review under Track 2.
+
+This distinction exists so that Track 2's intent — resolving pure engineering disagreements without unnecessary Product Owner involvement — is not undone by requiring full product-level scrutiny of every Engineering ADR.
 
 ADRs evolve with the project and provide historical reasoning for technical decisions.
 
@@ -380,6 +384,8 @@ Every change must:
 - Be reviewed
 - Be approved
 - Increment the document version
+
+Approval authority for a change follows Section 4 (Decision Authority) — the same Track 1 / Track 2 model used for disagreement resolution applies here rather than a separate approval path: a change affecting product direction requires Product Owner approval; a change that is purely technical and does not affect product direction may be approved through Engineering Review and documented via ADR, without requiring separate Product Owner approval.
 
 Significant architectural changes require a new ADR.
 
