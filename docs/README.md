@@ -6,18 +6,20 @@ This folder is the single source of truth for neXgen Core. Documents are authori
 
 | # | Document | Status | Owner |
 |---|----------|--------|-------|
-| 00 | [PROJECT_GOVERNANCE](00_PROJECT_GOVERNANCE.md) | **Accepted (v1.2)** | Product & Solution Architect |
+| 00 | [PROJECT_GOVERNANCE](00_PROJECT_GOVERNANCE.md) | **Accepted (v1.6)** | Product & Solution Architect |
 | 01 | [PRODUCT_VISION](01_PRODUCT_VISION.md) | **Accepted (v0.2)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
-| 02 | PRODUCT_PRINCIPLES | Draft — in progress | Chief Software Architect & Lead Engineer |
-| 03 | SYSTEM_ARCHITECTURE | Not started | Product & Solution Architect |
-| 04 | MODULE_ARCHITECTURE | Not started | Product & Solution Architect |
-| 05 | DATABASE_ARCHITECTURE | Not started | Product & Solution Architect |
-| 06 | API_STANDARD | Not started | Chief Software Architect |
-| 07 | UI_DESIGN_SYSTEM | Not started | Product & Solution Architect |
-| 08 | SECURITY_STANDARD | Not started | Chief Software Architect |
-| 09 | ENGINEERING_STANDARD | Not started | Chief Software Architect |
-| 10 | TESTING_STANDARD | Not started | Chief Software Architect |
-| 11 | DEPLOYMENT_STANDARD | Not started | Chief Software Architect |
+| 02 | PRODUCT_PRINCIPLES | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| — | [SYSTEM_ARCHITECTURE_PLAN](03_SYSTEM_ARCHITECTURE_PLAN.md) | Draft (v0.3) — closed out | Chief Software Architect & Lead Engineer |
+| 03 | [SYSTEM_ARCHITECTURE](03_SYSTEM_ARCHITECTURE.md) | **Accepted (v1.2)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| — | [ADR-0001](adr/ADR-0001-modular-monolith.md) through [ADR-0008](adr/ADR-0008-containerized-deployment.md) | Draft | Chief Software Architect & Lead Engineer |
+| 04 | [MODULE_ARCHITECTURE](04_MODULE_ARCHITECTURE.md) | **Accepted (v1.1)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 05 | [DATA_ARCHITECTURE](05_DATA_ARCHITECTURE.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 06 | [API_STANDARD](06_API_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 07 | [UI_DESIGN_SYSTEM](07_UI_DESIGN_SYSTEM.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 08 | [SECURITY_STANDARD](08_SECURITY_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 09 | [ENGINEERING_STANDARD](09_ENGINEERING_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 10 | [TESTING_STANDARD](10_TESTING_STANDARD.md) | **Accepted (v1.1)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 11 | [DEPLOYMENT_STANDARD](11_DEPLOYMENT_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
 
 Update this table's Status column every time a document changes state (Draft → Under Review → Accepted → Superseded), per the Document Lifecycle defined in `00_PROJECT_GOVERNANCE.md` (GOVERNANCE:DOCUMENT_LIFECYCLE).
 
@@ -31,6 +33,6 @@ Update this table's Status column every time a document changes state (Draft →
 ## Rules
 
 - No document is authoritative until its Status is **Accepted**.
-- No document may be silently modified once Accepted — see `00_PROJECT_GOVERNANCE.md` §13 (Change Management).
-- Every document must be self-contained: understandable by a contributor with no access to prior discussion. See `00_PROJECT_GOVERNANCE.md` §12.
+- No document may be silently modified once Accepted — see `00_PROJECT_GOVERNANCE.md` (`GOVERNANCE:CHANGE_MANAGEMENT`).
+- Every document must be self-contained: understandable by a contributor with no access to prior discussion. See `00_PROJECT_GOVERNANCE.md` (`GOVERNANCE:SELF_CONTAINED_DOCUMENTATION`).
 - Cross-document references use stable identifiers (e.g. `VISION:MISSION`, `GOVERNANCE:DECISION_AUTHORITY`), not section numbers.

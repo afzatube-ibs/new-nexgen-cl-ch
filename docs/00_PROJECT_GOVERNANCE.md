@@ -5,7 +5,7 @@
 |---|---|
 | **Title** | Project Governance |
 | **Document ID** | GOVERNANCE |
-| **Version** | 1.2 |
+| **Version** | 1.6 |
 | **Status** | Accepted |
 | **Author** | Product & Solution Architect |
 | **Last Updated** | 2026-08-01 |
@@ -21,10 +21,16 @@
 | 1.1 | 2026-08-01 | Restored two-track disagreement escalation (§4); restored ADR ownership split (§9); revised Technology Leakage into three tiers including Module Architecture (§10); added `GOVERNANCE:*` stable identifiers (§8); clarified Delivery Lifecycle (§5) vs. Document Lifecycle (§7) as distinct processes | Engineering review identified that v1.0 had silently dropped three previously-agreed governance rules |
 | 1.2 | 2026-08-01 | Removed `ADR` as a standalone rung at the bottom of the Documentation Hierarchy (§6) and clarified that each ADR inherits the authority of the document it originates from; clarified what "Product Approval" means for Engineering ADRs vs. Product ADRs, consistent with the Track 1 / Track 2 model (§9); tied Change Management approval authority explicitly back to Section 4 instead of leaving it unspecified (§13) | Final pre-acceptance consistency review identified three remaining ambiguities before the document could be considered fully internally consistent |
 | 1.2 (formal) | 2026-08-01 | Status formally confirmed as Accepted by Product Owner | Completed the Document Lifecycle defined in `GOVERNANCE:DOCUMENT_LIFECYCLE` |
+| 1.3 | 2026-08-01 | Added `**Identifier:**` tags to the sections `GOVERNANCE:*` identifiers had already been referencing throughout the project (§3 Roles, §4 Decision Authority, §7 Document Lifecycle, §9 ADR Ownership, §10 Technology Leakage, §12 Self-Contained Documentation, §13 Change Management) — no content or policy change | Final consistency review across `00`–`03` and their ADRs found this document, despite establishing the stable-identifier convention, had never applied it to its own sections; every downstream citation of these identifiers had been assuming they existed |
+| 1.4 | 2026-08-01 | Renamed the roadmap entry `05_DATABASE_ARCHITECTURE` to `05_DATA_ARCHITECTURE` in the Documentation Hierarchy (§6) | Product Owner decision: the document defines the platform's data architecture (ownership, aggregates, identity, lifecycle, consistency), not a specific database implementation — the name should reflect that scope |
+| 1.5 | 2026-08-01 | Added `**Identifier:**` tags to every remaining untagged section (§1 Purpose, §2 Scope, §5 Delivery Lifecycle, §6 Documentation Hierarchy, §8 Stable Identifiers, §11 Launch Migration Policy, §14 Review Standards, §15 Engineering Principles, §16 Completion Rule) — no content or policy change | Discovered while drafting `09_ENGINEERING_STANDARD.md`, which needed to cite `GOVERNANCE:ENGINEERING_PRINCIPLES` directly: v1.3's identifier-tagging pass had closed the gap for sections already being cited elsewhere but left the remainder untagged. Closing it completely this time rather than continuing to find it piecemeal |
+| 1.6 | 2026-08-01 | Fixed two errors in §8's own identifier examples: `ARCH:MODULAR_MONOLITH` (never actually created — `03_SYSTEM_ARCHITECTURE`'s real identifier is `ARCH:ARCHITECTURAL_STYLE`) and `ADR:0001` (inconsistent colon notation — every real ADR reference throughout the project uses hyphenated `ADR-0001`) | Final documentation audit across `00`–`11` found these examples, in the section that establishes the identifier convention itself, didn't match what the convention actually produced elsewhere |
 
 ---
 
 # 1. Purpose
+
+**Identifier: GOVERNANCE:PURPOSE**
 
 This document defines how neXgen Core is designed, reviewed, approved, implemented, and evolved.
 
@@ -35,6 +41,8 @@ This document governs the project itself, not the software features.
 ---
 
 # 2. Scope
+
+**Identifier: GOVERNANCE:SCOPE**
 
 This governance applies to:
 
@@ -56,6 +64,8 @@ Every future document derives its authority from this document.
 ---
 
 # 3. Team Roles
+
+**Identifier: GOVERNANCE:ROLES**
 
 ## Product Owner
 
@@ -109,6 +119,8 @@ The Chief Software Architect may reject implementation proposals for engineering
 
 # 4. Decision Authority
 
+**Identifier: GOVERNANCE:DECISION_AUTHORITY**
+
 Product decisions:
 
 Product Owner
@@ -147,6 +159,8 @@ If there is doubt about which track applies, the disagreement defaults to Track 
 
 # 5. Delivery Lifecycle
 
+**Identifier: GOVERNANCE:DELIVERY_LIFECYCLE**
+
 Every feature follows the same lifecycle.
 
 Draft
@@ -183,6 +197,8 @@ This lifecycle governs individual features and implementation work. It is distin
 
 # 6. Documentation Hierarchy
 
+**Identifier: GOVERNANCE:DOCUMENTATION_HIERARCHY**
+
 Project documents are authoritative in this order:
 
 00_PROJECT_GOVERNANCE
@@ -205,7 +221,7 @@ Project documents are authoritative in this order:
 
 ↓
 
-05_DATABASE_ARCHITECTURE
+05_DATA_ARCHITECTURE
 
 ↓
 
@@ -239,6 +255,8 @@ A lower-level document must never contradict a higher-level document.
 
 # 7. Document Lifecycle
 
+**Identifier: GOVERNANCE:DOCUMENT_LIFECYCLE**
+
 Every document exists in one of four states.
 
 Draft
@@ -259,6 +277,8 @@ This lifecycle governs the status of a project document itself (e.g. this file, 
 
 # 8. Stable Identifiers
 
+**Identifier: GOVERNANCE:STABLE_IDENTIFIERS**
+
 Cross-document references use stable identifiers rather than section numbers.
 
 Examples:
@@ -269,9 +289,9 @@ VISION:NON_GOALS
 
 PRINCIPLES:SECURITY_FIRST
 
-ARCH:MODULAR_MONOLITH
+ARCH:ARCHITECTURAL_STYLE
 
-ADR:0001
+ADR-0001
 
 GOVERNANCE:ROLES
 
@@ -298,6 +318,8 @@ Each ADR contains:
 
 ## ADR Ownership
 
+**Identifier: GOVERNANCE:ADR_OWNERSHIP**
+
 ADRs are owned by whichever role's authority the decision falls under, matching Section 4.
 
 **Product ADRs** — drafted and owned by the Product & Solution Architect.
@@ -320,6 +342,8 @@ ADRs evolve with the project and provide historical reasoning for technical deci
 ---
 
 # 10. Technology Leakage
+
+**Identifier: GOVERNANCE:TECHNOLOGY_LEAKAGE**
 
 Technology references are permitted only where appropriate to the document's purpose.
 
@@ -350,6 +374,8 @@ Technology choices must never influence product vision.
 
 # 11. Launch Migration Policy
 
+**Identifier: GOVERNANCE:LAUNCH_MIGRATION_POLICY**
+
 neXgen Launch and neXgen Core are separate projects.
 
 Lessons learned from Launch may inform neXgen Core.
@@ -366,6 +392,8 @@ Implementation does not.
 
 # 12. Self-Contained Documentation
 
+**Identifier: GOVERNANCE:SELF_CONTAINED_DOCUMENTATION**
+
 Every Accepted document must be understandable without external conversation history.
 
 A contributor joining the project should be able to implement the documented behavior using only the Accepted documents.
@@ -375,6 +403,8 @@ If a document depends on chat history, it is incomplete.
 ---
 
 # 13. Change Management
+
+**Identifier: GOVERNANCE:CHANGE_MANAGEMENT**
 
 Accepted documents are never modified silently.
 
@@ -394,6 +424,8 @@ Significant architectural changes require a new ADR.
 
 # 14. Review Standards
 
+**Identifier: GOVERNANCE:REVIEW_STANDARDS**
+
 Every document must satisfy:
 
 - Correct scope
@@ -408,6 +440,8 @@ Every document must satisfy:
 ---
 
 # 15. Engineering Principles
+
+**Identifier: GOVERNANCE:ENGINEERING_PRINCIPLES**
 
 The project follows:
 
@@ -424,6 +458,8 @@ The project follows:
 ---
 
 # 16. Completion Rule
+
+**Identifier: GOVERNANCE:COMPLETION_RULE**
 
 A specification is complete only when:
 

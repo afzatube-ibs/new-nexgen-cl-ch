@@ -12,18 +12,20 @@ This file is a snapshot for anyone joining the project. For authoritative docume
 
 | # | Document | Status |
 |---|----------|--------|
-| 00 | PROJECT_GOVERNANCE | ✅ Accepted (v1.2) |
+| 00 | PROJECT_GOVERNANCE | ✅ Accepted (v1.6) |
 | 01 | PRODUCT_VISION | ✅ Accepted (v0.2) |
-| 02 | PRODUCT_PRINCIPLES | 🟡 Draft in progress |
-| 03 | SYSTEM_ARCHITECTURE | ⬜ Not started |
-| 04 | MODULE_ARCHITECTURE | ⬜ Not started |
-| 05 | DATABASE_ARCHITECTURE | ⬜ Not started |
-| 06 | API_STANDARD | ⬜ Not started |
-| 07 | UI_DESIGN_SYSTEM | ⬜ Not started |
-| 08 | SECURITY_STANDARD | ⬜ Not started |
-| 09 | ENGINEERING_STANDARD | ⬜ Not started |
-| 10 | TESTING_STANDARD | ⬜ Not started |
-| 11 | DEPLOYMENT_STANDARD | ⬜ Not started |
+| 02 | PRODUCT_PRINCIPLES | ✅ Accepted (v1.0) |
+| — | SYSTEM_ARCHITECTURE_PLAN | 🟢 Closed out (v0.3) |
+| 03 | SYSTEM_ARCHITECTURE | ✅ Accepted (v1.2) |
+| — | ADR-0001 – ADR-0008 | 🟡 Draft |
+| 04 | MODULE_ARCHITECTURE | ✅ Accepted (v1.1) |
+| 05 | DATA_ARCHITECTURE | ✅ Accepted (v1.0) |
+| 06 | API_STANDARD | ✅ Accepted (v1.0) |
+| 07 | UI_DESIGN_SYSTEM | ✅ Accepted (v1.0) |
+| 08 | SECURITY_STANDARD | ✅ Accepted (v1.0) |
+| 09 | ENGINEERING_STANDARD | ✅ Accepted (v1.0) |
+| 10 | TESTING_STANDARD | ✅ Accepted (v1.1) |
+| 11 | DEPLOYMENT_STANDARD | ✅ Accepted (v1.0) |
 
 ## Team
 
@@ -36,7 +38,7 @@ This file is a snapshot for anyone joining the project. For authoritative docume
 
 ## What's Next
 
-`02_PRODUCT_PRINCIPLES.md` is in progress. `03_SYSTEM_ARCHITECTURE.md` and everything after it remains blocked until Product Principles reaches Accepted status, per the Documentation Hierarchy in `docs/00_PROJECT_GOVERNANCE.md`.
+All 12 foundation documents (`00`–`11`) are Accepted. `ADR-0001` through `ADR-0008` remain at Draft status and are the only outstanding item before the constitutional documentation phase is fully complete. A final documentation audit across `00`–`11` has been completed — see the Documentation Completion Report for details.
 
 ## Repository Structure
 

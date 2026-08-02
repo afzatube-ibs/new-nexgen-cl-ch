@@ -5,9 +5,9 @@
 |---|---|
 | **Title** | Product Principles |
 | **Document ID** | PRINCIPLES |
-| **Version** | 0.1 (Draft) |
-| **Status** | Draft |
-| **Author** | Chief Software Architect & Lead Engineer (drafted at Product Owner's direction; ordinarily owned by Product & Solution Architect — pending independent review, consistent with the process followed for `01_PRODUCT_VISION`) |
+| **Version** | 1.0 |
+| **Status** | Accepted |
+| **Author** | Chief Software Architect & Lead Engineer (drafted at Product Owner's direction; independently reviewed and approved by Product & Solution Architect) |
 | **Last Updated** | 2026-08-01 |
 | **Parent Document** | 01_PRODUCT_VISION |
 | **Related Documents** | 00_PROJECT_GOVERNANCE |
@@ -18,6 +18,8 @@
 | Version | Date | Change | Reason |
 |---|---|---|---|
 | 0.1 | 2026-08-01 | Initial draft | First Product Principles draft, derived from `01_PRODUCT_VISION` |
+| 0.2 | 2026-08-01 | Reworked traceability rule (`PRINCIPLES:PURPOSE`, `PRINCIPLES:AUTHORITY`) to formally distinguish Vision-Derived from Cross-Cutting Quality principles; classified and grounded each of the 10 principles under one of the two categories; kept `PRINCIPLES:*` identifier prefix; Vision document left untouched | Self-review found 3 of 10 principles (Security First, Auditability, Explicit Failure) did not trace to explicit Vision language, which the document's own traceability rule required — resolved by formalizing a second, bounded category rather than reopening the accepted Vision document |
+| 1.0 | 2026-08-01 | Minor editorial clarification of the Cross-Cutting Quality four-part test (`PRINCIPLES:PURPOSE`), explaining how the four conditions function together — no change in meaning. Status changed to Accepted following independent review by the Product & Solution Architect and Product Owner approval | Completed the Document Lifecycle defined in `GOVERNANCE:DOCUMENT_LIFECYCLE` |
 
 ---
 
@@ -34,11 +36,24 @@ Every principle below must satisfy two conditions to belong in this document:
 
 A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as an aspiration, not in this document as a principle.
 
+**Every principle is classified as one of two types**, stated at the start of each principle below:
+
+- **Vision-Derived** — traces directly to specific language already present in `01_PRODUCT_VISION` (a belief, a promise, a stated problem, or a non-goal). These principles make an existing Vision statement testable and enforceable; they do not add anything the Vision did not already establish.
+- **Cross-Cutting Quality** — does not trace to a specific Vision statement, but is admitted into this document because it meets all four of the following conditions. The four conditions work together: the first ensures the principle reinforces rather than competes with the Vision; the second and third bound it so it cannot smuggle in new scope or technology decisions under the Cross-Cutting label; the fourth confirms it is a baseline, not a preference.
+  1. It supports the accepted Product Vision rather than standing apart from it.
+  2. It does not expand product scope beyond what the Vision and this document already describe.
+  3. It introduces no implementation or technology decision.
+  4. It represents a quality that is universally expected of a trustworthy commerce platform, independent of any specific feature or business model.
+
+A Cross-Cutting Quality principle is a narrower category than it may first appear — it is not a mechanism for introducing new product direction under a different label. If a proposed principle would expand scope or cannot be justified as a baseline expectation of any trustworthy commerce platform, it does not belong here; it belongs in `01_PRODUCT_VISION` as a proposed addition, subject to that document's own change process.
+
 ---
 
 # 2. Merchant-First
 
 **Identifier: PRINCIPLES:MERCHANT_FIRST**
+
+**Classification:** Vision-Derived — grounded in `VISION:BELIEFS` ("The platform exists to serve the business's decisions. The business should never have to shape its decisions around what the platform happens to make easy.")
 
 **Principle:** When a decision benefits the platform's operators (internal efficiency, development speed, architectural elegance) at the expense of the merchant's ability to run their business, the merchant's need takes priority.
 
@@ -54,6 +69,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 
 **Identifier: PRINCIPLES:OPERATIONAL_CLARITY**
 
+**Classification:** Vision-Derived — grounded in `VISION:PROBLEM` (fragmented business logic and duplicated, conflicting data as named failure modes of existing commerce tooling).
+
 **Principle:** A smaller set of features the merchant fully understands and trusts is preferred over a larger set of features that create ambiguity about what the system will actually do.
 
 **Decision rule:** A proposed feature must be rejected or redesigned if a merchant using it correctly, in good faith, could still be surprised by its outcome. "The documentation explains it" is not sufficient — the behavior itself must be predictable from the interface.
@@ -67,6 +84,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 # 4. Configuration Over Customization
 
 **Identifier: PRINCIPLES:CONFIGURATION_OVER_CUSTOMIZATION**
+
+**Classification:** Vision-Derived — grounded in `VISION:BELIEFS` ("Commerce operations should be configurable by the people who run the business, not exclusively by the people who built the platform.") and `VISION:NON_GOALS` (rejection of a plugin-marketplace-first model).
 
 **Principle:** Business behavior should be adjustable through defined configuration wherever realistically possible. Custom, one-off logic that only one merchant uses is a last resort, not a first option.
 
@@ -84,6 +103,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 
 **Identifier: PRINCIPLES:CONSISTENCY_OVER_NOVELTY**
 
+**Classification:** Vision-Derived — grounded in `VISION:WHAT_IT_IS` ("Built for operational clarity: the same information, the same rules, seen consistently across every part of the business.")
+
 **Principle:** A pattern already established elsewhere in the platform (a naming convention, an interaction pattern, a data shape) must be reused rather than reinvented, unless the existing pattern is demonstrably unfit for the new case.
 
 **Decision rule:** A proposal introducing a new pattern where an existing, applicable pattern already exists must state explicitly why the existing pattern doesn't work. "The new approach is better" is not sufficient justification on its own — it must be better enough to justify the inconsistency it introduces across the platform.
@@ -97,6 +118,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 # 6. Security Is Not Optional
 
 **Identifier: PRINCIPLES:SECURITY_FIRST**
+
+**Classification:** Cross-Cutting Quality. Supports `VISION:PLATFORM_PROMISES` ("Your data belongs to you") and the trust-oriented language throughout `VISION:BELIEFS`, without those statements individually specifying security as such. Security is a baseline expectation of any platform handling merchant and customer data — it does not expand product scope, and it introduces no implementation-specific requirement.
 
 **Principle:** A feature that is insecure is not a feature with a known limitation — it is an incomplete feature. Security requirements are not negotiable in exchange for schedule, convenience, or scope.
 
@@ -112,6 +135,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 
 **Identifier: PRINCIPLES:AUDITABILITY**
 
+**Classification:** Cross-Cutting Quality. Supports `VISION:PLATFORM_PROMISES` ("Every operational rule lives in one place" implies the business should always be able to know what happened and why) without the Vision explicitly naming audit records. Auditability of business-critical actions is a baseline expectation of any platform an operator entrusts with financial and operational data.
+
 **Principle:** Any action that changes business-critical data (orders, inventory, pricing, permissions, financial records) or that reflects a decision an administrator made (an approval, an override, a rejection) must leave a record of who did it, what changed, and when.
 
 **Decision rule:** A proposal touching business-critical data must specify what audit record it produces. If it cannot specify one, it is incomplete, regardless of whether the underlying functionality works correctly.
@@ -125,6 +150,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 # 8. Every Operational Rule Has One Home
 
 **Identifier: PRINCIPLES:SINGLE_SOURCE_OF_TRUTH**
+
+**Classification:** Vision-Derived — grounded in `VISION:PLATFORM_PROMISES` ("Every operational rule lives in one place. The business should never have to wonder which system holds the current truth.")
 
 **Principle:** A given business rule (a pricing calculation, a stock threshold, a permission check) is implemented in exactly one place. Every other part of the system that needs that rule's outcome asks the owning module for it — it does not reimplement the rule locally.
 
@@ -140,6 +167,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 
 **Identifier: PRINCIPLES:PREDICTABLE_UPGRADES**
 
+**Classification:** Vision-Derived — grounded in `VISION:PLATFORM_PROMISES` ("Upgrades preserve what already works. An upgrade is a routine event, not a risk to be feared and postponed.")
+
 **Principle:** Applying a platform update must not require a merchant to re-learn workflows, lose configuration, or discover that previously working behavior has silently changed.
 
 **Decision rule:** A proposal that changes existing, documented behavior must state what happens to a merchant currently relying on the old behavior. "The new behavior is better" does not by itself satisfy this requirement — the proposal must address migration, backward compatibility, or an explicit, visible transition path.
@@ -153,6 +182,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 # 10. Accessible By the People Who Run the Business
 
 **Identifier: PRINCIPLES:OPERATIONAL_ACCESSIBILITY**
+
+**Classification:** Vision-Derived — grounded in `VISION:PROBLEM` ("Operational dependency on developers. Business owners cannot make simple operational changes ... without engineering involvement.")
 
 **Principle:** Common operational tasks (adjusting pricing, managing inventory, configuring fulfillment rules, managing staff permissions) must be achievable by the people running the business through the platform's own interface, without requiring direct database access, custom code, or developer involvement.
 
@@ -168,6 +199,8 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 
 **Identifier: PRINCIPLES:EXPLICIT_FAILURE**
 
+**Classification:** Cross-Cutting Quality. Supports `VISION:BELIEFS` ("Ownership of data and operational continuity are not features to be added later. They are prerequisites for trust") without the Vision explicitly addressing failure communication. Telling a user honestly when something has failed is a baseline expectation of any trustworthy platform.
+
 **Principle:** When an operation cannot complete as expected, the person who initiated it must be told, in terms they can act on. A failure that is only visible in a log file, and not to the person affected by it, is not handled — it is hidden.
 
 **Decision rule:** A proposal must specify, for every operation that can fail, what the initiating user sees when it does. "Logged for engineering to review later" does not satisfy this requirement on its own for any failure that affects the user's own action or data.
@@ -182,7 +215,14 @@ A statement that cannot be tested or enforced belongs in `01_PRODUCT_VISION` as 
 
 **Identifier: PRINCIPLES:AUTHORITY**
 
-This document is subordinate to `00_PROJECT_GOVERNANCE` and `01_PRODUCT_VISION`. Every principle above must be traceable to something already established in the Vision — this document does not introduce new product direction, only operationalizes what the Vision already states.
+This document is subordinate to `00_PROJECT_GOVERNANCE` and `01_PRODUCT_VISION`.
+
+Every principle in this document is one of two types, as classified at the start of each principle:
+
+- **Vision-Derived principles** trace directly to specific language already present in `01_PRODUCT_VISION`. They make an existing Vision statement testable and enforceable without adding new product direction.
+- **Cross-Cutting Quality principles** do not trace to specific Vision language, but are admitted because they support the Vision, do not expand product scope, introduce no implementation or technology decision, and represent a baseline quality expected of any trustworthy commerce platform (see `PRINCIPLES:PURPOSE` for the full four-part test).
+
+This document does not introduce new product direction through either category. A proposed principle that fails the Cross-Cutting Quality test — because it would expand scope, or cannot be justified as a universal baseline expectation — does not belong here. It must instead be proposed as an addition to `01_PRODUCT_VISION` and go through that document's own change process, rather than being admitted into this document under the Cross-Cutting Quality label.
 
 Every document from `03_SYSTEM_ARCHITECTURE` onward must be consistent with the principles defined here. If a lower-level document is found to require violating one of these principles, the lower-level document is revised — this document is not silently reinterpreted to accommodate it, per `GOVERNANCE:CHANGE_MANAGEMENT`.
 
