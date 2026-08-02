@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | **Last Updated** | 2026-08-03 |
-| **Current Phase** | Implementation — Phase 1, Module 3 (Organizations & Stores) complete; Module 4 (Media) next |
-| **Implementation Status** | Authorized by Product Owner 2026-08-02. Building module by module per `planning/IMPLEMENTATION_MASTER_PLAN.md`; strictly backend, strictly in Implementation Order |
+| **Current Phase** | Implementation — Phase 1. Commerce Core milestone complete: Catalog, Media, and Inventory |
+| **Implementation Status** | Authorized by Product Owner 2026-08-02. Building module by module per `planning/IMPLEMENTATION_MASTER_PLAN.md`, resequenced by explicit Product Owner direction (2026-08-03) to prioritize the highest-leverage foundational business modules — Catalog, Media, Inventory — ahead of their originally-listed Implementation Order position; strictly backend throughout |
 
 This file is a snapshot for anyone joining the project. For authoritative document status and review history, see [`docs/README.md`](docs/README.md) and each document's own Change Log.
 
@@ -44,14 +44,17 @@ This file is a snapshot for anyone joining the project. For authoritative docume
 | 1 | Platform Foundation | ✅ Complete |
 | 2 | Identity & Access | ✅ Complete |
 | 3 | Organizations & Stores (`MODULE:STORE_CONFIGURATION`) | ✅ Complete |
-| 4 | Media | ⬜ Next |
+| — | Media (`MODULE:MEDIA`) | ✅ Complete — built ahead of its master-plan sequence position because Catalog required it |
+| — | Catalog (`MODULE:CATALOG`) | ✅ Complete — built ahead of its master-plan sequence position per explicit Product Owner priority direction |
+| — | Inventory & Multi-Warehouse (`MODULE:INVENTORY`, single-warehouse scope) | ✅ Complete — built ahead of its master-plan sequence position for the same reason |
+| — | Localization & Currency, Installer, Customers, Pricing & Tax, Promotions & Coupons | ⬜ Not yet started (skipped over by this resequencing; still required before Phase 1 is complete) |
 
 ## What's Next
 
 All 12 foundation documents (`00`–`11`) are Accepted. `ADR-0001`, `0002`, `0003`, `0004`, `0007`, and `0008` — the six Platform Foundation depends on — reached Accepted status on 2026-08-02 with Product Owner confirmation. `ADR-0005` (admin interface) and `ADR-0006` (storefront rendering) remain Draft until the modules that need them are reached.
 
-Implementation is underway strictly module-by-module per `planning/IMPLEMENTATION_MASTER_PLAN.md`'s Implementation Order. Platform Foundation, Identity & Access, and Organizations & Stores are complete — each compiling, passing its tests, and satisfying its acceptance criteria. **Module 4 — Media** is next; no other module is in scope until it is complete.
+**2026-08-03 resequencing:** the Product Owner directed that Catalog, Media, and Inventory be completed as one "Commerce Core" milestone ahead of `planning/IMPLEMENTATION_MASTER_PLAN.md`'s originally-listed Implementation Order (which placed Media at position 4 and Catalog/Inventory much later, after Localization & Currency, Installer, Customers, Pricing & Tax, and Promotions & Coupons). This is a sequencing change only — every dependency the master plan already states (Catalog depends on Platform Foundation; Media is independent and Catalog references it by identifier, never the reverse; Inventory depends on Platform Foundation and reacts to Catalog only through SKU identifiers, never a schema-level reference) held without needing any redesign. No constitutional document, ADR, or the master plan's own content required a correction — only this status file's tracked sequence changes. The skipped-over Phase 1 modules (Localization & Currency, Installer, Customers, Pricing & Tax, Promotions & Coupons) remain required before Phase 1 is complete and are next.
 
 ## Repository Structure
 
-See root [`README.md`](README.md) for the full folder layout. `apps/backend` now holds the Platform Foundation, Identity & Access, and Organizations & Stores implementations. `packages/`, `tooling/`, `scripts/`, `tests/`, and `docker/` remain populated only as each module requires.
+See root [`README.md`](README.md) for the full folder layout. `apps/backend` now holds the Platform Foundation, Identity & Access, Organizations & Stores, Media, Catalog, and Inventory implementations. `packages/`, `tooling/`, `scripts/`, `tests/`, and `docker/` remain populated only as each module requires.

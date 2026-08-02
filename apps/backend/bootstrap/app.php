@@ -1,9 +1,20 @@
 <?php
 
+use App\Domains\Commerce\Catalog\Exceptions\ConcurrencyConflictException as CatalogConcurrencyConflictException;
+use App\Domains\Commerce\Catalog\Exceptions\DependentRecordsExistException as CatalogDependentRecordsExistException;
+use App\Domains\Commerce\Catalog\Exceptions\InvalidVariantException;
+use App\Domains\Commerce\Catalog\Exceptions\ProductNotReadyToPublishException;
+use App\Domains\Commerce\Inventory\Exceptions\ConcurrencyConflictException as InventoryConcurrencyConflictException;
+use App\Domains\Commerce\Inventory\Exceptions\DependentRecordsExistException as InventoryDependentRecordsExistException;
+use App\Domains\Commerce\Inventory\Exceptions\InsufficientStockException;
+use App\Domains\Commerce\Inventory\Exceptions\InvalidReservationStateException;
+use App\Domains\Commerce\Inventory\Exceptions\InvalidTransferStateException;
 use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
 use App\Domains\Platform\IdentityAccess\Http\Middleware\EnsurePermission;
+use App\Domains\Platform\Media\Exceptions\ConcurrencyConflictException as MediaConcurrencyConflictException;
+use App\Domains\Platform\Media\Exceptions\UnsupportedMediaTypeException;
 use App\Domains\Platform\StoreConfiguration\Exceptions\ConcurrencyConflictException as StoreConfigurationConcurrencyConflictException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -57,6 +68,69 @@ return Application::configure(basePath: dirname(__DIR__))
         // docblock — so it needs its own render mapping to the same
         // platform-wide 409 envelope.
         $exceptions->render(function (StoreConfigurationConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Catalog's own optimistic-locking conflict — same reasoning as
+        // Store Configuration's, one render mapping per module's own copy.
+        $exceptions->render(function (CatalogConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Catalog's restrictOnDelete guards (a category with children, an
+        // attribute still valued on a product, an option/option value
+        // still assigned) surfaced as a clean 409, never a raw database
+        // constraint violation — see DependentRecordsExistException's
+        // docblock.
+        $exceptions->render(function (CatalogDependentRecordsExistException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Catalog's "Publishing workflow" completeness rule — a
+        // validation-shaped 422, not a conflict, per that exception's
+        // docblock.
+        $exceptions->render(function (ProductNotReadyToPublishException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Catalog's variant invariants (non-configurable product, foreign
+        // option values, duplicate combination) — also validation-shaped.
+        $exceptions->render(function (InvalidVariantException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Media's own optimistic-locking conflict.
+        $exceptions->render(function (MediaConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // SECURITY:FILE_UPLOAD's content-derived MIME/size rejection —
+        // validation-shaped, not a conflict.
+        $exceptions->render(function (UnsupportedMediaTypeException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Inventory's own optimistic-locking conflict (Warehouse) and
+        // restrictOnDelete guard (a warehouse with stock items).
+        $exceptions->render(function (InventoryConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        $exceptions->render(function (InventoryDependentRecordsExistException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // "Concurrent checkout reservations never oversell" — insufficient
+        // stock is a conflict with the item's current available quantity.
+        $exceptions->render(function (InsufficientStockException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        $exceptions->render(function (InvalidReservationStateException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        $exceptions->render(function (InvalidTransferStateException $e) use ($envelope): JsonResponse {
             return $envelope('conflict', $e->getMessage(), status: 409);
         });
 

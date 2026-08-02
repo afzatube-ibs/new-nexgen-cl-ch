@@ -101,3 +101,113 @@ arch('only Store Configuration\'s Actions coordinate DB transactions directly')
     ->expect('App\Domains\Platform\StoreConfiguration')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Platform\StoreConfiguration\Actions');
+
+// --- Catalog ---
+
+arch('Catalog never depends on Operations or Growth')
+    ->expect('App\Domains\Commerce\Catalog')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Catalog never depends on Identity & Access or Store Configuration internals')
+    ->expect('App\Domains\Commerce\Catalog')
+    ->not->toUse(['App\Domains\Platform\IdentityAccess', 'App\Domains\Platform\StoreConfiguration']);
+
+arch('Catalog controllers are final')
+    ->expect('App\Domains\Commerce\Catalog\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Catalog actions are final and readonly')
+    ->expect('App\Domains\Commerce\Catalog\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Catalog models are final')
+    ->expect('App\Domains\Commerce\Catalog\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Catalog uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Catalog')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Catalog\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Catalog')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Catalog\Actions');
+
+// --- Media ---
+
+arch('Media never depends on another domain')
+    ->expect('App\Domains\Platform\Media')
+    ->not->toUse(['App\Domains\Commerce', 'App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Media never depends on another Platform module\'s internals')
+    ->expect('App\Domains\Platform\Media')
+    ->not->toUse(['App\Domains\Platform\IdentityAccess', 'App\Domains\Platform\StoreConfiguration']);
+
+arch('Media controllers are final')
+    ->expect('App\Domains\Platform\Media\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Media actions are final and readonly')
+    ->expect('App\Domains\Platform\Media\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Media models are final')
+    ->expect('App\Domains\Platform\Media\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Media uses debugging leftovers')
+    ->expect('App\Domains\Platform\Media')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Media\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Platform\Media')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Platform\Media\Actions');
+
+// --- Inventory ---
+
+arch('Inventory never depends on another domain')
+    ->expect('App\Domains\Commerce\Inventory')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Inventory never depends on another module\'s internals')
+    ->expect('App\Domains\Commerce\Inventory')
+    ->not->toUse([
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+        'App\Domains\Commerce\Catalog',
+    ]);
+
+arch('Inventory controllers are final')
+    ->expect('App\Domains\Commerce\Inventory\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Inventory actions are final and readonly')
+    ->expect('App\Domains\Commerce\Inventory\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Inventory models are final')
+    ->expect('App\Domains\Commerce\Inventory\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Inventory uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Inventory')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Inventory\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Inventory')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Inventory\Actions');
