@@ -70,3 +70,34 @@ arch('only Identity & Access\'s Actions coordinate DB transactions directly')
     ->expect('App\Domains\Platform\IdentityAccess')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Platform\IdentityAccess\Actions');
+
+// --- Store Configuration ---
+
+arch('Store Configuration never depends on another domain')
+    ->expect('App\Domains\Platform\StoreConfiguration')
+    ->not->toUse(['App\Domains\Commerce', 'App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Store Configuration controllers are final')
+    ->expect('App\Domains\Platform\StoreConfiguration\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Store Configuration actions are final and readonly')
+    ->expect('App\Domains\Platform\StoreConfiguration\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Store Configuration models are final')
+    ->expect('App\Domains\Platform\StoreConfiguration\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Store Configuration uses debugging leftovers')
+    ->expect('App\Domains\Platform\StoreConfiguration')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Store Configuration\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Platform\StoreConfiguration')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Platform\StoreConfiguration\Actions');

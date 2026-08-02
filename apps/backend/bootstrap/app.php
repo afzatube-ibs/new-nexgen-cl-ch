@@ -4,6 +4,7 @@ use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
 use App\Domains\Platform\IdentityAccess\Http\Middleware\EnsurePermission;
+use App\Domains\Platform\StoreConfiguration\Exceptions\ConcurrencyConflictException as StoreConfigurationConcurrencyConflictException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
@@ -48,6 +49,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ], $status);
 
         $exceptions->render(function (ConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Store Configuration defines its own ConcurrencyConflictException
+        // rather than depending on Identity & Access's — see that class's
+        // docblock — so it needs its own render mapping to the same
+        // platform-wide 409 envelope.
+        $exceptions->render(function (StoreConfigurationConcurrencyConflictException $e) use ($envelope): JsonResponse {
             return $envelope('conflict', $e->getMessage(), status: 409);
         });
 
