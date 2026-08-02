@@ -11,7 +11,8 @@ This folder is the single source of truth for neXgen Core. Documents are authori
 | 02 | PRODUCT_PRINCIPLES | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
 | — | [SYSTEM_ARCHITECTURE_PLAN](03_SYSTEM_ARCHITECTURE_PLAN.md) | Draft (v0.3) — closed out | Chief Software Architect & Lead Engineer |
 | 03 | [SYSTEM_ARCHITECTURE](03_SYSTEM_ARCHITECTURE.md) | **Accepted (v1.2)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
-| — | [ADR-0001](adr/ADR-0001-modular-monolith.md) through [ADR-0008](adr/ADR-0008-containerized-deployment.md) | Draft | Chief Software Architect & Lead Engineer |
+| — | [ADR-0001](adr/ADR-0001-modular-monolith.md), [0002](adr/ADR-0002-backend-runtime.md), [0003](adr/ADR-0003-primary-datastore.md), [0004](adr/ADR-0004-caching-session-queue.md), [0007](adr/ADR-0007-api-style.md), [0008](adr/ADR-0008-containerized-deployment.md) | **Accepted** | Chief Software Architect & Lead Engineer (Product Owner confirmed) |
+| — | [ADR-0005](adr/ADR-0005-admin-interface.md), [ADR-0006](adr/ADR-0006-storefront-rendering.md) | Draft — pending their implementation phases | Chief Software Architect & Lead Engineer |
 | 04 | [MODULE_ARCHITECTURE](04_MODULE_ARCHITECTURE.md) | **Accepted (v1.1)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
 | 05 | [DATA_ARCHITECTURE](05_DATA_ARCHITECTURE.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
 | 06 | [API_STANDARD](06_API_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |

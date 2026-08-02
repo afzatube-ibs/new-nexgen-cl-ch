@@ -5,7 +5,7 @@
 |---|---|
 | **Title** | System Architecture |
 | **Document ID** | ARCH |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Status** | Accepted |
 | **Author** | Chief Software Architect & Lead Engineer (independently reviewed and approved by Product & Solution Architect) |
 | **Last Updated** | 2026-08-01 |
@@ -22,6 +22,7 @@
 | 1.0 | 2026-08-01 | Status changed to Accepted following independent review by the Product & Solution Architect and Product Owner approval | Completed the Document Lifecycle defined in `GOVERNANCE:DOCUMENT_LIFECYCLE` |
 | 1.1 | 2026-08-01 | Fixed two remaining stale references to `05_DATABASE_ARCHITECTURE.md` (in `ARCH:DATA_OWNERSHIP` and `ARCH:RISKS`), missed during the earlier `04_MODULE_ARCHITECTURE` / `00_PROJECT_GOVERNANCE` rename pass — no content change | Caught during self-review while drafting `08_SECURITY_STANDARD.md`; cross-references must stay valid per the project's documentation rules |
 | 1.2 | 2026-08-01 | Fixed two raw section-number references (`03_SYSTEM_ARCHITECTURE_PLAN` §13 → `ARCH_PLAN:RESOLVED_DECISIONS`; `GOVERNANCE §6` → `GOVERNANCE:DOCUMENTATION_HIERARCHY`) — no content change | Final documentation audit across `00`–`11` found these two citations had never been converted to stable identifiers |
+| 1.3 | 2026-08-02 | Updated `ARCH:TECHNOLOGY_DECISIONS` §9.2's closing note: `ADR-0001`, `ADR-0002`, `ADR-0003`, `ADR-0004`, `ADR-0007`, and `ADR-0008` have reached Accepted status with Product Owner confirmation; `ADR-0005`/`ADR-0006` remain Draft pending their implementation phases — no architectural content change | Implementation of `04_MODULE_ARCHITECTURE` module 1 (Platform Foundation) required these six ADRs to satisfy `GOVERNANCE:COMPLETION_RULE` before code could be written against them, per `GOVERNANCE:CHANGE_MANAGEMENT` |
 
 ---
 
@@ -156,7 +157,7 @@ Each category below has a real architectural requirement, stated here — but th
 | Storefront rendering | Must support search-engine discoverability and fast first-paint for anonymous visitors — a merchant's ability to be found and to convert visitors, per `PRINCIPLES:MERCHANT_FIRST`. | See `ADR-0006` |
 | Local / self-hosted deployment packaging | Must allow a self-hosted operator to run the full topology in `ARCH:DEPLOYMENT_TOPOLOGY` without individually installing and configuring each dependency, per `PRINCIPLES:OPERATIONAL_ACCESSIBILITY`. | See `ADR-0008` |
 
-All eight ADRs remain at Draft status, satisfying `ARCH_PLAN:REVIEW_CHECKLIST`'s requirement that every technology decision — whether retained here or deferred — have a corresponding drafted ADR. None have yet reached Accepted status.
+As of 2026-08-02, `ADR-0001`, `ADR-0002`, `ADR-0003`, `ADR-0004`, `ADR-0007`, and `ADR-0008` have reached Accepted status, each with Product Owner confirmation recorded in its own Change Log per `GOVERNANCE:ADR_OWNERSHIP` — these six underlie Platform Foundation and are binding. `ADR-0005` (admin interface) and `ADR-0006` (storefront rendering) remain at Draft status pending the implementation phases that require them; this is expected under `ARCH_PLAN:REVIEW_CHECKLIST`'s requirement that every technology decision have at minimum a drafted ADR, not that every ADR reach Accepted status before any implementation begins.
 
 ---
 
