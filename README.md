@@ -1,39 +1,38 @@
-# neXgen Core
+# neXgen Core — Documentation Index
 
-An independent, enterprise-grade Commerce Operating System — built from scratch, not based on any existing ecommerce platform.
+This folder is the single source of truth for neXgen Core. Documents are authoritative in the order listed below — a lower-numbered document takes precedence over anything beneath it, and no document below it may contradict it.
 
-## Project Status
+## Foundation Documents
 
-**Phase:** Documentation & Architecture
-**Implementation:** Not yet authorized
+| # | Document | Status | Owner |
+|---|----------|--------|-------|
+| 00 | [PROJECT_GOVERNANCE](00_PROJECT_GOVERNANCE.md) | **Accepted (v1.6)** | Product & Solution Architect |
+| 01 | [PRODUCT_VISION](01_PRODUCT_VISION.md) | **Accepted (v0.2)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 02 | PRODUCT_PRINCIPLES | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| — | [SYSTEM_ARCHITECTURE_PLAN](03_SYSTEM_ARCHITECTURE_PLAN.md) | Draft (v0.3) — closed out | Chief Software Architect & Lead Engineer |
+| 03 | [SYSTEM_ARCHITECTURE](03_SYSTEM_ARCHITECTURE.md) | **Accepted (v1.2)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| — | [ADR-0001](adr/ADR-0001-modular-monolith.md) through [ADR-0008](adr/ADR-0008-containerized-deployment.md) | Draft | Chief Software Architect & Lead Engineer |
+| 04 | [MODULE_ARCHITECTURE](04_MODULE_ARCHITECTURE.md) | **Accepted (v1.1)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 05 | [DATA_ARCHITECTURE](05_DATA_ARCHITECTURE.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 06 | [API_STANDARD](06_API_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 07 | [UI_DESIGN_SYSTEM](07_UI_DESIGN_SYSTEM.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 08 | [SECURITY_STANDARD](08_SECURITY_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 09 | [ENGINEERING_STANDARD](09_ENGINEERING_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 10 | [TESTING_STANDARD](10_TESTING_STANDARD.md) | **Accepted (v1.1)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
+| 11 | [DEPLOYMENT_STANDARD](11_DEPLOYMENT_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
 
-neXgen Core is currently in its foundation-documentation phase. No implementation code exists yet. Every architectural, product, and engineering decision is being specified and reviewed as a formal document before any code is written. See [`docs/README.md`](docs/README.md) for the full documentation index and current status of each document.
+Update this table's Status column every time a document changes state (Draft → Under Review → Accepted → Superseded), per the Document Lifecycle defined in `00_PROJECT_GOVERNANCE.md` (GOVERNANCE:DOCUMENT_LIFECYCLE).
 
-## Why This Order
+## Subdirectories
 
-This project is deliberately documentation-first. Every module, API, and line of code that will eventually exist here must trace back to an accepted specification. This is not bureaucracy for its own sake — it exists to prevent the fragmentation and accumulated inconsistency that the project itself was created to solve for its future users. See [`docs/01_PRODUCT_VISION.md`](docs/01_PRODUCT_VISION.md) for why this project exists at all.
+- **`adr/`** — Architecture Decision Records. One file per decision (e.g. `ADR-0001-modular-monolith.md`). Indexed by status (Proposed / Accepted / Superseded / Deprecated) once ADRs exist.
+- **`decisions/`** — Non-architectural project decisions worth recording permanently, that don't warrant a full ADR.
+- **`diagrams/`** — Domain maps, ERDs, sequence diagrams, and other visual architecture references.
+- **`assets/`** — Supporting files referenced by documents in this folder.
 
-## Repository Structure
+## Rules
 
-```
-neXgen/
-├── docs/           Governance, vision, and all foundation/architecture documents
-│   ├── adr/        Architecture Decision Records
-│   ├── decisions/  Other recorded project decisions
-│   ├── diagrams/   Architecture and data-model diagrams
-│   └── assets/     Supporting document assets
-├── apps/           Deployable applications (empty until implementation is authorized)
-├── packages/       Shared/internal packages and libraries (empty until implementation is authorized)
-├── tooling/        Build and developer tooling (empty until implementation is authorized)
-├── scripts/        Operational and maintenance scripts (empty until implementation is authorized)
-├── tests/          Test suites (empty until implementation is authorized)
-└── docker/         Container and local-development configuration (empty until implementation is authorized)
-```
-
-## Governance
-
-This project follows a formal documentation hierarchy and review process defined in [`docs/00_PROJECT_GOVERNANCE.md`](docs/00_PROJECT_GOVERNANCE.md). No document is authoritative until it reaches **Accepted** status, and no lower-level document may contradict a higher-level one.
-
-## License
-
-See [`LICENSE`](LICENSE).
+- No document is authoritative until its Status is **Accepted**.
+- No document may be silently modified once Accepted — see `00_PROJECT_GOVERNANCE.md` (`GOVERNANCE:CHANGE_MANAGEMENT`).
+- Every document must be self-contained: understandable by a contributor with no access to prior discussion. See `00_PROJECT_GOVERNANCE.md` (`GOVERNANCE:SELF_CONTAINED_DOCUMENTATION`).
+- Cross-document references use stable identifiers (e.g. `VISION:MISSION`, `GOVERNANCE:DECISION_AUTHORITY`), not section numbers.
