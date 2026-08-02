@@ -33,23 +33,27 @@
             Foundation's health checks exist specifically to verify real
             MySQL (ADR-0003) and real Redis (ADR-0004) connectivity, so
             testing them against sqlite/array would defeat their purpose —
-            the real local services this project's tooling starts are used
-            here instead. A dedicated `nexgen_testing` database keeps this
-            fully isolated from development data, per TESTING:TEST_ISOLATION.
+            real MySQL/Redis are used here instead. A dedicated
+            `nexgen_testing` database keeps this fully isolated from
+            development data, per TESTING:TEST_ISOLATION.
+
+            Per SECURITY:SECRETS_MANAGEMENT, no credential and no
+            machine-specific host/port is hardcoded in this committed file.
+            DB_HOST/DB_PORT/DB_PASSWORD/REDIS_HOST/REDIS_PORT/REDIS_PASSWORD
+            must be supplied externally — locally via a gitignored
+            apps/backend/.env.testing (Laravel loads it automatically when
+            APP_ENV=testing), in CI via job-level environment variables
+            (see .github/workflows/backend-ci.yml). Only the non-secret
+            driver/topology choices that are genuinely constant across every
+            environment are set here.
         -->
         <env name="CACHE_STORE" value="redis"/>
         <env name="DB_CONNECTION" value="mysql"/>
-        <env name="DB_HOST" value="127.0.0.1"/>
-        <env name="DB_PORT" value="3307"/>
         <env name="DB_DATABASE" value="nexgen_testing"/>
         <env name="DB_USERNAME" value="nexgen"/>
-        <env name="DB_PASSWORD" value="nexgen_dev_local"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="redis"/>
         <env name="REDIS_CLIENT" value="predis"/>
-        <env name="REDIS_HOST" value="127.0.0.1"/>
-        <env name="REDIS_PORT" value="6380"/>
-        <env name="REDIS_PASSWORD" value="nexgen_dev_local"/>
         <env name="SESSION_DRIVER" value="redis"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
