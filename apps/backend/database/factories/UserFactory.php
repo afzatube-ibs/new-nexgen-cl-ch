@@ -2,24 +2,24 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
+use App\Domains\Platform\IdentityAccess\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
  * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
-    /**
-     * The current password being used by the factory.
-     */
+    // Declared explicitly because this model's namespace (App\Domains\
+    // Platform\IdentityAccess\Models\User) does not match Laravel's default
+    // factory<->model name-guessing convention — see User::newFactory()'s
+    // docblock for the other half of this same accommodation.
+    protected $model = User::class;
+
     protected static ?string $password;
 
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
@@ -27,19 +27,15 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'status' => User::STATUS_ACTIVE,
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    public function archived(): static
     {
         return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+            'status' => User::STATUS_ARCHIVED,
         ]);
     }
 }

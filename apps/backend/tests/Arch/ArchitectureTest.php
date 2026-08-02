@@ -39,3 +39,34 @@ arch('domain events never depend on Eloquent, keeping the event envelope a pure 
 arch('nothing in Platform Foundation uses debugging leftovers')
     ->expect('App\Domains\Platform\Foundation')
     ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+// --- Identity & Access ---
+
+arch('Identity & Access never depends on another domain')
+    ->expect('App\Domains\Platform\IdentityAccess')
+    ->not->toUse(['App\Domains\Commerce', 'App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Identity & Access controllers are final')
+    ->expect('App\Domains\Platform\IdentityAccess\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Identity & Access actions are final and readonly')
+    ->expect('App\Domains\Platform\IdentityAccess\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Identity & Access models are final')
+    ->expect('App\Domains\Platform\IdentityAccess\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Identity & Access uses debugging leftovers')
+    ->expect('App\Domains\Platform\IdentityAccess')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Identity & Access\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Platform\IdentityAccess')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Platform\IdentityAccess\Actions');
