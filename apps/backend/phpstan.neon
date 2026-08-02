@@ -1,0 +1,13 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    # Level 8: near-maximum strictness (9 is PHPStan's absolute ceiling) —
+    # per this project's "never choose the easiest implementation if it
+    # reduces maintainability" requirement, Platform Foundation is held to
+    # this from its first file rather than starting loose and tightening
+    # later, which is how strictness commitments quietly erode.
+    level: 8

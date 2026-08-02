@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+        <testsuite name="Arch">
+            <directory>tests/Arch</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="cache"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <!--
+            TESTING:ENVIRONMENT_STRATEGY: "an environment that diverges from
+            the platform's actual architectural shape produces false
+            confidence... a test passing for the wrong reason is not
+            meaningfully different from a test that never ran." Platform
+            Foundation's health checks exist specifically to verify real
+            MySQL (ADR-0003) and real Redis (ADR-0004) connectivity, so
+            testing them against sqlite/array would defeat their purpose —
+            the real local services this project's tooling starts are used
+            here instead. A dedicated `nexgen_testing` database keeps this
+            fully isolated from development data, per TESTING:TEST_ISOLATION.
+        -->
+        <env name="CACHE_STORE" value="redis"/>
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="3307"/>
+        <env name="DB_DATABASE" value="nexgen_testing"/>
+        <env name="DB_USERNAME" value="nexgen"/>
+        <env name="DB_PASSWORD" value="nexgen_dev_local"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="redis"/>
+        <env name="REDIS_CLIENT" value="predis"/>
+        <env name="REDIS_HOST" value="127.0.0.1"/>
+        <env name="REDIS_PORT" value="6380"/>
+        <env name="REDIS_PASSWORD" value="nexgen_dev_local"/>
+        <env name="SESSION_DRIVER" value="redis"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>

@@ -1,0 +1,121 @@
+# neXgen Core — architecture boundary enforcement.
+#
+# This is the concrete, detectable mechanism behind ENGINEERING:
+# DOMAIN_BOUNDARY_ENFORCEMENT ("a violation must be catchable before it
+# reaches production, not merely documented") applied to MODULE:
+# COUPLING_RULES and MODULE:INTERACTION_RULES.
+#
+# Only Platform Foundation exists today, so most rules below are currently
+# unreachable (no Commerce/Operations/Growth code exists yet) — they are
+# written now, against the layer names 04_MODULE_ARCHITECTURE already
+# defines, so the very first line of code in any future module is already
+# governed by a rule instead of that rule being retrofitted later.
+#
+# Layers are kept mutually exclusive (each class belongs to exactly one) —
+# deptrac's own guidance is that an overlapping class membership produces
+# ambiguous rule resolution, which was confirmed while drafting this file:
+# an early version with EventBus as a "sub-layer" of Foundation caused
+# Foundation's own internal, legitimate dependencies (e.g. the concrete
+# LaravelDomainEventBus depending on the DomainEventBus interface it
+# implements) to be flagged as violations, because the class simultaneously
+# belonged to two layers with different, conflicting allowances. Same-layer
+# dependencies never need to be declared in the ruleset — only
+# cross-layer ones do.
+
+parameters:
+  paths:
+    - ./app
+
+  exclude_files:
+    - '#.*Tests/.*#'
+
+  layers:
+    # Platform Foundation's event bus: the only code permitted to touch
+    # Laravel's native event dispatcher directly (ARCH:CROSS_DOMAIN_
+    # COMMUNICATION's "accessed through an abstraction rather than called
+    # directly"). Everything else in Foundation — health, http, console,
+    # logging, providers — is the "Other" layer below.
+    - name: PlatformFoundationEventBus
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Domains\\Platform\\Foundation\\EventBus\\#'
+
+    - name: PlatformFoundationOther
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Domains\\Platform\\Foundation\\(?!EventBus\\)#'
+
+    # --- Future domains (not yet implemented — rules pre-declared per
+    #     MODULE:INTERACTION_RULES so they govern from their first file) ---
+    - name: PlatformOtherModules
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Domains\\Platform\\(?!Foundation\\)#'
+
+    - name: Commerce
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Domains\\Commerce\\#'
+
+    - name: Operations
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Domains\\Operations\\#'
+
+    - name: Growth
+      collectors:
+        - type: classNameRegex
+          value: '#^App\\Domains\\Growth\\#'
+
+    # The one framework internal every module must reach only through
+    # Platform Foundation's DomainEventBus abstraction.
+    - name: LaravelEventDispatcherInternals
+      collectors:
+        - type: classNameRegex
+          value: '#^Illuminate\\(Contracts\\Events\\Dispatcher|Support\\Facades\\Event)$#'
+
+  ruleset:
+    # ARCH:CROSS_DOMAIN_COMMUNICATION: the in-process dispatcher is reached
+    # only through this layer — no other layer lists LaravelEventDispatcher
+    # Internals as an allowed dependency, so any other class importing it
+    # is a violation. (Ruleset key = the layer that HAS the dependency; the
+    # list = what it is allowed to depend on.)
+    PlatformFoundationEventBus:
+      - LaravelEventDispatcherInternals
+
+    # The rest of Foundation (its ServiceProvider in particular) wires the
+    # EventBus contract/implementation into the container, so it must be
+    # able to reference them.
+    PlatformFoundationOther:
+      - PlatformFoundationEventBus
+
+    # MODULE:INTERACTION_RULES "Into Platform: any module, in any domain,
+    # may depend on any Platform module directly" — Commerce/Operations/
+    # Growth may depend on Platform Foundation, but never on each other
+    # directly (cross-domain interaction is event-only, per ARCH:
+    # CROSS_DOMAIN_COMMUNICATION — deptrac's static-dependency analysis
+    # enforces the "no direct call" half of that rule; the "must use the
+    # event bus instead" half is verified by tests, since publishing to an
+    # abstraction is itself a legitimate direct dependency deptrac cannot
+    # distinguish from a forbidden one by shape alone).
+    Commerce:
+      - PlatformFoundationEventBus
+      - PlatformFoundationOther
+      - PlatformOtherModules
+
+    Operations:
+      - PlatformFoundationEventBus
+      - PlatformFoundationOther
+      - PlatformOtherModules
+
+    # MODULE:COUPLING_RULES: Growth may consume Commerce/Operations events
+    # but is never depended upon by them — so only Growth lists Platform as
+    # an allowed dependency; Commerce/Operations never list Growth.
+    Growth:
+      - PlatformFoundationEventBus
+      - PlatformFoundationOther
+      - PlatformOtherModules
+
+    PlatformOtherModules:
+      - PlatformFoundationEventBus
+      - PlatformFoundationOther
