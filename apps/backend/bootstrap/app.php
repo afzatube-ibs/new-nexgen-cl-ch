@@ -10,6 +10,8 @@ use App\Domains\Commerce\Inventory\Exceptions\DependentRecordsExistException as 
 use App\Domains\Commerce\Inventory\Exceptions\InsufficientStockException;
 use App\Domains\Commerce\Inventory\Exceptions\InvalidReservationStateException;
 use App\Domains\Commerce\Inventory\Exceptions\InvalidTransferStateException;
+use App\Domains\Commerce\Pricing\Exceptions\ConcurrencyConflictException as PricingConcurrencyConflictException;
+use App\Domains\Commerce\Pricing\Exceptions\DependentRecordsExistException as PricingDependentRecordsExistException;
 use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
@@ -142,6 +144,18 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Customers' own optimistic-locking conflict.
         $exceptions->render(function (CustomersConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Pricing's own optimistic-locking conflict.
+        $exceptions->render(function (PricingConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Pricing's restrictOnDelete guards (a TaxZone or TaxClass still
+        // referenced by a TaxRate) and its currency-change guard once a
+        // PriceList has priced entries.
+        $exceptions->render(function (PricingDependentRecordsExistException $e) use ($envelope): JsonResponse {
             return $envelope('conflict', $e->getMessage(), status: 409);
         });
 

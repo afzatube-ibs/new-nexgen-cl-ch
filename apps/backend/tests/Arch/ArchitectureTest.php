@@ -335,3 +335,53 @@ arch('only Customers\' Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Customers')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Commerce\Customers\Actions');
+
+// --- Pricing ---
+//
+// Unlike Customers, Pricing legitimately depends on Localization &
+// Currency directly (its declared dependency per docs/04_MODULE_
+// ARCHITECTURE.md's MODULE:PRICING entry and the master plan's "Catalog,
+// Localization & Currency" — it reuses Localization's IsValidCurrencyCode
+// rule rather than duplicating the ISO 4217 list a further time), so this
+// block does not forbid that one Platform module the way it forbids every
+// other sibling.
+
+arch('Pricing never depends on Operations or Growth')
+    ->expect('App\Domains\Commerce\Pricing')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Pricing never depends on another Commerce module, or on Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Commerce\Pricing')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Customers',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Pricing controllers are final')
+    ->expect('App\Domains\Commerce\Pricing\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Pricing actions are final and readonly')
+    ->expect('App\Domains\Commerce\Pricing\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Pricing models are final')
+    ->expect('App\Domains\Commerce\Pricing\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Pricing uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Pricing')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Pricing\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Pricing')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Pricing\Actions');

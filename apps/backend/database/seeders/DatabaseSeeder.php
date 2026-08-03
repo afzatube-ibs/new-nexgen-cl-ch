@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             InventoryPermissionSeeder::class,
             LocalizationPermissionSeeder::class,
             CustomersPermissionSeeder::class,
+            PricingPermissionSeeder::class,
             RoleSeeder::class,
         ]);
     }
