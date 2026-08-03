@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Commerce\Catalog\Providers\CatalogServiceProvider;
+use App\Domains\Commerce\Customers\Providers\CustomersServiceProvider;
 use App\Domains\Commerce\Inventory\Providers\InventoryServiceProvider;
 use App\Domains\Platform\Foundation\Providers\FoundationServiceProvider;
 use App\Domains\Platform\IdentityAccess\Providers\IdentityAccessServiceProvider;
@@ -20,4 +21,5 @@ return [
     InventoryServiceProvider::class,
     LocalizationServiceProvider::class,
     InstallerServiceProvider::class,
+    CustomersServiceProvider::class,
 ];

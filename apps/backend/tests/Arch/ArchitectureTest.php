@@ -293,3 +293,45 @@ arch('only Installer\'s Actions coordinate DB transactions directly')
     ->expect('App\Domains\Platform\Installer')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Platform\Installer\Actions');
+
+// --- Customers ---
+
+arch('Customers never depends on Operations or Growth')
+    ->expect('App\Domains\Commerce\Customers')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Customers never depends on another Commerce module, or on Identity & Access or Store Configuration internals')
+    ->expect('App\Domains\Commerce\Customers')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+        'App\Domains\Platform\Localization',
+    ]);
+
+arch('Customers controllers are final')
+    ->expect('App\Domains\Commerce\Customers\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Customers actions are final and readonly')
+    ->expect('App\Domains\Commerce\Customers\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Customers models are final')
+    ->expect('App\Domains\Commerce\Customers\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Customers uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Customers')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Customers\' Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Customers')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Customers\Actions');

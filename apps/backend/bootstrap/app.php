@@ -4,6 +4,7 @@ use App\Domains\Commerce\Catalog\Exceptions\ConcurrencyConflictException as Cata
 use App\Domains\Commerce\Catalog\Exceptions\DependentRecordsExistException as CatalogDependentRecordsExistException;
 use App\Domains\Commerce\Catalog\Exceptions\InvalidVariantException;
 use App\Domains\Commerce\Catalog\Exceptions\ProductNotReadyToPublishException;
+use App\Domains\Commerce\Customers\Exceptions\ConcurrencyConflictException as CustomersConcurrencyConflictException;
 use App\Domains\Commerce\Inventory\Exceptions\ConcurrencyConflictException as InventoryConcurrencyConflictException;
 use App\Domains\Commerce\Inventory\Exceptions\DependentRecordsExistException as InventoryDependentRecordsExistException;
 use App\Domains\Commerce\Inventory\Exceptions\InsufficientStockException;
@@ -136,6 +137,11 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (InvalidTransferStateException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Customers' own optimistic-locking conflict.
+        $exceptions->render(function (CustomersConcurrencyConflictException $e) use ($envelope): JsonResponse {
             return $envelope('conflict', $e->getMessage(), status: 409);
         });
 
