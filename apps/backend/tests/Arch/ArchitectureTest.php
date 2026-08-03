@@ -211,3 +211,42 @@ arch('only Inventory\'s Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Inventory')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Commerce\Inventory\Actions');
+
+// --- Localization & Currency ---
+
+arch('Localization & Currency never depends on another domain')
+    ->expect('App\Domains\Platform\Localization')
+    ->not->toUse(['App\Domains\Commerce', 'App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Localization & Currency never depends on another Platform module\'s internals')
+    ->expect('App\Domains\Platform\Localization')
+    ->not->toUse([
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Localization & Currency controllers are final')
+    ->expect('App\Domains\Platform\Localization\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Localization & Currency actions are final and readonly')
+    ->expect('App\Domains\Platform\Localization\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Localization & Currency models are final')
+    ->expect('App\Domains\Platform\Localization\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Localization & Currency uses debugging leftovers')
+    ->expect('App\Domains\Platform\Localization')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Localization & Currency\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Platform\Localization')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Platform\Localization\Actions');

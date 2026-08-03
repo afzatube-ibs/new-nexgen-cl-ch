@@ -13,6 +13,9 @@ use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
 use App\Domains\Platform\IdentityAccess\Http\Middleware\EnsurePermission;
+use App\Domains\Platform\Localization\Exceptions\CannotRemoveBaseCurrencyException;
+use App\Domains\Platform\Localization\Exceptions\CannotRemoveDefaultLocaleException;
+use App\Domains\Platform\Localization\Exceptions\ConcurrencyConflictException as LocalizationConcurrencyConflictException;
 use App\Domains\Platform\Media\Exceptions\ConcurrencyConflictException as MediaConcurrencyConflictException;
 use App\Domains\Platform\Media\Exceptions\UnsupportedMediaTypeException;
 use App\Domains\Platform\StoreConfiguration\Exceptions\ConcurrencyConflictException as StoreConfigurationConcurrencyConflictException;
@@ -132,6 +135,22 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (InvalidTransferStateException $e) use ($envelope): JsonResponse {
             return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Localization & Currency's own optimistic-locking conflict.
+        $exceptions->render(function (LocalizationConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Single-default-locale and single-base-currency invariants —
+        // well-formed requests that violate a business rule, not a
+        // validation or version-conflict failure.
+        $exceptions->render(function (CannotRemoveDefaultLocaleException $e) use ($envelope): JsonResponse {
+            return $envelope('unprocessable_entity', $e->getMessage(), status: 422);
+        });
+
+        $exceptions->render(function (CannotRemoveBaseCurrencyException $e) use ($envelope): JsonResponse {
+            return $envelope('unprocessable_entity', $e->getMessage(), status: 422);
         });
 
         $exceptions->render(function (AuthorizationDeniedException $e) use ($envelope): JsonResponse {

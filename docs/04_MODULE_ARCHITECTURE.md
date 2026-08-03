@@ -5,10 +5,10 @@
 |---|---|
 | **Title** | Module Architecture |
 | **Document ID** | MODULE |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Status** | Accepted |
 | **Author** | Chief Software Architect & Lead Engineer (independently reviewed and approved by Product & Solution Architect) |
-| **Last Updated** | 2026-08-01 |
+| **Last Updated** | 2026-08-03 |
 | **Parent Document** | 03_SYSTEM_ARCHITECTURE |
 | **Related Documents** | 00_PROJECT_GOVERNANCE, 01_PRODUCT_VISION, 02_PRODUCT_PRINCIPLES |
 | **Applies To** | Every database, API, UI, security, engineering, testing, and deployment decision made downstream in `05_DATA_ARCHITECTURE.md` onward |
@@ -20,6 +20,7 @@
 | 0.1 | 2026-08-01 | Initial draft | First Module Architecture draft, deriving its module list directly from the domain responsibilities already stated in `03_SYSTEM_ARCHITECTURE` `ARCH:DOMAIN_MAP` |
 | 1.0 | 2026-08-01 | Added `MODULE:STABILITY` (§8) — Core/Stable/Evolvable/Experimental classification for every module, governing how freely each module's public contract may change — and `MODULE:PUBLIC_CONTRACT` (§9) — every module exposes only a public contract, other modules may depend only on that contract and never on internal implementation, internal implementation may change freely as long as the contract stays compatible. Fixed a stale raw section-number cross-reference introduced by the insertion (§4 Extensibility, now points to `MODULE:EXTENSIBILITY_MECHANISM`). Renumbered §§8–11 to §§10–13 accordingly. Status changed to Accepted following independent review by the Product & Solution Architect and Product Owner approval | Independent review requested these two additions; no other architectural changes were made |
 | 1.1 | 2026-08-01 | Renamed all references from `05_DATABASE_ARCHITECTURE.md` to `05_DATA_ARCHITECTURE.md` (4 occurrences) — no content change | Downstream document renamed by Product Owner decision; cross-references must stay valid per the project's documentation rules |
+| 1.2 | 2026-08-03 | Formally added three modules named by `planning/IMPLEMENTATION_MASTER_PLAN.md` but not yet defined here, per `MODULE:AUTHORITY`'s requirement that a module boundary exist in this document before implementation begins: `MODULE:LOCALIZATION` (§4, Platform domain), `MODULE:INSTALLER` (§4, Platform domain), and `MODULE:CUSTOMERS` (§5, Commerce domain). Classified all three under `MODULE:STABILITY` (§8): Localization & Currency as Stable, Installer and Customers as Evolvable. No existing module boundary, dependency, or coupling rule was changed | Product Owner directed Phase 1 implementation to continue in the master plan's stated order, which reaches these three modules next; `MODULE:AUTHORITY` requires this document to define them before that implementation begins |
 
 ---
 
@@ -62,6 +63,8 @@ Consistent with `ARCH:DATA_OWNERSHIP`, every module's owned data is designed wit
 - **Settings** (`MODULE:SETTINGS`) — owns general platform configuration not specific to store identity (feature toggles, module-level configuration values other modules read).
 - **Media** (`MODULE:MEDIA`) — owns uploaded assets (images and other files) referenced by other modules; other modules reference media by identifier, never by direct storage access.
 - **Extensibility** (`MODULE:EXTENSIBILITY`) — owns the extension registry and lifecycle. Detailed in `MODULE:EXTENSIBILITY_MECHANISM` below.
+- **Localization & Currency** (`MODULE:LOCALIZATION`) — owns locale and currency configuration, formatting rules, and the translation surface Catalog, CMS, and Notifications content read from. Depends on Store Configuration.
+- **Installer** (`MODULE:INSTALLER`) — owns first-run installation setup, including initial administrator account creation. Depends on Identity & Access and Store Configuration; its setup flow necessarily runs before any administrator account exists, and it must go inert after first run rather than remaining a standing entry point.
 
 Every module in every other domain may depend directly on any Platform module. No Platform module may depend on a module outside Platform — Platform is depended upon, and depends on nothing, consistent with `ARCH:DOMAIN_MAP` ("Platform underlies Commerce, Operations, and Growth").
 
@@ -77,6 +80,7 @@ Every module in every other domain may depend directly on any Platform module. N
 - **Promotions** (`MODULE:PROMOTIONS`) — owns discount and promotional rules. Depends on Catalog and Pricing; adjusts the price Pricing establishes, per the pattern already used for updater-style layered decision-making elsewhere in this project — Pricing determines the base price, Promotions may adjust it, and the two are never merged into one module, so that promotional logic can evolve without touching base pricing logic.
 - **Orders** (`MODULE:ORDERS`) — owns the record of what was ordered, at what price, and its status. Depends on Catalog (what was ordered), Pricing and Promotions (what it cost), and Identity & Access (who ordered it). Orders records the outcome of pricing and promotion decisions — it does not itself decide prices or apply discounts, consistent with keeping data ownership single-purpose per `PRINCIPLES:SINGLE_SOURCE_OF_TRUTH`.
 - **Checkout** (`MODULE:CHECKOUT`) — owns the in-progress purchase flow before it becomes a completed Order. Depends on Catalog, Inventory (to confirm availability), Pricing, Promotions, and Orders (to create the order once checkout completes).
+- **Customers** (`MODULE:CUSTOMERS`) — owns customer-facing account and address data, and the association between a customer and their order history; distinct from Identity & Access's staff/operator identity. Depends on Orders (order history association) and, via the Platform exception in `MODULE:INTERACTION_RULES`, on Identity & Access (authentication mechanism).
 
 Within Commerce, direct module-to-module calls are permitted along the dependencies stated above. No Commerce module may depend on an Operations or Growth module.
 
@@ -115,8 +119,8 @@ Consistent with `ARCH:DOMAIN_MAP`, Growth modules are designed for, not built in
 Every module named in §§4–7 is assigned exactly one of the following stability classifications. The classification governs how freely that module's public contract (`MODULE:PUBLIC_CONTRACT`) may change, not how good or important the module is.
 
 - **Core.** Foundational to the platform's operation; other modules depend on it extensively, often across domain boundaries via events. A breaking change to a Core module's public contract requires the full `GOVERNANCE:CHANGE_MANAGEMENT` process and an ADR, and should be treated as a last resort. `Identity & Access` and `Store Configuration` are Core.
-- **Stable.** Depended upon by other modules and expected to change slowly. A breaking change is permitted but must be proposed, justified, and go through ordinary document/ADR review before being made — it is not a routine event. `Catalog`, `Inventory`, `Orders`, `Media`, and `Settings` are Stable.
-- **Evolvable.** Expected to change as the platform's understanding of its own domain matures. Breaking changes to an Evolvable module's public contract are permitted through the normal review cycle without requiring the elevated justification a Core or Stable change would need. `Pricing`, `Promotions`, `Checkout`, `Shipping`, `Fulfillment`, `Returns`, and `Supplier Management` are Evolvable.
+- **Stable.** Depended upon by other modules and expected to change slowly. A breaking change is permitted but must be proposed, justified, and go through ordinary document/ADR review before being made — it is not a routine event. `Catalog`, `Inventory`, `Orders`, `Media`, `Settings`, and `Localization & Currency` are Stable.
+- **Evolvable.** Expected to change as the platform's understanding of its own domain matures. Breaking changes to an Evolvable module's public contract are permitted through the normal review cycle without requiring the elevated justification a Core or Stable change would need. `Pricing`, `Promotions`, `Checkout`, `Shipping`, `Fulfillment`, `Returns`, `Supplier Management`, `Customers`, and `Installer` are Evolvable.
 - **Experimental.** Not yet built in Phase 1, or built but not yet proven in real use. An Experimental module's public contract may change without the same review overhead the other three classifications require, since no other module should yet be depending on it in a way that a change would be costly to break. `Reporting`, `CRM`, `Marketing`, `Automation`, and `Extensibility` are Experimental — Extensibility is classified Experimental specifically because its concrete mechanism (`MODULE:EXTENSIBILITY_MECHANISM`) is newly defined in this document and not yet exercised by any real extension.
 
 A module's classification is not permanent. As a module proves itself in real use, its classification should be proposed to move (e.g. Experimental → Evolvable, Evolvable → Stable) through the same change process as any other document change — this document does not pre-decide when that happens, only what each classification means once assigned.

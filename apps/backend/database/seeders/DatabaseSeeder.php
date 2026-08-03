@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             MediaPermissionSeeder::class,
             CatalogPermissionSeeder::class,
             InventoryPermissionSeeder::class,
+            LocalizationPermissionSeeder::class,
             RoleSeeder::class,
         ]);
     }
