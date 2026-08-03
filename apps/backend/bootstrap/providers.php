@@ -4,6 +4,7 @@ use App\Domains\Commerce\Catalog\Providers\CatalogServiceProvider;
 use App\Domains\Commerce\Inventory\Providers\InventoryServiceProvider;
 use App\Domains\Platform\Foundation\Providers\FoundationServiceProvider;
 use App\Domains\Platform\IdentityAccess\Providers\IdentityAccessServiceProvider;
+use App\Domains\Platform\Installer\Providers\InstallerServiceProvider;
 use App\Domains\Platform\Localization\Providers\LocalizationServiceProvider;
 use App\Domains\Platform\Media\Providers\MediaServiceProvider;
 use App\Domains\Platform\StoreConfiguration\Providers\StoreConfigurationServiceProvider;
@@ -18,4 +19,5 @@ return [
     CatalogServiceProvider::class,
     InventoryServiceProvider::class,
     LocalizationServiceProvider::class,
+    InstallerServiceProvider::class,
 ];

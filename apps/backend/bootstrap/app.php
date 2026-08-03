@@ -13,6 +13,8 @@ use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
 use App\Domains\Platform\IdentityAccess\Http\Middleware\EnsurePermission;
+use App\Domains\Platform\Installer\Exceptions\AdministratorRoleMissingException;
+use App\Domains\Platform\Installer\Exceptions\AlreadyInstalledException;
 use App\Domains\Platform\Localization\Exceptions\CannotRemoveBaseCurrencyException;
 use App\Domains\Platform\Localization\Exceptions\CannotRemoveDefaultLocaleException;
 use App\Domains\Platform\Localization\Exceptions\ConcurrencyConflictException as LocalizationConcurrencyConflictException;
@@ -151,6 +153,17 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (CannotRemoveBaseCurrencyException $e) use ($envelope): JsonResponse {
             return $envelope('unprocessable_entity', $e->getMessage(), status: 422);
+        });
+
+        // Installer's self-lock — the installation resource already exists.
+        $exceptions->render(function (AlreadyInstalledException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // A fresh database that has been migrated but not yet seeded — the
+        // platform itself isn't ready, not a fault of the caller's request.
+        $exceptions->render(function (AdministratorRoleMissingException $e) use ($envelope): JsonResponse {
+            return $envelope('service_unavailable', $e->getMessage(), status: 503);
         });
 
         $exceptions->render(function (AuthorizationDeniedException $e) use ($envelope): JsonResponse {

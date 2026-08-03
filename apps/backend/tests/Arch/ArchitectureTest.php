@@ -250,3 +250,46 @@ arch('only Localization & Currency\'s Actions coordinate DB transactions directl
     ->expect('App\Domains\Platform\Localization')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Platform\Localization\Actions');
+
+// --- Installer ---
+//
+// Unlike every module above, Installer legitimately depends on Identity &
+// Access and Store Configuration directly (its declared dependencies per
+// docs/04_MODULE_ARCHITECTURE.md and planning/IMPLEMENTATION_MASTER_PLAN.md
+// — see Actions\InstallAction's docblock), so this block does not forbid
+// those two the way every other module's block forbids its Platform
+// siblings. It still forbids everything Installer has no declared
+// relationship to.
+
+arch('Installer never depends on another domain')
+    ->expect('App\Domains\Platform\Installer')
+    ->not->toUse(['App\Domains\Commerce', 'App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Installer never depends on Media or Localization & Currency internals')
+    ->expect('App\Domains\Platform\Installer')
+    ->not->toUse(['App\Domains\Platform\Media', 'App\Domains\Platform\Localization']);
+
+arch('Installer controllers are final')
+    ->expect('App\Domains\Platform\Installer\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Installer actions are final and readonly')
+    ->expect('App\Domains\Platform\Installer\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Installer models are final')
+    ->expect('App\Domains\Platform\Installer\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Installer uses debugging leftovers')
+    ->expect('App\Domains\Platform\Installer')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Installer\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Platform\Installer')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Platform\Installer\Actions');
