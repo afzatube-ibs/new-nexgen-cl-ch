@@ -12,6 +12,9 @@ use App\Domains\Commerce\Inventory\Exceptions\InvalidReservationStateException;
 use App\Domains\Commerce\Inventory\Exceptions\InvalidTransferStateException;
 use App\Domains\Commerce\Pricing\Exceptions\ConcurrencyConflictException as PricingConcurrencyConflictException;
 use App\Domains\Commerce\Pricing\Exceptions\DependentRecordsExistException as PricingDependentRecordsExistException;
+use App\Domains\Commerce\Promotions\Exceptions\ConcurrencyConflictException as PromotionsConcurrencyConflictException;
+use App\Domains\Commerce\Promotions\Exceptions\PromotionNotEligibleException;
+use App\Domains\Commerce\Promotions\Exceptions\UsageLimitExceededException;
 use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
@@ -157,6 +160,27 @@ return Application::configure(basePath: dirname(__DIR__))
         // PriceList has priced entries.
         $exceptions->render(function (PricingDependentRecordsExistException $e) use ($envelope): JsonResponse {
             return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Promotions' own optimistic-locking conflict.
+        $exceptions->render(function (PromotionsConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Promotions' usage-limit enforcement (global or per-customer) —
+        // a well-formed redemption request against a genuinely exhausted
+        // limit, per this module's Security Considerations entry ("Coupon
+        // abuse requires the same rigor as any financial control").
+        $exceptions->render(function (UsageLimitExceededException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Promotions' redemption-eligibility guard — the named promotion
+        // or coupon code is not currently redeemable (archived, outside
+        // its schedule, or unknown), a validation-shaped failure rather
+        // than a conflict.
+        $exceptions->render(function (PromotionNotEligibleException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
         });
 
         // Localization & Currency's own optimistic-locking conflict.

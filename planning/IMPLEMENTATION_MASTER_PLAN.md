@@ -241,18 +241,18 @@ Each module below covers: Purpose, Responsibilities, Dependencies, Public Contra
 
 ### 14. Promotions & Coupons
 **Covers:** #17 Promotions, #18 Coupons
-**Phase:** 1 (basic) / Phase 3 (advanced engine)
+**Phase:** 1 — delivered with Phase 3's advanced engine scope, at the Product Owner's explicit direction (2026-08-04), ahead of the original phased split below.
 **Maps to:** `MODULE:PROMOTIONS`
 - **Purpose:** Discount and coupon rules layered on Pricing.
-- **Responsibilities:** Phase 1: percentage/fixed discounts, single coupon codes, usage limits. Phase 3: rule engine, stacking, customer-segment targeting.
-- **Dependencies:** Catalog, Pricing.
-- **Public Contracts:** Promotion/coupon CRUD, discount calculation at checkout time.
+- **Responsibilities:** Originally phased as Phase 1: percentage/fixed discounts, single coupon codes, usage limits; Phase 3: rule engine, stacking, customer-segment targeting. Delivered in full: percentage, fixed-amount, Buy X Get Y, and free-shipping discount types; automatic and coupon-gated promotions; product/category/customer/store eligibility conditions with minimum-order-amount support; stackable/non-stackable resolution with priority ordering; scheduling; global and per-customer usage limits.
+- **Dependencies:** Catalog, Pricing, Customers (Catalog/Customers referenced by identifier only, per `ARCH:CROSS_DOMAIN_COMMUNICATION` — see `docs/04_MODULE_ARCHITECTURE.md`'s `MODULE:PROMOTIONS` entry).
+- **Public Contracts:** Promotion/coupon CRUD, discount eligibility evaluation and calculation at checkout time (`Actions\EvaluatePromotionsAction`, read-only), redemption recording (`Actions\RedeemPromotionAction`).
 - **Events:** `PromotionApplied`, `CouponRedeemed`.
 - **Data Ownership:** Promotion rules, coupon codes, redemption records (per-customer usage tracking).
-- **Security Considerations:** Coupon abuse (redemption limit bypass) requires the same rigor as any financial control.
-- **Future Extension Points:** Phase 3's advanced engine (stacking, segments, scheduled campaigns) is the designed-for-later capability this module grows into.
-- **Complexity:** Medium (Phase 1), Very High (Phase 3).
-- **Acceptance Criteria:** Phase 1: coupon redemption tracking prevents double-use per customer, per-code, and by minimum-order rule.
+- **Security Considerations:** Coupon abuse (redemption limit bypass) requires the same rigor as any financial control — every redemption re-validates global and per-customer limits inside the same optimistic-locked transaction that increments the governing counter.
+- **Future Extension Points:** The discount-type enum (`percentage`/`fixed_amount`/`buy_x_get_y`/`free_shipping`) and the `Support\CartContext`/`PromotionEvaluationResult` evaluation contract are designed to extend to Loyalty, Gift Cards, and Vouchers without an aggregate redesign — see `Models\Promotion`'s docblock.
+- **Complexity:** Very High — delivered in full rather than phased.
+- **Acceptance Criteria:** Coupon redemption tracking prevents double-use per customer, per-code, and by minimum-order rule; non-stackable promotions never combine with each other; usage limits (global and per-customer) are enforced under concurrent redemption attempts via optimistic locking.
 
 ### 15. Inventory & Multi-Warehouse
 **Covers:** #19 Inventory, #20 Multi-Warehouse

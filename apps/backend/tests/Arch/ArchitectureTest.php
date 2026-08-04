@@ -385,3 +385,57 @@ arch('only Pricing\'s Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Pricing')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Commerce\Pricing\Actions');
+
+// --- Promotions ---
+//
+// Like Pricing, Promotions legitimately depends on Localization &
+// Currency directly (reusing IsValidCurrencyCode rather than duplicating
+// the ISO 4217 list a further time), so this block does not forbid that
+// one Platform module. Unlike Pricing, Promotions has no legitimate
+// direct code dependency on Pricing itself either — "Use Pricing instead
+// of duplicating pricing logic" is satisfied by never looking up or
+// recalculating a price, only ever adjusting the already-resolved unit
+// prices a caller supplies via Support\CartContext (see that class's
+// docblock) — so Pricing is forbidden here exactly like every other
+// sibling Commerce module.
+
+arch('Promotions never depends on Operations or Growth')
+    ->expect('App\Domains\Commerce\Promotions')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Promotions never depends on another Commerce module, or on Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Commerce\Promotions')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Customers',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Promotions controllers are final')
+    ->expect('App\Domains\Commerce\Promotions\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Promotions actions are final and readonly')
+    ->expect('App\Domains\Commerce\Promotions\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Promotions models are final')
+    ->expect('App\Domains\Commerce\Promotions\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Promotions uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Promotions')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Promotions\' Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Promotions')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Promotions\Actions');
