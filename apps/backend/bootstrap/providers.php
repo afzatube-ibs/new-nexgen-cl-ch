@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Commerce\Catalog\Providers\CatalogServiceProvider;
+use App\Domains\Commerce\Checkout\Providers\CheckoutServiceProvider;
 use App\Domains\Commerce\Customers\Providers\CustomersServiceProvider;
 use App\Domains\Commerce\Inventory\Providers\InventoryServiceProvider;
 use App\Domains\Commerce\Orders\Providers\OrdersServiceProvider;
@@ -28,4 +29,5 @@ return [
     PricingServiceProvider::class,
     PromotionsServiceProvider::class,
     OrdersServiceProvider::class,
+    CheckoutServiceProvider::class,
 ];

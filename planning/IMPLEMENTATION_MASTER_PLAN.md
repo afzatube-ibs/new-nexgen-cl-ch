@@ -301,18 +301,18 @@ Each module below covers: Purpose, Responsibilities, Dependencies, Public Contra
 
 ### 18. Checkout
 **Covers:** #25 Checkout
-**Phase:** 1 (P0)
+**Phase:** 1 — delivered with guest checkout included, at the Product Owner's explicit direction (2026-08-04), ahead of this entry's original "Phase 2 refinement" note below.
 **Maps to:** `MODULE:CHECKOUT`
 - **Purpose:** Owns the in-progress purchase flow before it becomes an Order.
-- **Responsibilities:** Cart-to-order flow, availability confirmation, price/discount calculation at time of purchase.
-- **Dependencies:** Catalog, Inventory, Pricing & Tax, Promotions & Coupons, Orders.
-- **Public Contracts:** Checkout session management, order creation trigger.
+- **Responsibilities:** Cart-to-order flow (session start, item/address/shipping/coupon management, review, idempotent submission), availability confirmation (Inventory), price/tax calculation and discount evaluation at time of purchase (Pricing, Promotions) — Checkout triggers each, never recalculates independently. Guest and registered-customer checkout both delivered now (see Dependencies).
+- **Dependencies:** Catalog, Inventory, Pricing & Tax, Promotions & Coupons, Orders, Customers (guest resolution and address books), Localization & Currency (currency validation) — see `docs/04_MODULE_ARCHITECTURE.md`'s `MODULE:CHECKOUT` entry for why this module, uniquely, exercises this many real code-level dependencies at once.
+- **Public Contracts:** Checkout session management (`Actions\StartCheckoutAction` and the cart-mutation actions), review (`Actions\ReviewCheckoutAction`), order creation trigger (`Actions\SubmitCheckoutAction`).
 - **Events:** `CheckoutStarted`, `CheckoutAbandoned`, `CheckoutCompleted`.
-- **Data Ownership:** In-progress checkout sessions — Temporary classification per `DATA:CLASSIFICATION`.
-- **Security Considerations:** Checkout is the highest-value fraud target on the platform — ties directly to `SECURITY:FRAUD_PROTECTION`.
-- **Future Extension Points:** Guest checkout, saved-payment-method checkout are Phase 2 refinements of this same module.
+- **Data Ownership:** In-progress checkout sessions — Temporary classification per `DATA:CLASSIFICATION`; a scheduled sweep (`checkout:expire-sessions`) transitions stale sessions to `expired` and publishes `CheckoutAbandoned`, so they do not accumulate indefinitely.
+- **Security Considerations:** Checkout is the highest-value fraud target on the platform — ties directly to `SECURITY:FRAUD_PROTECTION` (full fraud-signal wiring remains a Phase 3 activation per this plan's Growth & Automation section; this delivery's contribution is duplicate-submission protection, idempotent submission, and full audit logging of every mutation and every submission attempt).
+- **Future Extension Points:** Saved-payment-method checkout (this module integrates with the future Payments module without redesign — submission already produces a durable Order before any payment concern is introduced). Shipping-rate selection here is this module's own minimal, hardcoded option set, the seam a future Shipping & Logistics module replaces without changing this module's contract.
 - **Complexity:** Very High (most cross-module dependencies of any Commerce module).
-- **Acceptance Criteria:** A checkout session is genuinely Temporary per `DATA:LIFECYCLE` — abandoned sessions do not accumulate indefinitely.
+- **Acceptance Criteria:** A checkout session is genuinely Temporary per `DATA:LIFECYCLE` — abandoned sessions do not accumulate indefinitely. Submission is idempotent and safe under concurrent duplicate requests — never more than one Order is created from one session. No single request atomically spans more than one aggregate's mutation, per `DATA:TRANSACTION_BOUNDARIES`: submission is implemented as a sequence of independent, single-aggregate transactions (a saga), not one distributed transaction.
 
 ### 19. Payments
 **Covers:** #26 Payments

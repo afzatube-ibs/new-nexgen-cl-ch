@@ -4,6 +4,11 @@ use App\Domains\Commerce\Catalog\Exceptions\ConcurrencyConflictException as Cata
 use App\Domains\Commerce\Catalog\Exceptions\DependentRecordsExistException as CatalogDependentRecordsExistException;
 use App\Domains\Commerce\Catalog\Exceptions\InvalidVariantException;
 use App\Domains\Commerce\Catalog\Exceptions\ProductNotReadyToPublishException;
+use App\Domains\Commerce\Checkout\Exceptions\CheckoutItemUnavailableException;
+use App\Domains\Commerce\Checkout\Exceptions\CheckoutSessionExpiredException;
+use App\Domains\Commerce\Checkout\Exceptions\CheckoutSubmissionInProgressException;
+use App\Domains\Commerce\Checkout\Exceptions\CheckoutValidationException;
+use App\Domains\Commerce\Checkout\Exceptions\ConcurrencyConflictException as CheckoutConcurrencyConflictException;
 use App\Domains\Commerce\Customers\Exceptions\ConcurrencyConflictException as CustomersConcurrencyConflictException;
 use App\Domains\Commerce\Inventory\Exceptions\ConcurrencyConflictException as InventoryConcurrencyConflictException;
 use App\Domains\Commerce\Inventory\Exceptions\DependentRecordsExistException as InventoryDependentRecordsExistException;
@@ -200,6 +205,41 @@ return Application::configure(basePath: dirname(__DIR__))
         // Localization & Currency's own optimistic-locking conflict.
         $exceptions->render(function (LocalizationConcurrencyConflictException $e) use ($envelope): JsonResponse {
             return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Checkout's own optimistic-locking conflict.
+        $exceptions->render(function (CheckoutConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Checkout's Temporary-classification expiry guard — a
+        // well-formed request against a session that can no longer be
+        // acted on, not a version conflict.
+        $exceptions->render(function (CheckoutSessionExpiredException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Checkout's "Duplicate submission protection" — a second submit
+        // request arriving while an earlier one for the same session is
+        // still mid-flight.
+        $exceptions->render(function (CheckoutSubmissionInProgressException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Checkout's final, authoritative stock check immediately before
+        // reserving finds a SKU no longer available in the requested
+        // quantity — a conflict with the current, real state of a shared
+        // resource, mirroring Inventory's own InsufficientStockException.
+        $exceptions->render(function (CheckoutItemUnavailableException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Checkout's "this session isn't ready for that yet" guard — an
+        // empty cart, a missing address, no shipping option selected, an
+        // unresolvable price, an invalid coupon, or a status that does
+        // not permit the requested operation.
+        $exceptions->render(function (CheckoutValidationException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
         });
 
         // Single-default-locale and single-base-currency invariants —

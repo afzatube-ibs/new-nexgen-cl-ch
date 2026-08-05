@@ -494,3 +494,56 @@ arch('only Orders\' Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Orders')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Commerce\Orders\Actions');
+
+// --- Checkout ---
+//
+// Unlike every module before it, Checkout's entire purpose is
+// orchestration — calling Catalog, Inventory, Customers, Pricing,
+// Promotions, and Orders' own public Actions directly is this module's
+// normal, intended behavior, not a boundary violation (see Actions\
+// SubmitCheckoutAction's and Actions\ReviewCheckoutAction's docblocks).
+// This deny-list is correspondingly narrower than every sibling Commerce
+// module's: it only forbids the Platform modules Checkout genuinely has
+// no business reason to touch (Store Configuration, Media, Identity &
+// Access internals — the `permission:` middleware and `auth:sanctum`
+// guard it uses are wired platform-wide, not a direct class dependency).
+// Localization & Currency remains allowed via the "Into Platform"
+// exception, exercised the same way Pricing's and Promotions' own create
+// requests already do (IsValidCurrencyCode).
+
+arch('Checkout never depends on Operations or Growth')
+    ->expect('App\Domains\Commerce\Checkout')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Checkout never depends on Store Configuration, Media, or Identity & Access internals')
+    ->expect('App\Domains\Commerce\Checkout')
+    ->not->toUse([
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+        'App\Domains\Platform\IdentityAccess',
+    ]);
+
+arch('Checkout controllers are final')
+    ->expect('App\Domains\Commerce\Checkout\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Checkout actions are final and readonly')
+    ->expect('App\Domains\Commerce\Checkout\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Checkout models are final')
+    ->expect('App\Domains\Commerce\Checkout\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Checkout uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Checkout')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Checkout\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Checkout')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Checkout\Actions');

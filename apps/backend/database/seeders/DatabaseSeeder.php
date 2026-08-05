@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             PricingPermissionSeeder::class,
             PromotionsPermissionSeeder::class,
             OrdersPermissionSeeder::class,
+            CheckoutPermissionSeeder::class,
             RoleSeeder::class,
         ]);
     }
