@@ -609,3 +609,74 @@ arch('only Payments\' Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Payments')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Commerce\Payments\Actions');
+
+// --- Shipping ---
+//
+// Shipping is this platform's first Operations-domain module. Per
+// MODULE:INTERACTION_RULES ("Across domains: interaction happens only
+// through the domain event bus") and docs/04_MODULE_ARCHITECTURE.md's
+// `MODULE:SHIPPING` entry ("owns shipping method configuration and rate
+// information" only — shipment execution/tracking is the future
+// Fulfillment module's responsibility), Shipping has NO code-level
+// dependency on any Commerce module (Orders, Checkout, Payments included)
+// — this deny-list is correspondingly the widest of any module's so far.
+// Like every sibling, it may depend on Platform Foundation and, via the
+// "Into Platform" exception, Localization & Currency directly (reusing
+// IsValidCurrencyCode, exactly as Pricing, Promotions, and Orders already
+// do).
+
+arch('Shipping never depends on any Commerce module')
+    ->expect('App\Domains\Operations\Shipping')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Commerce\Promotions',
+        'App\Domains\Commerce\Orders',
+        'App\Domains\Commerce\Checkout',
+        'App\Domains\Commerce\Payments',
+        'App\Domains\Commerce\Customers',
+    ]);
+
+arch('Shipping never depends on Growth')
+    ->expect('App\Domains\Operations\Shipping')
+    ->not->toUse('App\Domains\Growth');
+
+arch('Shipping never depends on Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Operations\Shipping')
+    ->not->toUse([
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Shipping controllers are final')
+    ->expect('App\Domains\Operations\Shipping\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Shipping actions are final and readonly')
+    ->expect('App\Domains\Operations\Shipping\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Shipping models are final')
+    ->expect('App\Domains\Operations\Shipping\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('Shipping courier providers are final')
+    ->expect('App\Domains\Operations\Shipping\Couriers')
+    ->classes()
+    ->toBeFinal()
+    ->ignoring('App\Domains\Operations\Shipping\Couriers\Contracts');
+
+arch('nothing in Shipping uses debugging leftovers')
+    ->expect('App\Domains\Operations\Shipping')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Shipping\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Operations\Shipping')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Operations\Shipping\Actions');

@@ -8,6 +8,7 @@ use App\Domains\Commerce\Orders\Providers\OrdersServiceProvider;
 use App\Domains\Commerce\Payments\Providers\PaymentsServiceProvider;
 use App\Domains\Commerce\Pricing\Providers\PricingServiceProvider;
 use App\Domains\Commerce\Promotions\Providers\PromotionsServiceProvider;
+use App\Domains\Operations\Shipping\Providers\ShippingServiceProvider;
 use App\Domains\Platform\Foundation\Providers\FoundationServiceProvider;
 use App\Domains\Platform\IdentityAccess\Providers\IdentityAccessServiceProvider;
 use App\Domains\Platform\Installer\Providers\InstallerServiceProvider;
@@ -32,4 +33,5 @@ return [
     OrdersServiceProvider::class,
     CheckoutServiceProvider::class,
     PaymentsServiceProvider::class,
+    ShippingServiceProvider::class,
 ];

@@ -27,6 +27,9 @@ use App\Domains\Commerce\Pricing\Exceptions\DependentRecordsExistException as Pr
 use App\Domains\Commerce\Promotions\Exceptions\ConcurrencyConflictException as PromotionsConcurrencyConflictException;
 use App\Domains\Commerce\Promotions\Exceptions\PromotionNotEligibleException;
 use App\Domains\Commerce\Promotions\Exceptions\UsageLimitExceededException;
+use App\Domains\Operations\Shipping\Exceptions\ConcurrencyConflictException as ShippingConcurrencyConflictException;
+use App\Domains\Operations\Shipping\Exceptions\DependentRecordsExistException as ShippingDependentRecordsExistException;
+use App\Domains\Operations\Shipping\Exceptions\UnsupportedShippingProviderException;
 use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
@@ -269,6 +272,23 @@ return Application::configure(basePath: dirname(__DIR__))
         // A gateway code that is either unregistered or currently
         // unavailable (missing credentials) — see Gateways\GatewayResolver.
         $exceptions->render(function (UnsupportedGatewayException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Shipping's own optimistic-locking conflict.
+        $exceptions->render(function (ShippingConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Shipping's restrictOnDelete guards (a ShippingZone or
+        // ShippingMethod still referenced by a ShippingRate).
+        $exceptions->render(function (ShippingDependentRecordsExistException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // A courier code that is either unregistered or currently
+        // unavailable (missing credentials) — see Couriers\ProviderResolver.
+        $exceptions->render(function (UnsupportedShippingProviderException $e) use ($envelope): JsonResponse {
             return $envelope('validation_failed', $e->getMessage(), status: 422);
         });
 
