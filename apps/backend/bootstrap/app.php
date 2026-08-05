@@ -10,6 +10,8 @@ use App\Domains\Commerce\Inventory\Exceptions\DependentRecordsExistException as 
 use App\Domains\Commerce\Inventory\Exceptions\InsufficientStockException;
 use App\Domains\Commerce\Inventory\Exceptions\InvalidReservationStateException;
 use App\Domains\Commerce\Inventory\Exceptions\InvalidTransferStateException;
+use App\Domains\Commerce\Orders\Exceptions\ConcurrencyConflictException as OrdersConcurrencyConflictException;
+use App\Domains\Commerce\Orders\Exceptions\InvalidOrderStatusTransitionException;
 use App\Domains\Commerce\Pricing\Exceptions\ConcurrencyConflictException as PricingConcurrencyConflictException;
 use App\Domains\Commerce\Pricing\Exceptions\DependentRecordsExistException as PricingDependentRecordsExistException;
 use App\Domains\Commerce\Promotions\Exceptions\ConcurrencyConflictException as PromotionsConcurrencyConflictException;
@@ -180,6 +182,18 @@ return Application::configure(basePath: dirname(__DIR__))
         // its schedule, or unknown), a validation-shaped failure rather
         // than a conflict.
         $exceptions->render(function (PromotionNotEligibleException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Orders' own optimistic-locking conflict.
+        $exceptions->render(function (OrdersConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Orders' "Order status lifecycle" guard — a well-formed request
+        // naming a real order and a real status that is nonetheless not
+        // reachable from where the order currently stands.
+        $exceptions->render(function (InvalidOrderStatusTransitionException $e) use ($envelope): JsonResponse {
             return $envelope('validation_failed', $e->getMessage(), status: 422);
         });
 

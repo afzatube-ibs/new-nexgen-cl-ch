@@ -439,3 +439,58 @@ arch('only Promotions\' Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Promotions')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Commerce\Promotions\Actions');
+
+// --- Orders ---
+//
+// Unlike every sibling Commerce module so far, Orders has a real,
+// legitimate code-level dependency on another Commerce module: Customers
+// (see Actions\CreateOrderAction's docblock — it reads a Customer's live
+// record once, at order-creation time, to freeze it into this module's
+// own snapshot columns). This block allows that one dependency, plus
+// Localization & Currency (reusing IsValidCurrencyCode, exactly as
+// Pricing and Promotions already do), and forbids everything else,
+// including Catalog, Pricing, and Promotions themselves — Orders never
+// looks up a product, calculates a price, or evaluates a discount; it
+// only records figures a caller already resolved (see the orders
+// migration's docblock).
+
+arch('Orders never depends on Operations or Growth')
+    ->expect('App\Domains\Commerce\Orders')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Orders never depends on Catalog, Inventory, Pricing, Promotions, Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Commerce\Orders')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Commerce\Promotions',
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Orders controllers are final')
+    ->expect('App\Domains\Commerce\Orders\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Orders actions are final and readonly')
+    ->expect('App\Domains\Commerce\Orders\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Orders models are final')
+    ->expect('App\Domains\Commerce\Orders\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Orders uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Orders')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Orders\' Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Orders')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Orders\Actions');
