@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Operations\Shipping\Couriers\Contracts;
 
+use App\Domains\Operations\Shipping\Couriers\Support\ShipmentBookingRequest;
+use App\Domains\Operations\Shipping\Couriers\Support\ShipmentBookingResult;
 use App\Domains\Operations\Shipping\Couriers\Support\ShippingRateQuoteRequest;
 use App\Domains\Operations\Shipping\Couriers\Support\ShippingRateQuoteResult;
+use App\Domains\Operations\Shipping\Exceptions\CourierBookingFailedException;
 
 /**
  * The one seam every courier integrates through — "Future couriers must
@@ -17,21 +20,18 @@ use App\Domains\Operations\Shipping\Couriers\Support\ShippingRateQuoteResult;
  * Couriers\ProviderFactory case and a config/shipping.php entry — never a
  * change to Models\ShippingMethod, any Actions\* class, or any controller.
  *
- * Deliberately narrow: this module's own approved scope is shipping
- * configuration and rate calculation, per docs/04_MODULE_ARCHITECTURE.md's
- * `MODULE:SHIPPING` ("owns shipping method configuration and rate
- * information") — the actual creation of a shipment/consignment, its
- * label, and its tracking lifecycle belong to the future Fulfillment
- * module (`MODULE:FULFILLMENT`, "owns the record of what has been picked,
- * packed, and shipped against an order"), which the master plan describes
- * as generating "labels/tracking via Shipping." This contract is that
- * seam: Fulfillment, a same-domain (Operations) sibling, may depend on it
- * directly per MODULE:INTERACTION_RULES once built — nothing here commits
- * to a shipment-creation or label API shape prematurely, which is exactly
- * the "Shipping Labels (extension point)" boundary this module was asked
- * to respect. Adding those methods later, when Fulfillment is built, is an
- * additive interface change; no implementation here needs to change to
- * support it.
+ * bookShipment()/supportsBooking() were added additively when Fulfillment
+ * (`MODULE:FULFILLMENT`) was built, exactly as this docblock originally
+ * anticipated ("Adding those methods later... is an additive interface
+ * change; no implementation here needs to change to support it") — every
+ * courier shipped before Fulfillment existed still compiles and still
+ * satisfies this interface unmodified in shape, only extended. Fulfillment,
+ * a same-domain (Operations) sibling, depends on this contract directly
+ * per MODULE:INTERACTION_RULES ("Fulfillment MUST use Shipping's provider
+ * contract... no courier-specific business logic inside Fulfillment") —
+ * this module still owns every courier-specific detail; Fulfillment only
+ * ever sees the provider-agnostic Support\ShipmentBookingRequest/Result
+ * shapes.
  */
 interface ShippingProviderContract
 {
@@ -73,4 +73,26 @@ interface ShippingProviderContract
      * config/shipping.php's docblock).
      */
     public function quoteLiveRate(ShippingRateQuoteRequest $request): ?ShippingRateQuoteResult;
+
+    /**
+     * Whether this provider publishes a real "create consignment" API a
+     * caller can book a shipment through — false for Couriers\
+     * ManualProvider (self-managed dispatch has no courier to book with)
+     * and Couriers\SundarbanProvider (no public API — see that class's
+     * docblock).
+     */
+    public function supportsBooking(): bool;
+
+    /**
+     * Books this shipment with the courier, returning its own consignment
+     * identifier, tracking number, and (where the courier's API returns
+     * one) a label URL. Only called when supportsBooking() and
+     * isAvailable() are both true — Fulfillment's Actions\
+     * DispatchShipmentAction enforces that via Couriers\ProviderResolver
+     * before ever calling this method.
+     *
+     * @throws CourierBookingFailedException when the courier's own API
+     *                                       rejects or fails the request.
+     */
+    public function bookShipment(ShipmentBookingRequest $request): ShipmentBookingResult;
 }

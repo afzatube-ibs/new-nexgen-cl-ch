@@ -77,6 +77,9 @@ return [
         'client_secret' => env('PATHAO_CLIENT_SECRET'),
         'username' => env('PATHAO_USERNAME'),
         'password' => env('PATHAO_PASSWORD'),
+        // Required by Couriers\PathaoProvider::bookShipment() — Pathao's
+        // Create Order API scopes every order to a registered store.
+        'store_id' => env('PATHAO_STORE_ID'),
         'sandbox' => (bool) env('PATHAO_SANDBOX', true),
         'base_url' => env('PATHAO_SANDBOX', true)
             ? 'https://courier-api-sandbox.pathao.com'

@@ -6,6 +6,7 @@ namespace App\Domains\Operations\Shipping\Couriers;
 
 use App\Domains\Operations\Shipping\Couriers\Contracts\ShippingProviderContract;
 use App\Domains\Operations\Shipping\Exceptions\UnsupportedShippingProviderException;
+use Illuminate\Http\Client\Factory as HttpFactory;
 
 /**
  * The construction half of this module's courier architecture — turns a
@@ -21,6 +22,8 @@ use App\Domains\Operations\Shipping\Exceptions\UnsupportedShippingProviderExcept
  */
 final readonly class ProviderFactory
 {
+    public function __construct(private HttpFactory $http) {}
+
     /**
      * @param  array<string, mixed>  $config
      */
@@ -28,12 +31,12 @@ final readonly class ProviderFactory
     {
         return match ($code) {
             'manual' => new ManualProvider,
-            'steadfast' => new SteadfastProvider($config),
-            'pathao' => new PathaoProvider($config),
-            'redx' => new RedxProvider($config),
-            'paperfly' => new PaperflyProvider($config),
+            'steadfast' => new SteadfastProvider($config, $this->http),
+            'pathao' => new PathaoProvider($config, $this->http),
+            'redx' => new RedxProvider($config, $this->http),
+            'paperfly' => new PaperflyProvider($config, $this->http),
             'sundarban' => new SundarbanProvider,
-            'ecourier' => new EcourierProvider($config),
+            'ecourier' => new EcourierProvider($config, $this->http),
             default => throw new UnsupportedShippingProviderException($code),
         };
     }

@@ -27,6 +27,9 @@ use App\Domains\Commerce\Pricing\Exceptions\DependentRecordsExistException as Pr
 use App\Domains\Commerce\Promotions\Exceptions\ConcurrencyConflictException as PromotionsConcurrencyConflictException;
 use App\Domains\Commerce\Promotions\Exceptions\PromotionNotEligibleException;
 use App\Domains\Commerce\Promotions\Exceptions\UsageLimitExceededException;
+use App\Domains\Operations\Fulfillment\Exceptions\ConcurrencyConflictException as FulfillmentConcurrencyConflictException;
+use App\Domains\Operations\Fulfillment\Exceptions\InvalidShipmentStatusTransitionException;
+use App\Domains\Operations\Fulfillment\Exceptions\ShipmentValidationException;
 use App\Domains\Operations\Shipping\Exceptions\ConcurrencyConflictException as ShippingConcurrencyConflictException;
 use App\Domains\Operations\Shipping\Exceptions\DependentRecordsExistException as ShippingDependentRecordsExistException;
 use App\Domains\Operations\Shipping\Exceptions\UnsupportedShippingProviderException;
@@ -290,6 +293,27 @@ return Application::configure(basePath: dirname(__DIR__))
         // unavailable (missing credentials) — see Couriers\ProviderResolver.
         $exceptions->render(function (UnsupportedShippingProviderException $e) use ($envelope): JsonResponse {
             return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Fulfillment's own optimistic-locking conflict.
+        $exceptions->render(function (FulfillmentConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Fulfillment's Shipment Status Lifecycle guard — a well-formed
+        // request naming a real shipment and a real transition that is
+        // nonetheless not reachable from where the shipment currently
+        // stands.
+        $exceptions->render(function (InvalidShipmentStatusTransitionException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Fulfillment's "this request isn't valid against the current
+        // state of this shipment" guard (no items to pick, no destination
+        // before dispatch, no weight before packing, a courier booking
+        // failure, ...).
+        $exceptions->render(function (ShipmentValidationException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
         });
 
         // Payments' "this request isn't valid against the current state

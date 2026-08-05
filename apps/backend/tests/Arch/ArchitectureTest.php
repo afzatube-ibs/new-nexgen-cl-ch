@@ -680,3 +680,87 @@ arch('only Shipping\'s Actions coordinate DB transactions directly')
     ->expect('App\Domains\Operations\Shipping')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Operations\Shipping\Actions');
+
+// --- Fulfillment ---
+//
+// Unlike Shipping, Fulfillment has a real, legitimate code-level
+// dependency on another Operations module: Shipping itself (Couriers\
+// ProviderRegistry/Contracts\ShippingProviderContract, and a narrow,
+// same-domain direct read of Shipping's own ShippingMethod model — see
+// Actions\DispatchShipmentAction's docblock, mirroring Payments' own
+// same-domain read of Orders' `grand_total`). This is exactly the "within
+// the same domain, direct calls between modules are permitted" half of
+// MODULE:INTERACTION_RULES — the forbidden half, enforced below, is any
+// dependency on a Commerce or Growth module. Fulfillment also depends on
+// Localization & Currency (Platform) via the "Into Platform" exception,
+// reusing IsValidCurrencyCode exactly as Shipping, Pricing, Promotions,
+// and Orders already do.
+
+arch('Fulfillment never depends on any Commerce module')
+    ->expect('App\Domains\Operations\Fulfillment')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Commerce\Promotions',
+        'App\Domains\Commerce\Orders',
+        'App\Domains\Commerce\Checkout',
+        'App\Domains\Commerce\Payments',
+        'App\Domains\Commerce\Customers',
+    ]);
+
+arch('Fulfillment never depends on Growth')
+    ->expect('App\Domains\Operations\Fulfillment')
+    ->not->toUse('App\Domains\Growth');
+
+arch('Fulfillment never depends on Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Operations\Fulfillment')
+    ->not->toUse([
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Fulfillment controllers are final')
+    ->expect('App\Domains\Operations\Fulfillment\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Fulfillment actions are final and readonly')
+    ->expect('App\Domains\Operations\Fulfillment\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Fulfillment models are final')
+    ->expect('App\Domains\Operations\Fulfillment\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Fulfillment uses debugging leftovers')
+    ->expect('App\Domains\Operations\Fulfillment')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Fulfillment\'s Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Operations\Fulfillment')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Operations\Fulfillment\Actions');
+
+// --- Cross-domain event-routing seam (app/Listeners) ---
+//
+// App\Listeners\CreateShipmentOnOrderPlaced is the one class in the
+// codebase permitted to import both a Commerce event (OrderPlaced) and an
+// Operations module's own Action (Fulfillment's) — see that class's own
+// docblock for why. It intentionally sits outside every App\Domains\*
+// layer deptrac.yaml and the arch rules above cover, exactly like
+// bootstrap/providers.php already does for every module's ServiceProvider.
+// This rule is the arch-test-layer confirmation of that same boundary:
+// the translation stays paper-thin, never growing real business logic of
+// its own.
+
+arch('the cross-domain event-routing seam stays a thin translator, never gaining its own business logic')
+    ->expect('App\Listeners')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly()
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die', 'Illuminate\Support\Facades\DB']);

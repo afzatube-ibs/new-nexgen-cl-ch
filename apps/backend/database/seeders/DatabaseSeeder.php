@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             CheckoutPermissionSeeder::class,
             PaymentsPermissionSeeder::class,
             ShippingPermissionSeeder::class,
+            FulfillmentPermissionSeeder::class,
             RoleSeeder::class,
         ]);
     }

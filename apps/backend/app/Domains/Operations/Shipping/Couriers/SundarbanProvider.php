@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Domains\Operations\Shipping\Couriers;
 
 use App\Domains\Operations\Shipping\Couriers\Contracts\ShippingProviderContract;
+use App\Domains\Operations\Shipping\Couriers\Support\ShipmentBookingRequest;
+use App\Domains\Operations\Shipping\Couriers\Support\ShipmentBookingResult;
 use App\Domains\Operations\Shipping\Couriers\Support\ShippingRateQuoteRequest;
 use App\Domains\Operations\Shipping\Couriers\Support\ShippingRateQuoteResult;
+use App\Domains\Operations\Shipping\Exceptions\CourierBookingFailedException;
 
 /**
  * Sundarban Courier Service — a long-established Bangladesh nationwide
@@ -48,5 +51,15 @@ final readonly class SundarbanProvider implements ShippingProviderContract
     public function quoteLiveRate(ShippingRateQuoteRequest $request): ?ShippingRateQuoteResult
     {
         return null;
+    }
+
+    public function supportsBooking(): bool
+    {
+        return false;
+    }
+
+    public function bookShipment(ShipmentBookingRequest $request): ShipmentBookingResult
+    {
+        throw new CourierBookingFailedException($this->code(), 'Sundarban Courier Service publishes no public API to book a shipment through.');
     }
 }
