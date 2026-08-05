@@ -5,6 +5,7 @@ use App\Domains\Commerce\Checkout\Providers\CheckoutServiceProvider;
 use App\Domains\Commerce\Customers\Providers\CustomersServiceProvider;
 use App\Domains\Commerce\Inventory\Providers\InventoryServiceProvider;
 use App\Domains\Commerce\Orders\Providers\OrdersServiceProvider;
+use App\Domains\Commerce\Payments\Providers\PaymentsServiceProvider;
 use App\Domains\Commerce\Pricing\Providers\PricingServiceProvider;
 use App\Domains\Commerce\Promotions\Providers\PromotionsServiceProvider;
 use App\Domains\Platform\Foundation\Providers\FoundationServiceProvider;
@@ -30,4 +31,5 @@ return [
     PromotionsServiceProvider::class,
     OrdersServiceProvider::class,
     CheckoutServiceProvider::class,
+    PaymentsServiceProvider::class,
 ];

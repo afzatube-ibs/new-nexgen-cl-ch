@@ -547,3 +547,65 @@ arch('only Checkout\'s Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Checkout')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Commerce\Checkout\Actions');
+
+// --- Payments ---
+//
+// Payments' one real, legitimate code-level dependency is Orders (see
+// Actions\InitiatePaymentAction's docblock — it reads an Order's live
+// record once, at payment-initiation time, purely to snapshot
+// grand_total/currency_code/customer_id, exactly mirroring Orders' own
+// narrow, read-only dependency on Customers). This block forbids
+// everything else, including Checkout — Payments processes payment ONLY
+// for an Order that already exists; it has no business reason to touch
+// an in-progress checkout session — and Catalog, Inventory, Pricing, and
+// Promotions, which Payments MUST NOT duplicate the logic of (it never
+// calculates a price, a tax, or a discount, and never manages stock).
+
+arch('Payments never depends on Operations or Growth')
+    ->expect('App\Domains\Commerce\Payments')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Payments never depends on Catalog, Inventory, Pricing, Promotions, Checkout, Customers, Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Commerce\Payments')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Commerce\Promotions',
+        'App\Domains\Commerce\Checkout',
+        'App\Domains\Commerce\Customers',
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Payments controllers are final')
+    ->expect('App\Domains\Commerce\Payments\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Payments actions are final and readonly')
+    ->expect('App\Domains\Commerce\Payments\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Payments models are final')
+    ->expect('App\Domains\Commerce\Payments\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('Payments gateways are final')
+    ->expect('App\Domains\Commerce\Payments\Gateways')
+    ->classes()
+    ->toBeFinal()
+    ->ignoring('App\Domains\Commerce\Payments\Gateways\Contracts');
+
+arch('nothing in Payments uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Payments')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Payments\' Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Payments')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Payments\Actions');

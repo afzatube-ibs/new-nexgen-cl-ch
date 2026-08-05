@@ -17,6 +17,11 @@ use App\Domains\Commerce\Inventory\Exceptions\InvalidReservationStateException;
 use App\Domains\Commerce\Inventory\Exceptions\InvalidTransferStateException;
 use App\Domains\Commerce\Orders\Exceptions\ConcurrencyConflictException as OrdersConcurrencyConflictException;
 use App\Domains\Commerce\Orders\Exceptions\InvalidOrderStatusTransitionException;
+use App\Domains\Commerce\Payments\Exceptions\ConcurrencyConflictException as PaymentsConcurrencyConflictException;
+use App\Domains\Commerce\Payments\Exceptions\DuplicatePaymentException;
+use App\Domains\Commerce\Payments\Exceptions\InvalidPaymentStatusTransitionException;
+use App\Domains\Commerce\Payments\Exceptions\PaymentValidationException;
+use App\Domains\Commerce\Payments\Exceptions\UnsupportedGatewayException;
 use App\Domains\Commerce\Pricing\Exceptions\ConcurrencyConflictException as PricingConcurrencyConflictException;
 use App\Domains\Commerce\Pricing\Exceptions\DependentRecordsExistException as PricingDependentRecordsExistException;
 use App\Domains\Commerce\Promotions\Exceptions\ConcurrencyConflictException as PromotionsConcurrencyConflictException;
@@ -239,6 +244,37 @@ return Application::configure(basePath: dirname(__DIR__))
         // unresolvable price, an invalid coupon, or a status that does
         // not permit the requested operation.
         $exceptions->render(function (CheckoutValidationException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
+        });
+
+        // Payments' own optimistic-locking conflict.
+        $exceptions->render(function (PaymentsConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Payments' "Duplicate Payment Protection" — a second payment
+        // attempt against an Order that already has one active.
+        $exceptions->render(function (DuplicatePaymentException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Payments' "Payment status lifecycle" guard — a well-formed
+        // request naming a real payment and a real status that is
+        // nonetheless not reachable from where the payment currently
+        // stands.
+        $exceptions->render(function (InvalidPaymentStatusTransitionException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // A gateway code that is either unregistered or currently
+        // unavailable (missing credentials) — see Gateways\GatewayResolver.
+        $exceptions->render(function (UnsupportedGatewayException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Payments' "this request isn't valid against the current state
+        // of things" guard.
+        $exceptions->render(function (PaymentValidationException $e) use ($envelope): JsonResponse {
             return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
         });
 
