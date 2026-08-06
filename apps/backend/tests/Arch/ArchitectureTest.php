@@ -746,6 +746,76 @@ arch('only Fulfillment\'s Actions coordinate DB transactions directly')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Operations\Fulfillment\Actions');
 
+// --- Returns ---
+//
+// Like Fulfillment, Returns has a real, legitimate code-level dependency
+// on another Operations module: Shipping's Couriers\ProviderRegistry (see
+// Actions\SchedulePickupAction's docblock) — same-domain, permitted per
+// MODULE:INTERACTION_RULES. docs/04_MODULE_ARCHITECTURE.md's own §6 names
+// "Returns may call Fulfillment directly, both within Operations" as a
+// legitimate example of that same same-domain allowance — this delivery
+// does not exercise a Fulfillment dependency (no concrete need arose), so
+// no rule below asserts its absence; unlike the Commerce boundary below,
+// this is a permitted-but-unexercised allowance, not a forbidden one.
+// Returns has NO direct dependency on any Commerce module at all,
+// including Payments — the refund flow crosses into Payments exclusively
+// through the domain event bus (Events\ReturnResolved out, Payments'
+// PaymentRefunded back in), never a direct call, per this module's own
+// accepted boundary text ("does not directly depend on Commerce
+// modules"). Also depends on Localization & Currency (Platform) via the
+// "Into Platform" exception, reusing IsValidCurrencyCode exactly as every
+// other currency-accepting module already does.
+
+arch('Returns never depends on any Commerce module')
+    ->expect('App\Domains\Operations\Returns')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Commerce\Promotions',
+        'App\Domains\Commerce\Orders',
+        'App\Domains\Commerce\Checkout',
+        'App\Domains\Commerce\Payments',
+        'App\Domains\Commerce\Customers',
+    ]);
+
+arch('Returns never depends on Growth')
+    ->expect('App\Domains\Operations\Returns')
+    ->not->toUse('App\Domains\Growth');
+
+arch('Returns never depends on Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Operations\Returns')
+    ->not->toUse([
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Returns controllers are final')
+    ->expect('App\Domains\Operations\Returns\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Returns actions are final and readonly')
+    ->expect('App\Domains\Operations\Returns\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Returns models are final')
+    ->expect('App\Domains\Operations\Returns\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Returns uses debugging leftovers')
+    ->expect('App\Domains\Operations\Returns')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Returns\' Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Operations\Returns')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Operations\Returns\Actions');
+
 // --- Cross-domain event-routing seam (app/Listeners) ---
 //
 // App\Listeners\CreateShipmentOnOrderPlaced is the one class in the

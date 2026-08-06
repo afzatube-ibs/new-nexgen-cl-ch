@@ -30,6 +30,9 @@ use App\Domains\Commerce\Promotions\Exceptions\UsageLimitExceededException;
 use App\Domains\Operations\Fulfillment\Exceptions\ConcurrencyConflictException as FulfillmentConcurrencyConflictException;
 use App\Domains\Operations\Fulfillment\Exceptions\InvalidShipmentStatusTransitionException;
 use App\Domains\Operations\Fulfillment\Exceptions\ShipmentValidationException;
+use App\Domains\Operations\Returns\Exceptions\ConcurrencyConflictException as ReturnsConcurrencyConflictException;
+use App\Domains\Operations\Returns\Exceptions\InvalidReturnStatusTransitionException;
+use App\Domains\Operations\Returns\Exceptions\ReturnValidationException;
 use App\Domains\Operations\Shipping\Exceptions\ConcurrencyConflictException as ShippingConcurrencyConflictException;
 use App\Domains\Operations\Shipping\Exceptions\DependentRecordsExistException as ShippingDependentRecordsExistException;
 use App\Domains\Operations\Shipping\Exceptions\UnsupportedShippingProviderException;
@@ -63,6 +66,28 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // Application::configure() enables Laravel's automatic app/Listeners
+    // event discovery by default (`withEvents()` with no arguments) —
+    // scanning every class under app/Listeners for a `handle(SomeEvent
+    // $event)` method and auto-subscribing it, entirely independent of
+    // (and in addition to) this platform's own explicit, documented
+    // composition root (AppServiceProvider::boot()'s DomainEventBus::
+    // subscribe() calls, per ARCH:CROSS_DOMAIN_COMMUNICATION). Left
+    // enabled, every cross-domain listener in app/Listeners ends up
+    // registered TWICE — once by Laravel's discovery (string "Class@
+    // method" form) and once by our own explicit subscribe() (array
+    // form) — so every cross-domain event fires its handler twice per
+    // publish(). This went unnoticed for CreateShipmentOnOrderPlaced
+    // (Fulfillment) only because that handler is naturally idempotent
+    // (it checks for an existing Shipment before creating one); it
+    // surfaced as a hard failure once Returns' ProcessRefundOnReturn
+    // Resolved — which is not idempotent, by design, since a second
+    // refund attempt on an already-completed RefundRequest is a genuine
+    // error, not a no-op — hit the same double-registration. Disabled
+    // here so app/Listeners/* is wired exclusively through this
+    // platform's own explicit DomainEventBus contract, never through
+    // Laravel's generic convention-based discovery.
+    ->withEvents(discover: false)
     ->withMiddleware(function (Middleware $middleware): void {
         // API:CORRELATION on every request, platform-wide — not opt-in per
         // route, since a request with no correlation identifier is exactly
@@ -313,6 +338,23 @@ return Application::configure(basePath: dirname(__DIR__))
         // before dispatch, no weight before packing, a courier booking
         // failure, ...).
         $exceptions->render(function (ShipmentValidationException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
+        });
+
+        // Returns' own optimistic-locking conflict.
+        $exceptions->render(function (ReturnsConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Returns' Return Status Lifecycle guard.
+        $exceptions->render(function (InvalidReturnStatusTransitionException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Returns' "this request isn't valid against the current state of
+        // this return request" guard (no items, missing refund/exchange
+        // details, courier unavailable for pickup, ...).
+        $exceptions->render(function (ReturnValidationException $e) use ($envelope): JsonResponse {
             return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
         });
 

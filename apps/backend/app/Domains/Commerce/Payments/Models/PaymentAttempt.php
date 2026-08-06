@@ -54,6 +54,8 @@ final class PaymentAttempt extends Model
 
     public const string TYPE_WEBHOOK = 'webhook';
 
+    public const string TYPE_REFUND = 'refund';
+
     public const string STATUS_PENDING = 'pending';
 
     public const string STATUS_SUCCEEDED = 'succeeded';

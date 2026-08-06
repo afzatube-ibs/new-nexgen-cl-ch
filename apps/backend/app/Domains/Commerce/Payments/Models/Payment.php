@@ -21,16 +21,18 @@ use Illuminate\Support\Carbon;
  *
  * "Payment status lifecycle":
  *
- *   pending -> authorized -> captured
- *      \            \
+ *   pending -> authorized -> captured -> partially_refunded -> refunded
+ *      \            \             \______________________________/
  *       ------------> failed / cancelled / voided
  *
- * `captured` is the one success terminal state, shared by every gateway
- * this module integrates with — Cash On Delivery's own "Confirmed"
- * vocabulary and Bank Transfer's "Approved" vocabulary both map onto
- * `captured` (see Actions\CapturePaymentAction's docblock); neither
- * invents a parallel status this aggregate, or any caller outside its own
- * gateway class, would need to special-case.
+ * `captured` was originally this aggregate's one success terminal state;
+ * `partially_refunded`/`refunded` are additive exits from it, added when
+ * the Returns module (`MODULE:RETURNS`) was built — see Actions\
+ * RefundPaymentAction's docblock and the payments migration that added
+ * `amount_refunded`/`refunded_at`. Cash On Delivery's own "Confirmed"
+ * vocabulary and Bank Transfer's "Approved" vocabulary both still map onto
+ * `captured`; neither gateway invents a parallel status this aggregate,
+ * or any caller outside its own gateway class, would need to special-case.
  *
  * @property string $id
  * @property string $tenant_id
@@ -40,6 +42,7 @@ use Illuminate\Support\Carbon;
  * @property string $currency_code
  * @property string $amount
  * @property string $amount_captured
+ * @property string $amount_refunded
  * @property string $status
  * @property string|null $idempotency_key
  * @property string|null $proof_reference
@@ -51,6 +54,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $captured_at
  * @property Carbon|null $cancelled_at
  * @property Carbon|null $failed_at
+ * @property Carbon|null $refunded_at
  * @property int $lock_version
  */
 final class Payment extends Model
@@ -70,13 +74,19 @@ final class Payment extends Model
 
     public const string STATUS_VOIDED = 'voided';
 
+    public const string STATUS_PARTIALLY_REFUNDED = 'partially_refunded';
+
+    public const string STATUS_REFUNDED = 'refunded';
+
     /**
      * @var array<string, list<string>>
      */
     private const array TRANSITIONS = [
         self::STATUS_PENDING => [self::STATUS_AUTHORIZED, self::STATUS_CAPTURED, self::STATUS_FAILED, self::STATUS_CANCELLED],
         self::STATUS_AUTHORIZED => [self::STATUS_CAPTURED, self::STATUS_VOIDED, self::STATUS_FAILED, self::STATUS_CANCELLED],
-        self::STATUS_CAPTURED => [],
+        self::STATUS_CAPTURED => [self::STATUS_PARTIALLY_REFUNDED, self::STATUS_REFUNDED],
+        self::STATUS_PARTIALLY_REFUNDED => [self::STATUS_PARTIALLY_REFUNDED, self::STATUS_REFUNDED],
+        self::STATUS_REFUNDED => [],
         self::STATUS_FAILED => [],
         self::STATUS_CANCELLED => [],
         self::STATUS_VOIDED => [],
@@ -89,6 +99,7 @@ final class Payment extends Model
         'currency_code',
         'amount',
         'amount_captured',
+        'amount_refunded',
         'status',
         'idempotency_key',
         'proof_reference',
@@ -100,6 +111,7 @@ final class Payment extends Model
         'captured_at',
         'cancelled_at',
         'failed_at',
+        'refunded_at',
     ];
 
     protected function casts(): array
@@ -110,6 +122,7 @@ final class Payment extends Model
             'captured_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'failed_at' => 'datetime',
+            'refunded_at' => 'datetime',
         ];
     }
 
@@ -119,6 +132,7 @@ final class Payment extends Model
             $payment->tenant_id ??= TenantId::DEFAULT;
             $payment->status ??= self::STATUS_PENDING;
             $payment->amount_captured ??= '0.0000';
+            $payment->amount_refunded ??= '0.0000';
             $payment->initiated_at ??= now();
             $payment->currency_code = strtoupper((string) $payment->currency_code);
             // See Identity & Access's User::booted() for why this is set

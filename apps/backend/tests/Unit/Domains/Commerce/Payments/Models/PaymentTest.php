@@ -35,17 +35,31 @@ it('allows the documented transitions from authorized', function () {
     expect($payment->canTransitionTo(Payment::STATUS_CANCELLED))->toBeTrue();
 });
 
-it('treats captured, failed, cancelled, and voided as terminal with no further transitions', function () {
-    $captured = Payment::factory()->captured()->create();
+it('treats failed, cancelled, and voided as terminal with no further transitions', function () {
     $failed = Payment::factory()->failed()->create();
     $cancelled = Payment::factory()->cancelled()->create();
     $voided = Payment::factory()->create(['status' => Payment::STATUS_VOIDED]);
 
-    foreach ([$captured, $failed, $cancelled, $voided] as $payment) {
+    foreach ([$failed, $cancelled, $voided] as $payment) {
         expect($payment->isTerminal())->toBeTrue();
         expect($payment->isActive())->toBeFalse();
         expect($payment->canTransitionTo(Payment::STATUS_CAPTURED))->toBeFalse();
     }
+});
+
+// Since MODULE:RETURNS was built, captured is no longer a dead end — see
+// Payment::TRANSITIONS' own STATUS_CAPTURED entry: a captured payment can
+// still move to partially_refunded or refunded, so it is not "terminal"
+// even though it is no longer "active" (Actions\InitiatePaymentAction's
+// one-active-payment-per-order lock has already been released).
+it('treats captured as no longer terminal, but still not active, since it can still be refunded', function () {
+    $captured = Payment::factory()->captured()->create();
+
+    expect($captured->isTerminal())->toBeFalse();
+    expect($captured->isActive())->toBeFalse();
+    expect($captured->canTransitionTo(Payment::STATUS_PARTIALLY_REFUNDED))->toBeTrue();
+    expect($captured->canTransitionTo(Payment::STATUS_REFUNDED))->toBeTrue();
+    expect($captured->canTransitionTo(Payment::STATUS_CAPTURED))->toBeFalse();
 });
 
 it('is active only while pending or authorized', function () {
