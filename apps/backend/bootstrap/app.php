@@ -30,6 +30,10 @@ use App\Domains\Commerce\Promotions\Exceptions\UsageLimitExceededException;
 use App\Domains\Operations\Fulfillment\Exceptions\ConcurrencyConflictException as FulfillmentConcurrencyConflictException;
 use App\Domains\Operations\Fulfillment\Exceptions\InvalidShipmentStatusTransitionException;
 use App\Domains\Operations\Fulfillment\Exceptions\ShipmentValidationException;
+use App\Domains\Operations\Notifications\Exceptions\ConcurrencyConflictException as NotificationsConcurrencyConflictException;
+use App\Domains\Operations\Notifications\Exceptions\InvalidNotificationStatusTransitionException;
+use App\Domains\Operations\Notifications\Exceptions\NotificationValidationException;
+use App\Domains\Operations\Notifications\Exceptions\UnsupportedNotificationProviderException;
 use App\Domains\Operations\Returns\Exceptions\ConcurrencyConflictException as ReturnsConcurrencyConflictException;
 use App\Domains\Operations\Returns\Exceptions\InvalidReturnStatusTransitionException;
 use App\Domains\Operations\Returns\Exceptions\ReturnValidationException;
@@ -356,6 +360,29 @@ return Application::configure(basePath: dirname(__DIR__))
         // details, courier unavailable for pickup, ...).
         $exceptions->render(function (ReturnValidationException $e) use ($envelope): JsonResponse {
             return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
+        });
+
+        // Notifications' own optimistic-locking conflict.
+        $exceptions->render(function (NotificationsConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Notifications' Notification Status Lifecycle guard.
+        $exceptions->render(function (InvalidNotificationStatusTransitionException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
+        });
+
+        // Notifications' "this request isn't valid against the current
+        // state of things" guard (no template/content given, template not
+        // found for the requested channel/locale, not currently retryable).
+        $exceptions->render(function (NotificationValidationException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
+        });
+
+        // A provider code that is either unregistered or currently
+        // unavailable (missing credentials) — see Channels\ProviderResolver.
+        $exceptions->render(function (UnsupportedNotificationProviderException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
         });
 
         // Payments' "this request isn't valid against the current state

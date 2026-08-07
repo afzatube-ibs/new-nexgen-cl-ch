@@ -34,7 +34,9 @@ class DatabaseSeeder extends Seeder
             ShippingPermissionSeeder::class,
             FulfillmentPermissionSeeder::class,
             ReturnsPermissionSeeder::class,
+            NotificationsPermissionSeeder::class,
             RoleSeeder::class,
+            NotificationTemplateSeeder::class,
         ]);
     }
 }

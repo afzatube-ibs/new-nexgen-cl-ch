@@ -816,6 +816,90 @@ arch('only Returns\' Actions coordinate DB transactions directly')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Operations\Returns\Actions');
 
+// --- Notifications ---
+//
+// Notifications has NO direct dependency on any Commerce module at all —
+// unlike Fulfillment and Returns, which each have one real, narrow
+// same-domain Operations dependency (Shipping's ProviderRegistry), this
+// module has no code-level dependency on any other module in any domain:
+// every recipient it needs (an Order's own `customer_email`/
+// `customer_name` snapshot, a ReturnRequest's `rma_number`) is resolved
+// by the eight cross-domain listeners in app/Listeners/Send*.php, which
+// sit outside this layer entirely (see the Cross-domain event-routing
+// seam rule below) — Models\Notification's own docblock explains why
+// `recipient`/`related_type`/`related_id` are plain snapshot columns,
+// never a live cross-module read from inside this module itself.
+
+arch('Notifications never depends on any Commerce module')
+    ->expect('App\Domains\Operations\Notifications')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Commerce\Promotions',
+        'App\Domains\Commerce\Orders',
+        'App\Domains\Commerce\Checkout',
+        'App\Domains\Commerce\Payments',
+        'App\Domains\Commerce\Customers',
+    ]);
+
+arch('Notifications never depends on any other Operations module')
+    ->expect('App\Domains\Operations\Notifications')
+    ->not->toUse([
+        'App\Domains\Operations\Shipping',
+        'App\Domains\Operations\Fulfillment',
+        'App\Domains\Operations\Returns',
+        'App\Domains\Operations\SupplierManagement',
+    ]);
+
+arch('Notifications never depends on Growth')
+    ->expect('App\Domains\Operations\Notifications')
+    ->not->toUse('App\Domains\Growth');
+
+arch('Notifications never depends on Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Operations\Notifications')
+    ->not->toUse([
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Notifications controllers are final')
+    ->expect('App\Domains\Operations\Notifications\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Notifications actions are final and readonly')
+    ->expect('App\Domains\Operations\Notifications\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Notifications models are final')
+    ->expect('App\Domains\Operations\Notifications\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('Notifications channel providers are final')
+    ->expect('App\Domains\Operations\Notifications\Channels')
+    ->classes()
+    ->toBeFinal()
+    ->ignoring('App\Domains\Operations\Notifications\Channels\Contracts');
+
+arch('Notifications jobs are final')
+    ->expect('App\Domains\Operations\Notifications\Jobs')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Notifications uses debugging leftovers')
+    ->expect('App\Domains\Operations\Notifications')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Notifications\' Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Operations\Notifications')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Operations\Notifications\Actions');
+
 // --- Cross-domain event-routing seam (app/Listeners) ---
 //
 // App\Listeners\CreateShipmentOnOrderPlaced is the one class in the
@@ -826,7 +910,8 @@ arch('only Returns\' Actions coordinate DB transactions directly')
 // bootstrap/providers.php already does for every module's ServiceProvider.
 // This rule is the arch-test-layer confirmation of that same boundary:
 // the translation stays paper-thin, never growing real business logic of
-// its own.
+// its own. The eight Notifications listeners (Send*On*.php) live here for
+// the identical reason.
 
 arch('the cross-domain event-routing seam stays a thin translator, never gaining its own business logic')
     ->expect('App\Listeners')
