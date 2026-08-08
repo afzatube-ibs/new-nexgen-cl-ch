@@ -11,8 +11,7 @@ This folder is the single source of truth for neXgen Core. Documents are authori
 | 02 | PRODUCT_PRINCIPLES | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
 | — | [SYSTEM_ARCHITECTURE_PLAN](03_SYSTEM_ARCHITECTURE_PLAN.md) | Draft (v0.3) — closed out | Chief Software Architect & Lead Engineer |
 | 03 | [SYSTEM_ARCHITECTURE](03_SYSTEM_ARCHITECTURE.md) | **Accepted (v1.2)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
-| — | [ADR-0001](adr/ADR-0001-modular-monolith.md), [0002](adr/ADR-0002-backend-runtime.md), [0003](adr/ADR-0003-primary-datastore.md), [0004](adr/ADR-0004-caching-session-queue.md), [0007](adr/ADR-0007-api-style.md), [0008](adr/ADR-0008-containerized-deployment.md) | **Accepted** | Chief Software Architect & Lead Engineer (Product Owner confirmed) |
-| — | [ADR-0005](adr/ADR-0005-admin-interface.md), [ADR-0006](adr/ADR-0006-storefront-rendering.md) | Draft — pending their implementation phases | Chief Software Architect & Lead Engineer |
+| — | [ADR-0001](adr/ADR-0001-modular-monolith.md), [0002](adr/ADR-0002-backend-runtime.md), [0003](adr/ADR-0003-primary-datastore.md), [0004](adr/ADR-0004-caching-session-queue.md), [0005](adr/ADR-0005-admin-interface.md), [0006](adr/ADR-0006-storefront-rendering.md), [0007](adr/ADR-0007-api-style.md), [0008](adr/ADR-0008-containerized-deployment.md), [0009](adr/ADR-0009-frontend-monorepo.md) | **Accepted** | Chief Software Architect & Lead Engineer (Product Owner confirmed) |
 | 04 | [MODULE_ARCHITECTURE](04_MODULE_ARCHITECTURE.md) | **Accepted (v1.1)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
 | 05 | [DATA_ARCHITECTURE](05_DATA_ARCHITECTURE.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
 | 06 | [API_STANDARD](06_API_STANDARD.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (independently reviewed by Product & Solution Architect) |
@@ -30,6 +29,8 @@ Update this table's Status column every time a document changes state (Draft →
 - **`decisions/`** — Non-architectural project decisions worth recording permanently, that don't warrant a full ADR.
 - **`diagrams/`** — Domain maps, ERDs, sequence diagrams, and other visual architecture references.
 - **`assets/`** — Supporting files referenced by documents in this folder.
+- **`frontend/`** — Phase 2.0's frontend architecture and design specification set (design system, admin shell, theme engine, storefront component engine, CMS foundation, performance foundation) — the concrete, framework-specific implementation companion to `07_UI_DESIGN_SYSTEM.md` and `ADR-0005`/`0006`/`0009`. See `frontend/README.md` for the reading order. Architecture only as of Phase 2.0 — no frontend code exists in this repository yet.
+- **`operations/`** — Phase 1.1's operational runbooks (production deployment, day-2 operations, upgrades, disaster recovery, troubleshooting) for the backend.
 
 ## Rules
 
