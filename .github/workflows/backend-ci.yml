@@ -76,6 +76,9 @@ jobs:
       - name: Static analysis (PHPStan / Larastan)
         run: composer analyse
 
+      - name: Code style (Pint)
+        run: composer format:test
+
       - name: Architecture boundary + full test suite
         run: composer test
         env:

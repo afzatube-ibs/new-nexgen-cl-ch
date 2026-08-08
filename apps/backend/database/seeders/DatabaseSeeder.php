@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
             FulfillmentPermissionSeeder::class,
             ReturnsPermissionSeeder::class,
             NotificationsPermissionSeeder::class,
+            SearchPermissionSeeder::class,
             RoleSeeder::class,
             NotificationTemplateSeeder::class,
         ]);

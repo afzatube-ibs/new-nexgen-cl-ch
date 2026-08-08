@@ -49,6 +49,21 @@ final class CustomerController
             $query->where('status', $request->string('status')->toString());
         }
 
+        // Free-text Customer Search, per the accepted scope for
+        // MODULE:SEARCH (docs/04_MODULE_ARCHITECTURE.md v1.5): Customer
+        // search is satisfied by this module's own list endpoint rather
+        // than by Search's cross-domain index, so it stays a plain
+        // in-module LIKE filter over Customers' own columns — no
+        // dependency on Search at all.
+        if ($request->filled('q')) {
+            $term = $request->string('q')->toString();
+            $query->where(function ($sub) use ($term): void {
+                $sub->where('name', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%")
+                    ->orWhere('phone', 'like', "%{$term}%");
+            });
+        }
+
         $sortable = ['name', 'email', 'created_at'];
         $sort = $request->string('sort', 'created_at')->toString();
         $direction = $request->string('direction', 'desc')->toString() === 'asc' ? 'asc' : 'desc';

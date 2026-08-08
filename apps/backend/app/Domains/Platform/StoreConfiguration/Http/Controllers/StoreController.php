@@ -35,6 +35,21 @@ final class StoreController
             $query->where('status', $request->string('status')->toString());
         }
 
+        // Free-text Store Search, per the accepted scope for
+        // MODULE:SEARCH (docs/04_MODULE_ARCHITECTURE.md v1.5): Store
+        // search is satisfied by this module's own list endpoint rather
+        // than by Search's cross-domain index, so it stays a plain
+        // in-module LIKE filter over Stores' own columns — no
+        // dependency on Search at all.
+        if ($request->filled('q')) {
+            $term = $request->string('q')->toString();
+            $query->where(function ($sub) use ($term): void {
+                $sub->where('name', 'like', "%{$term}%")
+                    ->orWhere('legal_name', 'like', "%{$term}%")
+                    ->orWhere('contact_email', 'like', "%{$term}%");
+            });
+        }
+
         return StoreResource::collection($query->paginate());
     }
 

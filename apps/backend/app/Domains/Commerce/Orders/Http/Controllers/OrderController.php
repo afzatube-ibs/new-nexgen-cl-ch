@@ -37,6 +37,21 @@ final class OrderController
             $query->where('customer_id', $request->string('customer_id')->toString());
         }
 
+        // Free-text Order Search, per the accepted scope for MODULE:SEARCH
+        // (docs/04_MODULE_ARCHITECTURE.md v1.5): Order search is satisfied
+        // by this module's own list endpoint rather than by Search's
+        // cross-domain index, so it stays a plain in-module LIKE filter
+        // over Orders' own snapshot columns — no dependency on Search at
+        // all.
+        if ($request->filled('q')) {
+            $term = $request->string('q')->toString();
+            $query->where(function ($sub) use ($term): void {
+                $sub->where('order_number', 'like', "%{$term}%")
+                    ->orWhere('customer_name', 'like', "%{$term}%")
+                    ->orWhere('customer_email', 'like', "%{$term}%");
+            });
+        }
+
         return OrderResource::collection($query->orderByDesc('placed_at')->paginate());
     }
 

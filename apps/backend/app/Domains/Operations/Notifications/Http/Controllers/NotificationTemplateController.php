@@ -33,6 +33,21 @@ final class NotificationTemplateController
             $query->where('code', $request->string('code')->toString());
         }
 
+        // Free-text Template Search, per the accepted scope for
+        // MODULE:SEARCH (docs/04_MODULE_ARCHITECTURE.md v1.5): Template
+        // search is satisfied by this module's own list endpoint rather
+        // than by Search's cross-domain index, so it stays a plain
+        // in-module LIKE filter over this module's own columns — no
+        // dependency on Search at all.
+        if ($request->filled('q')) {
+            $term = $request->string('q')->toString();
+            $query->where(function ($sub) use ($term): void {
+                $sub->where('code', 'like', "%{$term}%")
+                    ->orWhere('subject', 'like', "%{$term}%")
+                    ->orWhere('body', 'like', "%{$term}%");
+            });
+        }
+
         return NotificationTemplateResource::collection($query->orderBy('code')->paginate());
     }
 

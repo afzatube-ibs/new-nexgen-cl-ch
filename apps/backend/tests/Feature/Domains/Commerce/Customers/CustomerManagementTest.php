@@ -48,6 +48,20 @@ it('filters the customer list by status', function () {
     expect($response->json('data.0.status'))->toBe('archived');
 });
 
+it('searches the customer list by free-text name/email/phone match', function () {
+    // Customer Search, per the accepted scope for MODULE:SEARCH
+    // (docs/04_MODULE_ARCHITECTURE.md v1.5) — satisfied by this module's
+    // own list endpoint rather than by Search's cross-domain index.
+    $caller = userWithPermissions(['customers.customers.view']);
+    Customer::factory()->create(['name' => 'Rahim Uddin', 'email' => 'rahim@example.test']);
+    Customer::factory()->create(['name' => 'Karim Hossain', 'email' => 'karim@example.test']);
+
+    $response = $this->actingAs($caller, 'sanctum')->getJson('/api/v1/customers?q=rahim');
+
+    expect($response->json('meta.total'))->toBe(1);
+    expect($response->json('data.0.name'))->toBe('Rahim Uddin');
+});
+
 it('audits listing and viewing, since customer data is Sensitive', function () {
     $caller = userWithPermissions(['customers.customers.view']);
     $customer = Customer::factory()->create();

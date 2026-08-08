@@ -919,3 +919,89 @@ arch('the cross-domain event-routing seam stays a thin translator, never gaining
     ->toBeFinal()
     ->toBeReadonly()
     ->not->toUse(['dd', 'dump', 'var_dump', 'die', 'Illuminate\Support\Facades\DB']);
+
+// --- Search ---
+//
+// Unlike every module above, Search is Commerce, the same domain as its
+// one real dependency (Catalog) — per docs/04_MODULE_ARCHITECTURE.md's
+// v1.5 Change Log entry, this is a deliberate, documented departure from
+// the cross-domain-listener pattern every prior module needed: Search's
+// own Listeners\* classes live inside this module's own namespace, not
+// app/Listeners, and are registered from its own Providers\
+// SearchServiceProvider::boot(), not App\Providers\AppServiceProvider —
+// because deptrac.yaml's layers are domain-level, a same-domain import
+// (Search -> Catalog) is never flagged, so no neutral bridge is needed.
+
+arch('Search never depends on any Commerce module other than Catalog')
+    ->expect('App\Domains\Commerce\Search')
+    ->not->toUse([
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Commerce\Promotions',
+        'App\Domains\Commerce\Orders',
+        'App\Domains\Commerce\Checkout',
+        'App\Domains\Commerce\Payments',
+        'App\Domains\Commerce\Customers',
+    ]);
+
+arch('Search never depends on any Operations module')
+    ->expect('App\Domains\Commerce\Search')
+    ->not->toUse([
+        'App\Domains\Operations\Shipping',
+        'App\Domains\Operations\Fulfillment',
+        'App\Domains\Operations\Returns',
+        'App\Domains\Operations\Notifications',
+        'App\Domains\Operations\SupplierManagement',
+    ]);
+
+arch('Search never depends on Growth')
+    ->expect('App\Domains\Commerce\Search')
+    ->not->toUse('App\Domains\Growth');
+
+arch('Search never depends on Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Commerce\Search')
+    ->not->toUse([
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Search controllers are final')
+    ->expect('App\Domains\Commerce\Search\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Search actions are final and readonly')
+    ->expect('App\Domains\Commerce\Search\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Search models are final')
+    ->expect('App\Domains\Commerce\Search\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('Search engines are final')
+    ->expect('App\Domains\Commerce\Search\Engines')
+    ->classes()
+    ->toBeFinal()
+    ->ignoring([
+        'App\Domains\Commerce\Search\Engines\Contracts',
+        'App\Domains\Commerce\Search\Engines\Support',
+    ]);
+
+arch('Search listeners are final and readonly')
+    ->expect('App\Domains\Commerce\Search\Listeners')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('nothing in Search uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Search')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+arch('only Search\' Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Search')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring('App\Domains\Commerce\Search\Actions');

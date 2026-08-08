@@ -55,6 +55,20 @@ it('filters the store list by status', function () {
     expect($response->json('data.0.status'))->toBe('archived');
 });
 
+it('searches the store list by free-text name/legal_name/contact_email match', function () {
+    // Store Search, per the accepted scope for MODULE:SEARCH
+    // (docs/04_MODULE_ARCHITECTURE.md v1.5) — satisfied by this module's
+    // own list endpoint rather than by Search's cross-domain index.
+    $caller = userWithPermissions(['store_configuration.stores.view']);
+    Store::factory()->create(['name' => 'Dhaka Flagship Store']);
+    Store::factory()->create(['name' => 'Chattogram Outlet']);
+
+    $response = $this->actingAs($caller, 'sanctum')->getJson('/api/v1/stores?q=Dhaka');
+
+    expect($response->json('meta.total'))->toBe(1);
+    expect($response->json('data.0.name'))->toBe('Dhaka Flagship Store');
+});
+
 it('creates a store given the manage permission, publishing StoreConfigurationChanged and auditing it', function () {
     $caller = userWithPermissions(['store_configuration.stores.manage']);
 

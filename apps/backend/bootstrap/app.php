@@ -101,6 +101,33 @@ return Application::configure(basePath: dirname(__DIR__))
         // SECURITY:AUTHORIZATION's API-boundary permission check, reusable
         // by every route in every module — see EnsurePermission's docblock.
         $middleware->alias(['permission' => EnsurePermission::class]);
+
+        // Phase 1 Hardening Pass finding (2026-08-08): Laravel's default
+        // `Illuminate\Auth\Middleware\Authenticate::redirectTo()` calls
+        // `route('login')` to decide where to send an unauthenticated
+        // *guest* request — and it does so eagerly, evaluating that call
+        // BEFORE the `AuthenticationException` below is even constructed,
+        // for any request whose `Accept` header doesn't ask for JSON
+        // (`$request->expectsJson()` false — true of a great many real
+        // HTTP clients, and of a bare `curl` call with no `-H Accept:`
+        // flag; every one of this platform's own automated tests happens
+        // to always send `Accept: application/json` via Pest's `getJson`/
+        // `postJson` helpers, which is exactly why this went undetected
+        // until a live, non-JSON-Accept smoke test surfaced it). This
+        // backend has no web/login surface at all — `route('login')`
+        // always throws `RouteNotFoundException` — so unauthenticated
+        // access to *every* permission-protected endpoint in *every*
+        // module 500'd instead of cleanly 401'ing whenever the caller's
+        // `Accept` header didn't happen to include `json`, bypassing the
+        // `AuthenticationException` render mapping below entirely (a
+        // `RouteNotFoundException`, not an `AuthenticationException`, is
+        // what actually gets thrown). Telling the guest redirect to always
+        // resolve to `null` — matching this API-only platform's own "no
+        // HTML surface at all" design intent, stated in the exceptions
+        // block below — means `Authenticate::unauthenticated()` always
+        // constructs a real `AuthenticationException` with no redirect
+        // target, which the render mapping below always catches.
+        $middleware->redirectGuestsTo(fn (): ?string => null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // API:ERROR_MODEL / API:RESPONSE_ENVELOPE: "every module's API

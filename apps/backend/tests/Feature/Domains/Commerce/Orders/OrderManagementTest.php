@@ -174,6 +174,20 @@ it('lists orders, paginated, filterable by status and customer_id', function () 
     expect($response->json('data.0.id'))->toBe($target->id);
 });
 
+it('searches the order list by free-text order_number/customer_name/customer_email match', function () {
+    // Order Search, per the accepted scope for MODULE:SEARCH
+    // (docs/04_MODULE_ARCHITECTURE.md v1.5) — satisfied by this module's
+    // own list endpoint rather than by Search's cross-domain index.
+    $caller = userWithPermissions(['orders.orders.view']);
+    $target = Order::factory()->create(['order_number' => 'ORD-SEARCH-TARGET']);
+    Order::factory()->create(['order_number' => 'ORD-OTHER']);
+
+    $response = $this->actingAs($caller, 'sanctum')->getJson('/api/v1/orders?q=SEARCH-TARGET');
+
+    expect($response->json('meta.total'))->toBe(1);
+    expect($response->json('data.0.id'))->toBe($target->id);
+});
+
 it('returns 404, not a stack trace, for a nonexistent order', function () {
     $caller = userWithPermissions(['orders.orders.view']);
 

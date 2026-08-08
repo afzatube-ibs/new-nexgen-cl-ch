@@ -102,3 +102,17 @@ it('filters the template list by channel', function () {
     $response->assertOk();
     expect(collect($response->json('data'))->pluck('channel')->unique()->all())->toBe(['in_app']);
 });
+
+it('searches the template list by free-text code/subject/body match', function () {
+    // Template Search, per the accepted scope for MODULE:SEARCH
+    // (docs/04_MODULE_ARCHITECTURE.md v1.5) — satisfied by this module's
+    // own list endpoint rather than by Search's cross-domain index.
+    $caller = userWithPermissions(['notifications.templates.view']);
+    NotificationTemplate::factory()->create(['code' => 'order.confirmation', 'subject' => 'Your order is confirmed']);
+    NotificationTemplate::factory()->create(['code' => 'payment.receipt', 'subject' => 'Payment received']);
+
+    $response = $this->actingAs($caller, 'sanctum')->getJson('/api/v1/notification-templates?q=confirmation');
+
+    expect($response->json('meta.total'))->toBe(1);
+    expect($response->json('data.0.code'))->toBe('order.confirmation');
+});
