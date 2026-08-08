@@ -16,7 +16,15 @@ use Throwable;
  * PRINCIPLES:EXPLICIT_FAILURE, a courier hand-off failure must surface
  * clearly to the caller (Fulfillment's Actions\DispatchShipmentAction),
  * never be silently swallowed or produce a fabricated tracking number.
- * Mapped to HTTP 422 in bootstrap/app.php.
+ *
+ * Not mapped in bootstrap/app.php — corrected here during Phase 1.1's
+ * error-handling completeness review, which found this docblock claiming
+ * otherwise. This exception has exactly one call site
+ * (DispatchShipmentAction), which catches it and re-throws Fulfillment's
+ * own Exceptions\ShipmentValidationException('courier_booking_failed',
+ * ...) instead, so it is that mapping (already present in
+ * bootstrap/app.php) a caller's 422 response actually comes from — this
+ * class never reaches the global exception handler at all.
  */
 final class CourierBookingFailedException extends RuntimeException
 {

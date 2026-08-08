@@ -66,7 +66,14 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function ():
         ->middleware('permission:payments.bank_transfer.verify')->name('v1.payments.bank-transfer.reject');
 });
 
-Route::prefix('api/v1')->middleware(['api', 'throttle:payments-webhooks'])->group(function (): void {
+// `withoutMiddleware('throttle:api')`: see Identity & Access's identically-
+// reasoned login route. `throttle:payments-webhooks` is already this
+// route group's own purpose-built limiter (keyed by IP, since a gateway's
+// server never authenticates) — stacking the platform-wide floor
+// underneath it produces misleading `X-RateLimit-*` headers without
+// adding real protection, found and verified live during Phase 1.1's
+// hardening pass.
+Route::prefix('api/v1')->middleware(['api', 'throttle:payments-webhooks'])->withoutMiddleware('throttle:api')->group(function (): void {
     Route::post('payments/webhooks/sslcommerz', SslcommerzWebhookController::class)->name('v1.payments.webhooks.sslcommerz');
     Route::post('payments/webhooks/bkash', BkashWebhookController::class)->name('v1.payments.webhooks.bkash');
     Route::post('payments/webhooks/nagad', NagadWebhookController::class)->name('v1.payments.webhooks.nagad');

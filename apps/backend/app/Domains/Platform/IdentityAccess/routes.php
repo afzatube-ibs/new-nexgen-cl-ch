@@ -32,7 +32,19 @@ use Illuminate\Support\Facades\Route;
 // through bootstrap/app.php's `withRouting(api: ...)`, that group is not
 // applied automatically the way it would be for a routes/api.php file.
 Route::prefix('api/v1')->middleware('api')->group(function (): void {
+    // `withoutMiddleware('throttle:api')`: the platform-wide `api` floor
+    // (Phase 1.1, `FoundationServiceProvider`) would otherwise stack
+    // underneath this route's own purpose-built, already-stricter
+    // `throttle:login` (5/minute vs. the floor's 120/minute) — nesting two
+    // `ThrottleRequests` middleware instances on one route is functionally
+    // fine (the tighter one still blocks first) but produces confusing
+    // `X-RateLimit-*` response headers that don't match either limiter's
+    // real state, found and verified live during Phase 1.1's hardening
+    // pass. `throttle:login` alone is already a correctly-scoped, tested
+    // limiter for this specific abuse case (credential stuffing) — it
+    // does not need the general floor layered underneath it too.
     Route::post('auth/login', [AuthController::class, 'login'])
+        ->withoutMiddleware('throttle:api')
         ->middleware('throttle:login')
         ->name('v1.auth.login');
 

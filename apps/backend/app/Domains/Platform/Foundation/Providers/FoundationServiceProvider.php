@@ -12,6 +12,9 @@ use App\Domains\Platform\Foundation\Health\Checks\DatabaseHealthCheck;
 use App\Domains\Platform\Foundation\Health\Checks\QueueHealthCheck;
 use App\Domains\Platform\Foundation\Health\HealthCheckService;
 use App\Domains\Platform\Foundation\Http\Controllers\HealthController;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -48,6 +51,25 @@ final class FoundationServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Route::get('/api/health', HealthController::class)->name('platform.health');
+
+        // Phase 1.1 Production Hardening finding (`SECURITY_REVIEW.md` S-4,
+        // `TECHNICAL_DEBT_REPORT.md` TD-3): no general-purpose rate limit
+        // existed on any of the ~150 permission-protected endpoints across
+        // 19 modules — only three narrower, module-specific limiters did
+        // (`login`, `install`, `payments-webhooks`). This is the platform-
+        // wide floor `API:RATE_LIMITING` requires, applied to the whole
+        // `api` middleware group by `bootstrap/app.php`'s `throttleApi()`
+        // call — every module's own routes.php needed zero changes.
+        // Keyed by authenticated user id where available (a caller who has
+        // proven their identity gets their own bucket, not one shared with
+        // every other authenticated user behind the same NAT/proxy IP),
+        // falling back to IP for a request that hasn't authenticated yet.
+        RateLimiter::for('api', function (Request $request) {
+            $user = $request->user();
+
+            return Limit::perMinute((int) config('api.rate_limit_per_minute', 120))
+                ->by($user !== null ? $user->id : ($request->ip() ?? 'unknown'));
+        });
 
         if ($this->app->runningInConsole()) {
             $this->commands([

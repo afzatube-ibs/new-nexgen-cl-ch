@@ -41,6 +41,7 @@ use App\Domains\Operations\Shipping\Exceptions\ConcurrencyConflictException as S
 use App\Domains\Operations\Shipping\Exceptions\DependentRecordsExistException as ShippingDependentRecordsExistException;
 use App\Domains\Operations\Shipping\Exceptions\UnsupportedShippingProviderException;
 use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
+use App\Domains\Platform\Foundation\Http\Middleware\SecurityHeaders;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
 use App\Domains\Platform\IdentityAccess\Http\Middleware\EnsurePermission;
@@ -98,6 +99,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // the gap ENGINEERING:LOGGING_PRINCIPLES prohibits.
         $middleware->append(AssignCorrelationId::class);
 
+        // Phase 1.1 Production Hardening: baseline security response
+        // headers on every response, platform-wide — see SecurityHeaders'
+        // own docblock for the specific values and why each is safe for a
+        // pure JSON API with no first-party HTML surface.
+        $middleware->append(SecurityHeaders::class);
+
         // SECURITY:AUTHORIZATION's API-boundary permission check, reusable
         // by every route in every module — see EnsurePermission's docblock.
         $middleware->alias(['permission' => EnsurePermission::class]);
@@ -128,6 +135,34 @@ return Application::configure(basePath: dirname(__DIR__))
         // constructs a real `AuthenticationException` with no redirect
         // target, which the render mapping below always catches.
         $middleware->redirectGuestsTo(fn (): ?string => null);
+
+        // Phase 1.1 Production Hardening (`SECURITY_REVIEW.md` S-4,
+        // `TECHNICAL_DEBT_REPORT.md` TD-3): applies the `api` RateLimiter
+        // (registered in `Foundation\Providers\FoundationServiceProvider
+        // ::boot()`, tuned via `config('api.rate_limit_per_minute')`) to
+        // Laravel's built-in `api` middleware group — every one of the 19
+        // modules' `routes.php` files already opts every one of its routes
+        // into that group (`Route::middleware(['api', ...])`), so this one
+        // line is the platform-wide floor `API:RATE_LIMITING` requires,
+        // with zero changes needed to any module's own routes.
+        //
+        // Deliberately NOT `throttleApi('api', redis: true)`: that flag
+        // does not just add a Redis-optimized counter for the `api`
+        // limiter specifically — it rebinds the `throttle` middleware
+        // ALIAS platform-wide to `ThrottleRequestsWithRedis`, meaning
+        // every OTHER already-registered named limiter (`login`,
+        // `install`, `payments-webhooks`) would silently switch
+        // implementations too. `ThrottleRequestsWithRedis`'s Lua-script
+        // sliding window uses its own raw Redis key shape that a plain
+        // `Cache::flush()` (as `InstallTest.php` already relied on for
+        // per-test isolation) does not reliably clear — found live as a
+        // real, reproducible test failure during this hardening pass, not
+        // a hypothetical. The plain `ThrottleRequests` middleware already
+        // uses this application's own configured default cache store
+        // (`CACHE_STORE=redis`) for its counters — genuinely
+        // Redis-backed either way, per ADR-0004 — without swapping every
+        // other limiter's implementation out from under it.
+        $middleware->throttleApi('api');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // API:ERROR_MODEL / API:RESPONSE_ENVELOPE: "every module's API
@@ -456,8 +491,20 @@ return Application::configure(basePath: dirname(__DIR__))
             return $envelope('not_found', 'The requested resource was not found.', status: 404);
         });
 
+        // Phase 1.1 Production Hardening finding: this mapping previously
+        // built a fresh response via $envelope() alone, discarding every
+        // header Illuminate\Routing\Middleware\ThrottleRequests actually
+        // attaches to the exception it throws (`Retry-After`, `X-RateLimit-
+        // Limit`, `X-RateLimit-Remaining`) — found live while verifying the
+        // new platform-wide `api` rate limit: every 429 response carried no
+        // `Retry-After` at all, leaving a well-behaved caller with no way
+        // to know when to retry. `API:RATE_LIMITING`: "a caller who is
+        // rate-limited is always told so explicitly" — the JSON body's
+        // `type: rate_limited` already satisfied that in prose; this line
+        // is what makes it true for automated retry logic too.
         $exceptions->render(function (TooManyRequestsHttpException $e) use ($envelope): JsonResponse {
-            return $envelope('rate_limited', 'Too many requests. Please try again later.', status: 429);
+            return $envelope('rate_limited', 'Too many requests. Please try again later.', status: 429)
+                ->withHeaders($e->getHeaders());
         });
 
         $exceptions->render(function (NotFoundHttpException $e) use ($envelope): JsonResponse {

@@ -22,6 +22,13 @@ use Illuminate\Support\Facades\Route;
 // own service provider, not bootstrap/app.php's `withRouting(api: ...)`.
 Route::prefix('api/v1')->middleware('api')->group(function (): void {
     Route::get('install/status', [InstallController::class, 'status'])->name('v1.install.status');
+    // See Identity & Access's identically-reasoned `withoutMiddleware
+    // ('throttle:api')` on its own login route: `throttle:install` (5/min)
+    // is already a correctly-scoped, purpose-built limiter for this
+    // pre-authentication endpoint — stacking the platform-wide 120/min
+    // floor underneath it produces misleading `X-RateLimit-*` headers
+    // without adding real protection.
     Route::post('install', [InstallController::class, 'store'])
+        ->withoutMiddleware('throttle:api')
         ->middleware('throttle:install')->name('v1.install.store');
 });
