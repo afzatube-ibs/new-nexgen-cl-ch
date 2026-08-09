@@ -23,6 +23,14 @@ This folder is the single source of truth for neXgen Core. Documents are authori
 
 Update this table's Status column every time a document changes state (Draft → Under Review → Accepted → Superseded), per the Document Lifecycle defined in `00_PROJECT_GOVERNANCE.md` (GOVERNANCE:DOCUMENT_LIFECYCLE).
 
+## Process & Release Documents
+
+Concrete, tool-naming process documents that sit alongside the closed `00`–`11` foundation set rather than inside it — `11_DEPLOYMENT_STANDARD.md` is explicitly that set's final document.
+
+| Document | Status | Owner |
+|---|---|---|
+| [RELEASE_MANAGEMENT](RELEASE_MANAGEMENT.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (Product Owner approved) |
+
 ## Subdirectories
 
 - **`adr/`** — Architecture Decision Records. One file per decision (e.g. `ADR-0001-modular-monolith.md`). Indexed by status (Proposed / Accepted / Superseded / Deprecated) once ADRs exist.
