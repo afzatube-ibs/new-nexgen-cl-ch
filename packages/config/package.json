@@ -1,0 +1,28 @@
+{
+  "name": "@nexgen/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared ESLint/TypeScript/Prettier base configuration for every apps/* and packages/* workspace, per ADR-0009. Consumed, never duplicated per package.",
+  "type": "module",
+  "main": "./eslint.base.js",
+  "exports": {
+    "./eslint": "./eslint.base.js",
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./prettier": "./prettier.json"
+  },
+  "files": [
+    "eslint.base.js",
+    "tsconfig.base.json",
+    "prettier.json"
+  ],
+  "dependencies": {
+    "@eslint/js": "^9.14.0",
+    "eslint": "^9.14.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-boundaries": "^7.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "typescript-eslint": "^8.13.0"
+  }
+}

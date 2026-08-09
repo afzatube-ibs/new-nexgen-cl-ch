@@ -30,6 +30,10 @@ build/
 # Test / coverage output
 coverage/
 .phpunit.cache/
+test-results/
+playwright-report/
+blob-report/
+*.tsbuildinfo
 
 # Local database files
 *.sqlite

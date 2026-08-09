@@ -1,0 +1,9 @@
+/* DESIGN_SYSTEM.md §1.2: Inter + JetBrains Mono, self-hosted (never a
+   runtime Google Fonts request) via @fontsource — Vite's own static-asset
+   pipeline bundles these, per PERFORMANCE_FOUNDATION.md. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+
+@import '@nexgen/ui/styles.css';

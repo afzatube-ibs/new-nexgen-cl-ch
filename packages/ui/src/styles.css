@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-surface text-text-primary antialiased;
+  }
+
+  /* DESIGN_SYSTEM.md §5: focus-visible, not focus — a ring only for keyboard focus. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+@layer utilities {
+  /* Radix's data-[state] enter/exit animation keyframes, shared by Dialog/Drawer/DropdownMenu/Select/Toast/Tooltip/Popover. */
+  @keyframes nexgen-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes nexgen-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes nexgen-zoom-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+  @keyframes nexgen-zoom-out {
+    to {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+  @keyframes nexgen-slide-in-from-right {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes nexgen-slide-out-to-right {
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes nexgen-slide-in-from-left {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes nexgen-slide-out-to-left {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+
+  .animate-in {
+    animation-duration: theme('transitionDuration.DEFAULT');
+    animation-timing-function: theme('transitionTimingFunction.DEFAULT');
+    animation-fill-mode: both;
+  }
+  .animate-out {
+    animation-duration: theme('transitionDuration.DEFAULT');
+    animation-timing-function: theme('transitionTimingFunction.DEFAULT');
+    animation-fill-mode: both;
+  }
+  .fade-in-0 {
+    animation-name: nexgen-fade-in;
+  }
+  .fade-out-0 {
+    animation-name: nexgen-fade-out;
+  }
+  .zoom-in-95 {
+    animation-name: nexgen-zoom-in;
+  }
+  .zoom-out-95 {
+    animation-name: nexgen-zoom-out;
+  }
+  .slide-in-from-right,
+  .slide-in-from-right-full {
+    animation-name: nexgen-slide-in-from-right;
+  }
+  .slide-out-to-right {
+    animation-name: nexgen-slide-out-to-right;
+  }
+  .slide-in-from-left {
+    animation-name: nexgen-slide-in-from-left;
+  }
+  .slide-out-to-left {
+    animation-name: nexgen-slide-out-to-left;
+  }
+
+  /* UI:ACCESSIBILITY / DESIGN_SYSTEM.md §1.7: reduced motion gets an
+     opacity-only cross-fade at motion.duration.fast, never a skipped
+     transition outright (a state change must still be perceivable). */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-in,
+    .animate-out {
+      animation-duration: theme('transitionDuration.fast') !important;
+      animation-name: nexgen-fade-in !important;
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "nexgen-core",
+  "private": true,
+  "description": "neXgen Core frontend monorepo — apps/admin (ADR-0005), apps/storefront (ADR-0006, future), packages/* (ADR-0009). apps/backend is the separate Laravel application and is not part of this workspace.",
+  "type": "module",
+  "workspaces": [
+    "apps/admin",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "npm run dev -w apps/admin",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w apps/admin --if-present",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,tsx,css}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,tsx,css}\""
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}
