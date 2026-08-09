@@ -296,7 +296,18 @@ export interface ListProductsQuery {
   perPage?: number;
 }
 
-/** `ProductNotReadyToPublishException` (422) — `details.reasons`, apps/backend. Surfaced verbatim by the UI, never re-derived client-side (the completeness rule stays server-owned). */
+/**
+ * `ProductNotReadyToPublishException` (422), apps/backend — kept as an
+ * optional shape for forward-compatibility, but **not what the live
+ * backend actually returns today**: the real response has no `details`
+ * key at all, only a single combined sentence in `ValidationApiError`'s
+ * own `message` (e.g. "...it is not assigned to at least one category.").
+ * Found live (Phase 2.2A) — the earlier assumption that this exception
+ * always carries `details.reasons: string[]` was wrong; `ProductFormPage`
+ * now falls back to `[error.message]` when this shape isn't present,
+ * which is the common case. Surfaced verbatim either way, never
+ * re-derived client-side (the completeness rule stays server-owned).
+ */
 export interface ProductNotReadyDetails {
   reasons: string[];
 }

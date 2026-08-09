@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Image, Tag, Boxes, FolderTree } from 'lucide-react';
 import {
-  Button,
   Input,
   Textarea,
   Select,
@@ -15,12 +15,18 @@ import {
   CardTitle,
   LoadingOverlay,
   Badge,
+  Text,
 } from '@nexgen/ui';
 import { ConflictError, ValidationApiError, PRODUCT_TYPES, PRODUCT_VISIBILITIES, type ProductNotReadyDetails } from '@nexgen/api-client';
-import { PageHeader, ConfirmDialog, RequirePermission, applyServerValidationErrors } from '../../../framework/index.js';
+import { applyServerValidationErrors } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
 import { useBrands } from '../brands/queries.js';
 import { useProduct, useCreateProduct, useUpdateProduct, usePublishProduct, useArchiveProduct, useRestoreProduct, useDestroyProduct } from './queries.js';
+import { StickyActionBar } from './editor/StickyActionBar.js';
+import { CompletionChecklist } from './editor/CompletionChecklist.js';
+import { PlaceholderSectionCard } from './editor/PlaceholderSectionCard.js';
+import { AiReserveButton } from './editor/AiReserveButton.js';
+import { slugify } from './editor/slug.js';
 
 const productSchema = z.object({
   brandId: z.string().optional().or(z.literal('')),
@@ -53,15 +59,20 @@ const EMPTY_VALUES: ProductFormValues = {
   metaKeywords: '',
 };
 
+interface DuplicateState {
+  duplicateFrom?: ProductFormValues & { sourceName: string };
+}
+
 /**
- * Create/edit Product — Slice 1: General + SEO fields only
- * (`ProductResource`/`CreateProductRequest`/`UpdateProductRequest`, apps/backend).
- * Variants/Media/Organization/Relations/Attribute-values/Activity are
- * Slice 2 — no placeholder tabs shipped for them here, per Phase 2.1's own
- * "no fake placeholder UI" bar (see PROJECT_STATUS.md).
+ * Create/edit Product — Phase 2.2A redesign. Still Slice 1's real field
+ * set only (General + SEO — `ProductResource`/`Create`/`UpdateProductRequest`,
+ * apps/backend); no backend contract changed by this redesign. See
+ * `PHASE_2_2A_PRODUCT_EDITOR_UX_REPORT.md` for the full research and
+ * decision record behind every choice below.
  */
 export function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const isNew = !id || id === 'new';
   const navigate = useNavigate();
   const { can } = useAuth();
@@ -89,10 +100,14 @@ export function ProductFormPage() {
     handleSubmit,
     reset,
     control,
+    watch,
+    setValue,
+    getValues,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ProductFormValues>({ resolver: zodResolver(productSchema), defaultValues: EMPTY_VALUES });
 
+  // Editing an existing product — hydrate the form from the server once it loads.
   useEffect(() => {
     if (product) {
       reset({
@@ -112,11 +127,36 @@ export function ProductFormPage() {
     }
   }, [product, reset]);
 
+  // Duplicate — a purely client-side prefill (`StickyActionBar`'s
+  // "Duplicate" navigates here with router state), never a new backend
+  // endpoint. Cleared from history state after use so a later plain visit
+  // to /new isn't accidentally pre-filled by a stale navigation.
+  useEffect(() => {
+    if (isNew) {
+      const duplicateFrom = (location.state as DuplicateState | null)?.duplicateFrom;
+      if (duplicateFrom) {
+        const { sourceName: _sourceName, ...values } = duplicateFrom;
+        reset(values);
+        void navigate(location.pathname, { replace: true, state: null });
+      }
+    }
+    // Only ever run once, on mount, for the initial duplicate-prefill — not on every location change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Warn on an actual tab close/refresh with unsaved changes — the one
+  // guard that needs a real browser-level hook, not just in-app UI (the
+  // in-app Cancel path is guarded separately, below, via a confirm dialog).
+  useEffect(() => {
+    function handleBeforeUnload(event: BeforeUnloadEvent): void {
+      if (isDirty) event.preventDefault();
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
   function toInput(values: ProductFormValues) {
-    return {
-      ...values,
-      brandId: values.brandId || null,
-    };
+    return { ...values, brandId: values.brandId || null };
   }
 
   async function onSubmit(values: ProductFormValues): Promise<void> {
@@ -138,6 +178,21 @@ export function ProductFormPage() {
     }
   }
 
+  // Ctrl/Cmd+S — Linear's "keyboard is the primary interface" principle,
+  // with the shortcut visibly printed on the Save button itself rather
+  // than hidden.
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        if (canManage) void handleSubmit(onSubmit)();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManage, product]);
+
   async function handlePublish(): Promise<void> {
     if (!product) return;
     setPublishReasons(null);
@@ -147,13 +202,23 @@ export function ProductFormPage() {
     } catch (error) {
       // ProductNotReadyToPublishException (422) — surfaced verbatim, per
       // publishProduct's own docblock (headless-first: the backend owns
-      // this rule, the UI never re-derives it).
+      // this rule, the UI never re-derives it — CompletionChecklist below
+      // only *previews* the same rule, it doesn't replace this). The real
+      // response body observed against the live backend is a single
+      // combined sentence in `message` (e.g. "...it is not assigned to at
+      // least one category."), NOT a `details.reasons` array — a real bug
+      // found here, live: this code previously checked `details.reasons`
+      // only, so it silently fell through to a generic error and never
+      // showed the backend's actual reason. Handling both shapes now, in
+      // case a future backend change adds the structured array back.
       if (error instanceof ValidationApiError) {
         const details = error.details as ProductNotReadyDetails | undefined;
         if (details?.reasons?.length) {
           setPublishReasons(details.reasons);
           return;
         }
+        setPublishReasons([error.message]);
+        return;
       }
       if (error instanceof ConflictError) {
         setFormError('This product was changed elsewhere — reload the page and try again.');
@@ -163,61 +228,79 @@ export function ProductFormPage() {
     }
   }
 
+  // `StickyActionBar` itself wraps this in a discard-confirmation dialog
+  // when there are unsaved changes (`isDirty`, passed down) — this
+  // function is the "actually leave" action either way.
+  function handleCancel(): void {
+    void navigate('/catalog/products');
+  }
+
+  function handleDuplicate(): void {
+    if (!product) return;
+    const values = getValues();
+    void navigate('/catalog/products/new', {
+      state: {
+        duplicateFrom: {
+          ...values,
+          name: `${values.name} (copy)`,
+          sku: '',
+          slug: '',
+          sourceName: values.name,
+        },
+      },
+    });
+  }
+
+  const watchedName = watch('name');
+  const watchedSlug = watch('slug');
+  const watchedProductType = watch('productType');
+  const watchedSku = watch('sku');
+  const slugPreview = watchedName ? slugify(watchedName) : '';
+
   if (!isNew && loadStatus === 'pending') {
     return <LoadingOverlay label="Loading product…" />;
   }
 
   if (!isNew && loadStatus === 'error') {
-    return <Alert variant="danger" role="alert">This product could not be loaded.</Alert>;
+    return (
+      <Alert variant="danger" role="alert">
+        This product could not be loaded.
+      </Alert>
+    );
   }
+
+  const statusBadge = product ? (
+    <Badge variant={product.status === 'active' ? 'success' : product.status === 'archived' ? 'warning' : 'default'}>
+      {product.status}
+    </Badge>
+  ) : undefined;
 
   return (
     <div>
-      <PageHeader
+      <StickyActionBar
         title={isNew ? 'New product' : (product?.name ?? 'Product')}
-        description={isNew ? 'Create a new product.' : `SKU ${product?.sku}`}
-        actions={
-          !isNew && product ? (
-            <RequirePermission anyOf={['catalog.products.manage']} inline={null}>
-              <div className="flex items-center gap-2">
-                {product.status === 'draft' && (
-                  <Button variant="secondary" onClick={() => void handlePublish()} loading={publishMutation.isPending}>
-                    Publish
-                  </Button>
-                )}
-                {product.status !== 'archived' ? (
-                  <Button variant="secondary" onClick={() => void archiveMutation.mutateAsync({ id: product.id, expectedVersion: product.version })}>
-                    Archive
-                  </Button>
-                ) : (
-                  <Button variant="secondary" onClick={() => void restoreMutation.mutateAsync(product.id)}>
-                    Restore
-                  </Button>
-                )}
-                <ConfirmDialog
-                  trigger={<Button variant="destructive">Delete</Button>}
-                  title="Delete this product?"
-                  description={`"${product.name}" will be permanently deleted. This cannot be undone.`}
-                  confirmLabel="Delete"
-                  destructive
-                  onConfirm={async () => {
-                    await destroyMutation.mutateAsync({ id: product.id, expectedVersion: product.version });
-                    void navigate('/catalog/products');
-                  }}
-                />
-              </div>
-            </RequirePermission>
-          ) : undefined
-        }
+        subtitle={isNew ? 'Create a new product.' : `SKU ${product?.sku}`}
+        statusBadge={statusBadge}
+        isNew={isNew}
+        isDirty={isDirty}
+        canManage={canManage}
+        saving={isSubmitting || createMutation.isPending || updateMutation.isPending}
+        onSave={() => void handleSubmit(onSubmit)()}
+        onCancel={handleCancel}
+        showPublish={Boolean(product && product.status === 'draft')}
+        publishing={publishMutation.isPending}
+        onPublish={() => void handlePublish()}
+        isArchived={product?.status === 'archived'}
+        onArchive={() => product && void archiveMutation.mutateAsync({ id: product.id, expectedVersion: product.version })}
+        onRestore={() => product && void restoreMutation.mutateAsync(product.id)}
+        onDuplicate={handleDuplicate}
+        onDelete={async () => {
+          if (!product) return;
+          await destroyMutation.mutateAsync({ id: product.id, expectedVersion: product.version });
+          void navigate('/catalog/products');
+        }}
+        productName={product?.name ?? ''}
       />
-
-      {product && (
-        <div className="mb-4">
-          <Badge variant={product.status === 'active' ? 'success' : product.status === 'archived' ? 'warning' : 'default'}>
-            {product.status}
-          </Badge>
-        </div>
-      )}
 
       {publishReasons && (
         <Alert variant="warning" className="mb-4" title="This product isn't ready to publish yet" role="alert">
@@ -234,26 +317,100 @@ export function ProductFormPage() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>General</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Main column — content that changes often: Identity, Media,
+            Pricing, Inventory, Description, SEO, Advanced. Wide, since
+            these are the fields a merchant edits most. */}
+        <div className="flex flex-col gap-6 lg:col-span-2">
+          <Card>
+            <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>Identity</CardTitle>
+              <AiReserveButton label="Improve Title" />
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
               <Input label="Name" error={errors.name?.message} {...register('name')} />
-              <Input label="SKU" error={errors.sku?.message} {...register('sku')} />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Barcode" error={errors.barcode?.message} {...register('barcode')} />
-              <Input label="Slug" hint="Leave blank to auto-generate from the name." error={errors.slug?.message} {...register('slug')} />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input label="SKU" hint="Must be unique across the catalog." error={errors.sku?.message} {...register('sku')} />
+                <Input label="Barcode" error={errors.barcode?.message} {...register('barcode')} />
+              </div>
+              <div>
+                <Input label="Slug" error={errors.slug?.message} {...register('slug')} />
+                {!watchedSlug && slugPreview && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <Text variant="caption" className="text-text-secondary">
+                      Preview: <code className="text-code">/products/{slugPreview}</code> — left blank, the server generates this automatically.
+                    </Text>
+                    <button
+                      type="button"
+                      className="text-caption font-medium text-brand hover:underline"
+                      onClick={() => setValue('slug', slugPreview, { shouldDirty: true })}
+                    >
+                      Use this
+                    </button>
+                  </div>
+                )}
+              </div>
               <Controller
                 control={control}
                 name="brandId"
                 render={({ field }) => <Select label="Brand" value={field.value} onValueChange={field.onChange} options={brandOptions} />}
               />
+            </CardContent>
+          </Card>
+
+          <PlaceholderSectionCard
+            title="Media"
+            icon={<Image className="size-8" aria-hidden="true" />}
+            description="Product images and video will attach here once the Media Manager ships. Reserved so this page won't need to be redesigned when it does."
+          />
+          <PlaceholderSectionCard
+            title="Pricing"
+            icon={<Tag className="size-8" aria-hidden="true" />}
+            description="Price, cost, and tax fields belong to the future Pricing module — not yet built, and deliberately not owned by Catalog."
+          />
+          <PlaceholderSectionCard
+            title="Inventory"
+            icon={<Boxes className="size-8" aria-hidden="true" />}
+            description="Stock levels and warehouse allocation belong to the future Inventory module — not yet built, and deliberately not owned by Catalog."
+          />
+
+          <Card>
+            <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>Description</CardTitle>
+              <div className="flex flex-wrap items-center gap-1">
+                <AiReserveButton label="Generate Description" />
+                <AiReserveButton label="Marketing Copy" />
+                <AiReserveButton label="Translate" />
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <Textarea
+                label="Short description"
+                hint="A one- or two-sentence summary shown in listings and search results."
+                error={errors.shortDescription?.message}
+                {...register('shortDescription')}
+              />
+              <Textarea label="Description" autoGrow error={errors.description?.message} {...register('description')} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>SEO</CardTitle>
+              <AiReserveButton label="Generate SEO" />
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <Input label="Meta title" error={errors.metaTitle?.message} {...register('metaTitle')} />
+              <Textarea label="Meta description" error={errors.metaDescription?.message} {...register('metaDescription')} />
+              <Input label="Meta keywords" hint="Comma-separated." error={errors.metaKeywords?.message} {...register('metaKeywords')} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Advanced</CardTitle>
+            </CardHeader>
+            <CardContent>
               <Controller
                 control={control}
                 name="productType"
@@ -266,6 +423,34 @@ export function ProductFormPage() {
                   />
                 )}
               />
+              <Text variant="caption" className="mt-2 text-text-secondary">
+                A structural choice, rarely changed after creation. &ldquo;Configurable&rdquo; products will require at least
+                one variant once Variants ship.
+              </Text>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar — glanceable status/meta, changed rarely: Status &
+            Visibility (with the real publish-completeness checklist) and
+            Organization. Narrow, on purpose (Shopify/Medusa's convergent
+            pattern — see the UX report's research notes). */}
+        <div className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Status &amp; visibility</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div>
+                <Text variant="body-strong" className="mb-1.5">
+                  Status
+                </Text>
+                {statusBadge ?? (
+                  <Text variant="caption" className="text-text-secondary">
+                    Set once created.
+                  </Text>
+                )}
+              </div>
               <Controller
                 control={control}
                 name="visibility"
@@ -278,32 +463,20 @@ export function ProductFormPage() {
                   />
                 )}
               />
-            </div>
-            <Textarea label="Short description" error={errors.shortDescription?.message} {...register('shortDescription')} />
-            <Textarea label="Description" autoGrow error={errors.description?.message} {...register('description')} />
-          </CardContent>
-        </Card>
+              <div className="border-t border-border pt-4">
+                <Text variant="body-strong" className="mb-2">
+                  Ready to publish?
+                </Text>
+                <CompletionChecklist name={watchedName} sku={watchedSku} productType={watchedProductType} />
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>SEO</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <Input label="Meta title" error={errors.metaTitle?.message} {...register('metaTitle')} />
-            <Textarea label="Meta description" error={errors.metaDescription?.message} {...register('metaDescription')} />
-            <Input label="Meta keywords" hint="Comma-separated." error={errors.metaKeywords?.message} {...register('metaKeywords')} />
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={() => void navigate('/catalog/products')}>
-            Cancel
-          </Button>
-          <RequirePermission anyOf={['catalog.products.manage']} inline={null}>
-            <Button type="submit" loading={isSubmitting || createMutation.isPending || updateMutation.isPending} disabled={!canManage}>
-              {isNew ? 'Create product' : 'Save changes'}
-            </Button>
-          </RequirePermission>
+          <PlaceholderSectionCard
+            title="Organization"
+            icon={<FolderTree className="size-8" aria-hidden="true" />}
+            description="Categories, collections, tags, and options land here once Organization ships — the same assignment endpoints already exist on the backend, just not this UI yet."
+          />
         </div>
       </form>
     </div>

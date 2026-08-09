@@ -61,10 +61,14 @@ export function updateProduct(client: ApiClient, id: string, input: UpdateProduc
  * `POST /products/{product}/publish` — `PublishProductAction` (apps/backend)
  * gates `draft -> active` on a real completeness check (name, sku, >=1
  * category, and >=1 variant if `product_type === 'configurable'`), throwing
- * `ProductNotReadyToPublishException` (422, `details.reasons: string[]`) if
- * not met. The UI surfaces that list verbatim — see `ProductFormPage` —
- * rather than re-deriving the rule client-side (headless-first: the backend
- * stays the one source of truth for this business rule).
+ * `ProductNotReadyToPublishException` (422) if not met. Verified live
+ * (Phase 2.2A) that the response has no `details` key — the reason is a
+ * single combined sentence in `ValidationApiError.message` (e.g. "...it is
+ * not assigned to at least one category."), not a `details.reasons` array
+ * as earlier assumed. The UI surfaces it verbatim either way — see
+ * `ProductFormPage` — rather than re-deriving the rule client-side
+ * (headless-first: the backend stays the one source of truth for this
+ * business rule).
  */
 export async function publishProduct(client: ApiClient, id: string, expectedVersion: number): Promise<ProductDTO> {
   const response = await client.post<DataEnvelope<ProductDTO>>(`${BASE_PATH}/${id}/publish`, { expected_version: expectedVersion });
