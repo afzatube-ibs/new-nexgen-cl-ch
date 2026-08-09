@@ -104,7 +104,16 @@ export class ApiClient {
     return this.request<T>('PUT', path, body, options);
   }
 
-  delete<T>(path: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>('DELETE', path, undefined, options);
+  /**
+   * `body` is optional because most DELETEs carry none, but Catalog's
+   * archive/destroy endpoints require `{ expected_version }` in a JSON body
+   * (`ExpectedVersionRequest`, apps/backend) — found while wiring the
+   * Catalog module (Phase 2.2): this method previously had no way to send
+   * one. Laravel merges a JSON body into request input regardless of HTTP
+   * verb (`Request::shouldMergeJson()` only checks the Content-Type header),
+   * so this is a real, backend-supported shape, not a workaround.
+   */
+  delete<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>('DELETE', path, body, options);
   }
 }

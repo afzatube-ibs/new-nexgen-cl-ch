@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 import * as RadixSelect from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../../lib/cn.js';
@@ -26,12 +26,27 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   { options, value, defaultValue, onValueChange, placeholder = 'Select…', disabled, label, error, name },
   ref,
 ) {
+  // A generated fallback id, exactly like Input/Textarea/Checkbox already
+  // do (Checkbox.tsx's own docblock records the live bug this pattern
+  // fixes) — Radix's Trigger is `role="combobox"`, not a native `<select>`,
+  // so a plain adjacent `<span>` gives it no accessible name at all. Found
+  // live via this platform's own `@axe-core/playwright` a11y scan on the
+  // Catalog module's Product form (Phase 2.2) — every prior page happened
+  // to use Select without an axe scan exercising it.
+  const generatedId = useId();
+  const selectId = label ? generatedId : undefined;
+
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <span className="text-body-strong text-text-primary">{label}</span>}
+      {label && (
+        <label htmlFor={selectId} className="text-body-strong text-text-primary">
+          {label}
+        </label>
+      )}
       <RadixSelect.Root value={value} defaultValue={defaultValue} onValueChange={onValueChange} disabled={disabled} name={name}>
         <RadixSelect.Trigger
           ref={ref}
+          id={selectId}
           className={cn(
             'flex h-9 w-full items-center justify-between gap-2 rounded-md border border-border bg-surface px-3 text-body text-text-primary',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',

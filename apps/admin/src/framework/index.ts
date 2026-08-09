@@ -21,3 +21,7 @@ export { applyServerValidationErrors } from './applyServerValidationErrors.js';
 // Shared Framework primitive from one place; the canonical implementation
 // still lives in src/auth (it needs useAuth's own permission set).
 export { RequirePermission } from '../auth/RequirePermission.js';
+
+// Bulk orchestration layer (Phase 2.2 §2) — see framework/bulk/useBulkOperation.ts.
+export { useBulkOperation, BulkOperationDialog } from './bulk/index.js';
+export type { BulkItem, BulkItemResult, BulkOperationState, BulkOperationStatus, BulkOperationFn, UseBulkOperationResult, BulkOperationDialogProps } from './bulk/index.js';

@@ -8,3 +8,5 @@ export { login, logout, me } from './auth.js';
 export type { LoginResult } from './auth.js';
 
 export { listStores } from './stores.js';
+
+export * from './catalog/index.js';

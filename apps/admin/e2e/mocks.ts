@@ -78,3 +78,183 @@ function fakeUser() {
     ],
   };
 }
+
+/** Every real Catalog permission (`PermissionRegistry.php`, apps/backend) — a distinct helper from `mockAuthenticatedSession` rather than widening its own permission set, so that test's own "only grants identity_access.users.view" assertion stays true. */
+const CATALOG_PERMISSIONS = [
+  'catalog.products.view',
+  'catalog.products.manage',
+  'catalog.categories.view',
+  'catalog.categories.manage',
+  'catalog.brands.view',
+  'catalog.brands.manage',
+  'catalog.attributes.view',
+  'catalog.attributes.manage',
+  'catalog.options.view',
+  'catalog.options.manage',
+  'catalog.collections.view',
+  'catalog.collections.manage',
+  'catalog.tags.view',
+  'catalog.tags.manage',
+  'catalog.audit_log.view',
+].map((key) => ({ key, label: key, module: 'catalog' }));
+
+export async function mockCatalogSession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'admin', label: 'Administrator', version: 1, createdAt: null, updatedAt: null, permissions: CATALOG_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
+export interface MockCatalogRecord {
+  id: string;
+  version: number;
+  status?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * A minimal, real in-memory REST resource behind Playwright route
+ * interception — list/create/update/archive/destroy/restore against
+ * `**\/api/v1{path}`, enforcing `expected_version` the same way the real
+ * backend does (mismatch -> 409), so optimistic-locking and bulk
+ * partial-failure scenarios can be exercised genuinely, not merely
+ * asserted. Scoped to one entity (Brands) rather than every Catalog
+ * resource — see PROJECT_STATUS.md for why the full CRUD e2e matrix isn't
+ * replicated across all eight entities in this pass.
+ */
+export interface MockCrudResourceHandle {
+  /**
+   * Makes the next matching write to this id+action fail with a 409, then
+   * reverts to normal behavior — for exercising a real per-item bulk
+   * failure/retry without fighting Playwright's own route-precedence
+   * ordering (a second, narrower `page.route()` registered after this
+   * helper's own wildcard route is not guaranteed to intercept first when
+   * both patterns match the same URL).
+   */
+  failOnce: (id: string, action: 'update' | 'archive' | 'restore' | 'destroy') => void;
+}
+
+export async function mockCrudResource(page: Page, path: string, initialItems: MockCatalogRecord[]): Promise<MockCrudResourceHandle> {
+  const items = [...initialItems];
+  let nextId = items.length + 1;
+  const base = `**/api/v1${path}`;
+  const pendingFailures = new Set<string>();
+  const failOnce: MockCrudResourceHandle['failOnce'] = (id, action) => pendingFailures.add(`${id}:${action}`);
+
+  await page.route(base, async (route) => {
+    const request = route.request();
+    if (request.method() === 'GET') {
+      const url = new URL(request.url());
+      const status = url.searchParams.get('status');
+      const filtered = status ? items.filter((i) => i.status === status) : items;
+      await route.fulfill({ json: { data: filtered, meta: { current_page: 1, per_page: 50, total: filtered.length, last_page: 1 } } });
+      return;
+    }
+    if (request.method() === 'POST') {
+      const body = (request.postDataJSON() ?? {}) as Record<string, unknown>;
+      const item: MockCatalogRecord = { status: 'active', version: 1, ...body, id: String(nextId++) };
+      items.push(item);
+      await route.fulfill({ status: 201, json: { data: item } });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.route(`${base}/**`, async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const segments = url.pathname.split('/').filter(Boolean);
+    const id = segments[segments.length - (segments.at(-1) === 'archive' || segments.at(-1) === 'restore' ? 2 : 1)];
+    const action = segments.at(-1) === 'archive' || segments.at(-1) === 'restore' ? segments.at(-1) : null;
+    const index = items.findIndex((i) => i.id === id);
+
+    if (index === -1) {
+      await route.fulfill({ status: 404, json: { error: { type: 'not_found', message: 'Not found.' } } });
+      return;
+    }
+    const item = items[index];
+    const body = (request.postDataJSON() ?? {}) as Record<string, unknown> & { expected_version?: number };
+
+    function versionConflict(): boolean {
+      return typeof body.expected_version === 'number' && body.expected_version !== item.version;
+    }
+
+    function consumeFailure(forAction: 'update' | 'archive' | 'restore' | 'destroy'): boolean {
+      const key = `${item.id}:${forAction}`;
+      if (!pendingFailures.has(key)) return false;
+      pendingFailures.delete(key);
+      return true;
+    }
+
+    if (request.method() === 'PATCH') {
+      if (versionConflict() || consumeFailure('update')) {
+        await route.fulfill({ status: 409, json: { error: { type: 'conflict', message: 'This record was changed elsewhere.' } } });
+        return;
+      }
+      const { expected_version: _v, ...rest } = body;
+      items[index] = { ...item, ...rest, version: item.version + 1 };
+      await route.fulfill({ json: { data: items[index] } });
+      return;
+    }
+
+    if (request.method() === 'POST' && action === 'archive') {
+      if (versionConflict() || consumeFailure('archive')) {
+        await route.fulfill({ status: 409, json: { error: { type: 'conflict', message: 'This record was changed elsewhere.' } } });
+        return;
+      }
+      items[index] = { ...item, status: 'archived', version: item.version + 1 };
+      await route.fulfill({ json: { data: items[index] } });
+      return;
+    }
+
+    if (request.method() === 'POST' && action === 'restore') {
+      if (consumeFailure('restore')) {
+        await route.fulfill({ status: 409, json: { error: { type: 'conflict', message: 'This record was changed elsewhere.' } } });
+        return;
+      }
+      items[index] = { ...item, status: 'active', version: item.version + 1 };
+      await route.fulfill({ json: { data: items[index] } });
+      return;
+    }
+
+    if (request.method() === 'DELETE') {
+      if (versionConflict() || consumeFailure('destroy')) {
+        await route.fulfill({ status: 409, json: { error: { type: 'conflict', message: 'This record was changed elsewhere.' } } });
+        return;
+      }
+      items.splice(index, 1);
+      await route.fulfill({ status: 204, body: '' });
+      return;
+    }
+
+    await route.continue();
+  });
+
+  return { failOnce };
+}
+
+/** Every Catalog list endpoint, empty — for navigation/smoke tests that only need each page to render, not real data. */
+export async function mockAllCatalogListsEmpty(page: Page): Promise<void> {
+  const paths = ['/products', '/brands', '/categories', '/collections', '/tags', '/attributes', '/attribute-groups', '/options'];
+  for (const path of paths) {
+    await page.route(`**/api/v1${path}`, async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 50, total: 0, last_page: 1 } } });
+    });
+  }
+}

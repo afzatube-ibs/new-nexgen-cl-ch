@@ -72,4 +72,27 @@ describe('ApiClient', () => {
     const [url] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://api.test/stores?page=2&active=true');
   });
+
+  it('delete() sends a JSON body when given one — Catalog archive/destroy require `expected_version` (Phase 2.2)', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = new ApiClient({ baseUrl: 'https://api.test', getToken: () => null });
+
+    await client.delete('/brands/1', { expected_version: 5 });
+
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://api.test/brands/1');
+    expect(init.method).toBe('DELETE');
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+    expect(JSON.parse(init.body as string)).toEqual({ expected_version: 5 });
+  });
+
+  it('delete() sends no body when none is given', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = new ApiClient({ baseUrl: 'https://api.test', getToken: () => null });
+
+    await client.delete('/auth/some-token');
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init.body).toBeUndefined();
+  });
 });
