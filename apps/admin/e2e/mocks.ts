@@ -21,8 +21,21 @@ export async function mockAuthenticatedSession(page: Page): Promise<void> {
 }
 
 export async function mockLoginSuccess(page: Page): Promise<void> {
+  // AuthController::login() (apps/backend) returns UserResource without
+  // eager-loading `roles` — unlike GET /api/v1/auth/me, which does — so
+  // its real response omits the `roles` key entirely (Laravel's
+  // `whenLoaded()` drops it, not merely nulls it). This mock previously
+  // included `roles` here, which masked a real crash
+  // (`permissionSet()` calling `.flatMap` on `undefined`) that only
+  // surfaced against the live backend. Kept role-less deliberately, so
+  // this suite would have caught it. `useAuth.ts`'s `login()` re-fetches
+  // `/auth/me` immediately after login specifically to populate `roles`,
+  // which is why that route must be mocked here too.
   await page.route('**/api/v1/auth/login', async (route) => {
-    await route.fulfill({ json: { data: fakeUser(), meta: { token: 'fake-token-for-e2e' } } });
+    await route.fulfill({ json: { data: fakeUserWithoutRoles(), meta: { token: 'fake-token-for-e2e' } } });
+  });
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({ json: { data: fakeUser() } });
   });
   await page.route('**/api/v1/stores', async (route) => {
     await route.fulfill({ json: { data: [] } });
@@ -36,6 +49,11 @@ export async function mockLoginFailure(page: Page): Promise<void> {
       json: { error: { type: 'validation_failed', message: 'The given data was invalid.', details: { email: ['These credentials do not match our records.'] } } },
     });
   });
+}
+
+function fakeUserWithoutRoles() {
+  const { roles: _roles, ...rest } = fakeUser();
+  return rest;
 }
 
 function fakeUser() {

@@ -37,6 +37,12 @@ describe('permissionSet / hasPermission / hasAnyPermission', () => {
     expect(permissionSet(null).size).toBe(0);
   });
 
+  it('returns an empty set, not a crash, when roles is absent (e.g. a fresh /auth/login response, which never eager-loads roles)', () => {
+    const loginResponseShapedUser = { ...userWith(), roles: undefined } as unknown as UserDTO;
+    expect(() => permissionSet(loginResponseShapedUser)).not.toThrow();
+    expect(permissionSet(loginResponseShapedUser).size).toBe(0);
+  });
+
   it('hasPermission checks exact membership', () => {
     const set = permissionSet(userWith('catalog.products.view'));
     expect(hasPermission(set, 'catalog.products.view')).toBe(true);

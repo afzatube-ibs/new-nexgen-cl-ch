@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login as apiLogin, logout as apiLogout, ApiError } from '@nexgen/api-client';
+import { login as apiLogin, logout as apiLogout, me as apiMe, ApiError } from '@nexgen/api-client';
 import { useAuthStore } from './authStore.js';
 import { permissionSet, hasPermission as checkPermission } from './permissions.js';
 import { apiClient } from '../lib/apiClient.js';
@@ -32,7 +32,17 @@ export function useAuth(): UseAuthResult {
     async (email: string, password: string) => {
       const deviceName = typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 255) : 'admin-web';
       const result = await apiLogin(apiClient, { email, password, deviceName });
+      // AuthController::login() (apps/backend) does not eager-load `roles`
+      // the way GET /api/v1/auth/me does, so result.user.roles is absent
+      // entirely — found live, via a real post-login crash in
+      // permissionSet(), not assumed. Re-fetching /auth/me immediately
+      // (now that the token is known) both fixes that and ensures the
+      // Sidebar's permission-aware rendering has the real permission set
+      // from the first authenticated render, not just after a later
+      // page refresh re-triggers AuthProvider's own restore flow.
       setSession(result.token, result.user);
+      const fullUser = await apiMe(apiClient);
+      setSession(result.token, fullUser);
     },
     [setSession],
   );
