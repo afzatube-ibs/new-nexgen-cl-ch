@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Image, Tag, Boxes, FolderTree } from 'lucide-react';
+import { Tag, Boxes, FolderTree } from 'lucide-react';
 import {
   Input,
   Textarea,
@@ -26,7 +26,13 @@ import { StickyActionBar } from './editor/StickyActionBar.js';
 import { CompletionChecklist } from './editor/CompletionChecklist.js';
 import { PlaceholderSectionCard } from './editor/PlaceholderSectionCard.js';
 import { AiReserveButton } from './editor/AiReserveButton.js';
+import { RichTextToolbar } from './editor/RichTextToolbar.js';
 import { slugify } from './editor/slug.js';
+import { MediaManagerCard } from './editor/media/MediaManagerCard.js';
+import { VariantsCard } from './editor/variants/VariantsCard.js';
+import { OrganizationCard } from './editor/organization/OrganizationCard.js';
+import { RelatedProductsCard } from './editor/organization/RelatedProductsCard.js';
+import { ActivityCard } from './editor/activity/ActivityCard.js';
 
 const productSchema = z.object({
   brandId: z.string().optional().or(z.literal('')),
@@ -64,11 +70,13 @@ interface DuplicateState {
 }
 
 /**
- * Create/edit Product — Phase 2.2A redesign. Still Slice 1's real field
- * set only (General + SEO — `ProductResource`/`Create`/`UpdateProductRequest`,
- * apps/backend); no backend contract changed by this redesign. See
- * `PHASE_2_2A_PRODUCT_EDITOR_UX_REPORT.md` for the full research and
- * decision record behind every choice below.
+ * Create/edit Product — Phase 2.2A's redesigned layout (see
+ * `PHASE_2_2A_PRODUCT_EDITOR_UX_REPORT.md` for that research/decision
+ * record), now filled in with Slice 2's real Variants/Media/Organization/
+ * Activity — the General + SEO form fields on this page itself are still
+ * exactly `ProductResource`/`Create`/`UpdateProductRequest` (apps/backend);
+ * the sub-cards below call their own separate endpoints directly (see each
+ * card's own file), not this component's form submit.
  */
 export function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -94,6 +102,7 @@ export function ProductFormPage() {
 
   const [formError, setFormError] = useState<string | null>(null);
   const [publishReasons, setPublishReasons] = useState<string[] | null>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
 
   const {
     register,
@@ -319,8 +328,8 @@ export function ProductFormPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main column — content that changes often: Identity, Media,
-            Pricing, Inventory, Description, SEO, Advanced. Wide, since
-            these are the fields a merchant edits most. */}
+            Pricing, Inventory, Variants, Description, SEO, Advanced. Wide,
+            since these are the fields a merchant edits most. */}
         <div className="flex flex-col gap-6 lg:col-span-2">
           <Card>
             <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -358,11 +367,7 @@ export function ProductFormPage() {
             </CardContent>
           </Card>
 
-          <PlaceholderSectionCard
-            title="Media"
-            icon={<Image className="size-8" aria-hidden="true" />}
-            description="Product images and video will attach here once the Media Manager ships. Reserved so this page won't need to be redesigned when it does."
-          />
+          <MediaManagerCard productId={product?.id} canManage={canManage} />
           <PlaceholderSectionCard
             title="Pricing"
             icon={<Tag className="size-8" aria-hidden="true" />}
@@ -373,6 +378,7 @@ export function ProductFormPage() {
             icon={<Boxes className="size-8" aria-hidden="true" />}
             description="Stock levels and warehouse allocation belong to the future Inventory module — not yet built, and deliberately not owned by Catalog."
           />
+          {product && <VariantsCard product={product} canManage={canManage} />}
 
           <Card>
             <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -390,7 +396,27 @@ export function ProductFormPage() {
                 error={errors.shortDescription?.message}
                 {...register('shortDescription')}
               />
-              <Textarea label="Description" autoGrow error={errors.description?.message} {...register('description')} />
+              <div>
+                <RichTextToolbar textareaRef={descriptionRef} value={watch('description') ?? ''} onChange={(next) => setValue('description', next, { shouldDirty: true })} />
+                <Controller
+                  control={control}
+                  name="description"
+                  render={({ field }) => (
+                    <Textarea
+                      label="Description"
+                      autoGrow
+                      error={errors.description?.message}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      ref={(el) => {
+                        field.ref(el);
+                        descriptionRef.current = el;
+                      }}
+                    />
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -424,17 +450,18 @@ export function ProductFormPage() {
                 )}
               />
               <Text variant="caption" className="mt-2 text-text-secondary">
-                A structural choice, rarely changed after creation. &ldquo;Configurable&rdquo; products will require at least
-                one variant once Variants ship.
+                A structural choice, rarely changed after creation. &ldquo;Configurable&rdquo; products require at least one
+                variant to publish (see Variants, above).
               </Text>
             </CardContent>
           </Card>
         </div>
 
         {/* Sidebar — glanceable status/meta, changed rarely: Status &
-            Visibility (with the real publish-completeness checklist) and
-            Organization. Narrow, on purpose (Shopify/Medusa's convergent
-            pattern — see the UX report's research notes). */}
+            Visibility (with the real publish-completeness checklist),
+            Organization, Related products, and Activity. Narrow, on
+            purpose (Shopify/Medusa's convergent pattern — see the UX
+            report's research notes). */}
         <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
@@ -467,16 +494,31 @@ export function ProductFormPage() {
                 <Text variant="body-strong" className="mb-2">
                   Ready to publish?
                 </Text>
-                <CompletionChecklist name={watchedName} sku={watchedSku} productType={watchedProductType} />
+                <CompletionChecklist
+                  name={watchedName}
+                  sku={watchedSku}
+                  productType={watchedProductType}
+                  isNew={isNew}
+                  categoryCount={product?.categories?.length ?? 0}
+                  variantCount={product?.variants?.length ?? 0}
+                />
               </div>
             </CardContent>
           </Card>
 
-          <PlaceholderSectionCard
-            title="Organization"
-            icon={<FolderTree className="size-8" aria-hidden="true" />}
-            description="Categories, collections, tags, and options land here once Organization ships — the same assignment endpoints already exist on the backend, just not this UI yet."
-          />
+          {product ? (
+            <>
+              <OrganizationCard product={product} canManage={canManage} />
+              <RelatedProductsCard product={product} canManage={canManage} />
+              <ActivityCard productId={product.id} />
+            </>
+          ) : (
+            <PlaceholderSectionCard
+              title="Organization"
+              icon={<FolderTree className="size-8" aria-hidden="true" />}
+              description="Categories, collections, tags, and related products can be assigned once this product has been created."
+            />
+          )}
         </div>
       </form>
     </div>

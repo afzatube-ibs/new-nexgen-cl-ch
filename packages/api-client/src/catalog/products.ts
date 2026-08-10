@@ -3,7 +3,7 @@ import type { DataEnvelope, ListEnvelope } from '../types.js';
 import { createResourceClient } from './resourceClient.js';
 import type { ProductDTO, CreateProductInput, UpdateProductInput, ListProductsQuery } from './types.js';
 
-/** `apps/backend/.../Catalog/routes.php` — `products`, `catalog.products.{view|manage}`. Slice 1: General + SEO fields only — see PROJECT_STATUS.md for Variants/Media/Organization/Relations/Attribute-values/Audit, deferred to Slice 2. */
+/** `apps/backend/.../Catalog/routes.php` — `products`, `catalog.products.{view|manage}`. This file covers the core Product record (General + SEO) — Variants/Images/Relationships/Category-Collection-Tag-Option assignment each have their own file in this folder (`variants.ts`, `images.ts`, `relationships.ts`, `assignments.ts`), added in Slice 2. */
 const BASE_PATH = '/products';
 
 function toCreateBody(input: CreateProductInput): Record<string, unknown> {

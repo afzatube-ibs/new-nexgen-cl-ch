@@ -53,3 +53,16 @@ export {
   destroyProduct,
   restoreProduct,
 } from './products.js';
+
+// --- Slice 2 ---
+export {
+  listProductVariants,
+  addProductVariant,
+  updateProductVariant,
+  archiveProductVariant,
+  destroyProductVariant,
+} from './variants.js';
+export { listProductImages, addProductImage, updateProductImage, destroyProductImage } from './images.js';
+export { syncProductCategories, syncProductCollections, syncProductTags, syncProductOptions } from './assignments.js';
+export { listProductRelationships, addProductRelationship, removeProductRelationship } from './relationships.js';
+export { listCatalogAuditLogs } from './auditLogs.js';

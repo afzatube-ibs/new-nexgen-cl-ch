@@ -29,10 +29,21 @@ export function createResourceHooks<TDTO extends { id: string }, TCreate, TUpdat
     return () => void queryClient.invalidateQueries({ queryKey: [queryKeyBase] });
   }
 
-  function useResourceList(query?: TListQuery): UseQueryResult<ListEnvelope<TDTO>> {
+  /**
+   * `options.enabled` defaults to `true` (every pre-existing caller omits
+   * it and keeps firing immediately, unchanged) — added for
+   * `RelatedProductsCard` (Slice 2), which must NOT fetch the entire
+   * product list on every mount just because its search box exists; it
+   * only wants a query once the operator has typed something. A real bug
+   * this fixes, found via e2e testing: without this, opening any existing
+   * product's editor fired an unbounded `GET /products` every time,
+   * independent of `search`.
+   */
+  function useResourceList(query?: TListQuery, options?: { enabled?: boolean }): UseQueryResult<ListEnvelope<TDTO>> {
     return useQuery({
       queryKey: [queryKeyBase, 'list', query],
       queryFn: () => api.list(query),
+      enabled: options?.enabled ?? true,
     });
   }
 

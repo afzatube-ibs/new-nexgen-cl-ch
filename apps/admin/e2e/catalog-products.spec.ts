@@ -72,6 +72,21 @@ async function mockProductsResource(page: Page, initial: FakeProduct): Promise<{
     }
     await route.continue();
   });
+  // Product-scoped Slice 2 sub-resources — the Product Editor's
+  // Variants/Media/Related-products cards fire these unconditionally for
+  // any loaded existing product now, independent of what a given test is
+  // actually exercising. Not product-id-agnostic like `/media`/`/catalog/
+  // audit-logs` (covered by `mockAllCatalogListsEmpty` instead), so this
+  // helper — which already knows the id — is where they belong.
+  for (const sub of ['variants', 'images', 'relationships']) {
+    await page.route(`**/api/v1/products/${initial.id}/${sub}*`, async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 50, total: 0, last_page: 1 } } });
+    });
+  }
   return {
     get current() {
       return product;
@@ -102,6 +117,18 @@ test.describe('Catalog — Products', () => {
       }
       await route.continue();
     });
+    // Product-scoped Slice 2 sub-resources the editor now always fetches
+    // for an existing product — see `mockProductsResource`'s own comment
+    // below for why these can't live in the shared `mockAllCatalogListsEmpty`.
+    for (const sub of ['variants', 'images', 'relationships']) {
+      await page.route(`**/api/v1/products/1/${sub}*`, async (route) => {
+        if (route.request().method() !== 'GET') {
+          await route.continue();
+          return;
+        }
+        await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 50, total: 0, last_page: 1 } } });
+      });
+    }
     await page.route('**/api/v1/products/1/publish', async (route) => {
       publishAttempts++;
       if (publishAttempts === 1) {

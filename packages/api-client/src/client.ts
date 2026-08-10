@@ -116,4 +116,69 @@ export class ApiClient {
   delete<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>('DELETE', path, body, options);
   }
+
+  /**
+   * Multipart file upload (`MediaController::store`, apps/backend expects a
+   * real `multipart/form-data` body — `UploadMediaRequest`'s `file` field).
+   * Built on `XMLHttpRequest`, not `fetch()`, specifically so
+   * `onProgress` reflects real upload progress (`xhr.upload.onprogress`) —
+   * `fetch()` has no cross-browser-reliable request-body progress event,
+   * and Slice 2's Media Manager needs a genuine progress bar, not a faked
+   * one. Reimplements just enough of `request()`'s own response handling
+   * (JSON parse, error-envelope mapping, 401 hook) to stay consistent with
+   * every other method here, since `XMLHttpRequest`'s callback shape can't
+   * share that private method directly.
+   */
+  uploadFile<T>(path: string, formData: FormData, options?: { onProgress?: (percent: number) => void; signal?: AbortSignal }): Promise<T> {
+    const url = `${this.options.baseUrl}${path}`;
+    const token = this.options.getToken();
+
+    return new Promise<T>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.setRequestHeader('Accept', 'application/json');
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      if (options?.onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) options.onProgress?.(Math.round((event.loaded / event.total) * 100));
+        };
+      }
+
+      if (options?.signal) {
+        if (options.signal.aborted) {
+          reject(new NetworkOrParseError('The upload was cancelled.', new Error('aborted before start')));
+          return;
+        }
+        options.signal.addEventListener('abort', () => xhr.abort());
+      }
+
+      xhr.onload = () => {
+        let json: unknown;
+        try {
+          json = xhr.responseText.length > 0 ? JSON.parse(xhr.responseText) : undefined;
+        } catch (cause) {
+          reject(new NetworkOrParseError('The server returned a response that was not valid JSON.', cause));
+          return;
+        }
+
+        if (xhr.status < 200 || xhr.status >= 300) {
+          const errorBody = (json as { error?: ApiErrorBody } | undefined)?.error ?? {
+            type: 'unknown',
+            message: xhr.statusText || 'An unknown error occurred.',
+          };
+          const mapped = mapErrorResponse(xhr.status, errorBody, xhr.getResponseHeader('Retry-After'));
+          if (xhr.status === 401) this.options.onUnauthenticated?.();
+          reject(mapped);
+          return;
+        }
+
+        resolve(json as T);
+      };
+      xhr.onerror = () => reject(new NetworkOrParseError('The request could not be completed — check your network connection.', new Error('XHR network error')));
+      xhr.onabort = () => reject(new NetworkOrParseError('The upload was cancelled.', new Error('aborted')));
+
+      xhr.send(formData);
+    });
+  }
 }

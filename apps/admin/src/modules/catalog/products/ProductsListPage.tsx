@@ -161,7 +161,7 @@ export function ProductsListPage() {
       <CrudPageLayout
         header={{
           title: 'Products',
-          description: 'General details and SEO — variants, media, and organization land in a follow-up phase.',
+          description: 'Every sellable item in the catalog — general details, media, variants, and organization.',
           actions: (
             <RequirePermission anyOf={['catalog.products.manage']} inline={null}>
               <Button onClick={() => void navigate('/catalog/products/new')}>

@@ -9,4 +9,6 @@ export type { LoginResult } from './auth.js';
 
 export { listStores } from './stores.js';
 
+export * from './media.js';
+
 export * from './catalog/index.js';

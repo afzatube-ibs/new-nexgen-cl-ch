@@ -245,11 +245,26 @@ export async function mockCrudResource(page: Page, path: string, initialItems: M
   return { failOnce };
 }
 
-/** Every Catalog list endpoint, empty — for navigation/smoke tests that only need each page to render, not real data. */
+/**
+ * Every Catalog list endpoint, empty — for navigation/smoke tests that
+ * only need each page to render, not real data. Slice 2 additions
+ * (`/media`, `/catalog/audit-logs`) are genuinely global, unlike the
+ * per-product `/products/{id}/variants|images|relationships` — those need
+ * a real product id, so they're each test's own concern (see
+ * `mockProductsResource` in `catalog-products.spec.ts` for the pattern).
+ *
+ * The trailing `*` on every path is load-bearing, not decorative: a plain
+ * `page.route('**\/api/v1/media', ...)` does NOT match `.../media?per_page=60`
+ * at all (Playwright's glob requires the URL to end exactly where the
+ * pattern does) — found live via the Product Editor's Slice 2 cards, which
+ * always attach a query string. Every one of these paths is called with
+ * query params by at least one real caller, so all of them need it, not
+ * just the two Slice 2 added.
+ */
 export async function mockAllCatalogListsEmpty(page: Page): Promise<void> {
-  const paths = ['/products', '/brands', '/categories', '/collections', '/tags', '/attributes', '/attribute-groups', '/options'];
+  const paths = ['/products', '/brands', '/categories', '/collections', '/tags', '/attributes', '/attribute-groups', '/options', '/media', '/catalog/audit-logs'];
   for (const path of paths) {
-    await page.route(`**/api/v1${path}`, async (route) => {
+    await page.route(`**/api/v1${path}*`, async (route) => {
       if (route.request().method() !== 'GET') {
         await route.continue();
         return;

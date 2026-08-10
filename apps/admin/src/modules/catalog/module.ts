@@ -4,15 +4,17 @@ import { registerModule } from '../../registry/moduleRegistry.js';
 import type { ModuleNavItem, ModuleRoute } from '../../registry/types.js';
 
 /**
- * Catalog — Phase 2.2 Slice 1. The first business module built on top of
- * Phase 2.1's Admin Engine Foundation, registered through the identical
+ * Catalog — Phase 2.2. The first business module built on top of Phase
+ * 2.1's Admin Engine Foundation, registered through the identical
  * `registerModule()` mechanism the Dashboard/Settings "modules" already
  * use — no Admin Shell/router/Sidebar change required.
  *
- * Slice 1 scope: full taxonomy CRUD (Brands, Categories, Collections, Tags,
+ * Slice 1: full taxonomy CRUD (Brands, Categories, Collections, Tags,
  * Attribute Groups, Attributes, Options) plus a basic Products module
- * (General + SEO fields only). Variants/Media/Organization/Relations/
- * Attribute-values/Activity land on Products in Slice 2 — see
+ * (General + SEO fields only). Slice 2 filled in Variants/Media/
+ * Organization/Relations/Activity as sub-cards of the same Product Editor
+ * route below — no new routes registered for them. Attribute-values
+ * assignment remains unbuilt (not in Slice 2's own explicit brief) — see
  * PROJECT_STATUS.md.
  */
 
