@@ -30,6 +30,7 @@ Concrete, tool-naming process documents that sit alongside the closed `00`–`11
 | Document | Status | Owner |
 |---|---|---|
 | [RELEASE_MANAGEMENT](RELEASE_MANAGEMENT.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (Product Owner approved) |
+| [MASTER_PRODUCT_ROADMAP](MASTER_PRODUCT_ROADMAP.md) | **Accepted (v1.0)** | Chief Software Architect & Lead Engineer (Product Owner approved) |
 
 ## Subdirectories
 
