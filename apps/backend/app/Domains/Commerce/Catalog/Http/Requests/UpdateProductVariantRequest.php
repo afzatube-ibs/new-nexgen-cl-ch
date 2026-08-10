@@ -20,7 +20,8 @@ final class UpdateProductVariantRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'sku' => ['sometimes', 'string', 'max:100', Rule::unique('product_variants', 'sku')->ignore($this->route('variant'))],
+            // See `AddProductVariantRequest`'s identical fix for why `whereNull('deleted_at')` is required here.
+            'sku' => ['sometimes', 'string', 'max:100', Rule::unique('product_variants', 'sku')->ignore($this->route('variant'))->whereNull('deleted_at')],
             'barcode' => ['sometimes', 'nullable', 'string', 'max:100'],
             'position' => ['sometimes', 'integer', 'min:0'],
             'expected_version' => ['required', 'integer', 'min:1'],

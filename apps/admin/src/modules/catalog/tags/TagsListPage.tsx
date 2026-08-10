@@ -172,7 +172,15 @@ export function TagsListPage() {
               onClear={() => setSelectedIds(new Set())}
               actions={[
                 { label: 'Restore', onClick: () => runBulk('restore') },
-                { label: 'Delete', variant: 'destructive', onClick: () => runBulk('delete') },
+                {
+                  label: 'Delete',
+                  variant: 'destructive',
+                  onClick: () => runBulk('delete'),
+                  confirm: {
+                    title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'tag' : 'tags'}?`,
+                    description: 'Any products tagged with these will lose that tag, not be deleted. This cannot be undone.',
+                  },
+                },
               ]}
             />
           ) : undefined

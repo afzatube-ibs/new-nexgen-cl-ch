@@ -1,3 +1,4 @@
+import { forwardRef, type ElementRef } from 'react';
 import * as RadixDropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight, Circle } from 'lucide-react';
 import { cn } from '../../lib/cn.js';
@@ -27,13 +28,25 @@ export function DropdownMenuContent({ className, sideOffset = 4, ...props }: Rad
   );
 }
 
-export function DropdownMenuItem({
-  className,
-  destructive,
-  ...props
-}: RadixDropdownMenu.DropdownMenuItemProps & { destructive?: boolean }) {
+/**
+ * `forwardRef`-wrapped so it can be used as a Radix `asChild` trigger
+ * (e.g. nesting a `Dialog`/`ConfirmDialog` trigger inside a menu item for
+ * a "Delete" row action) without React's "Function components cannot be
+ * given refs" warning. Found via Phase 2.2A's Product Editor overflow-menu
+ * Delete action (worked around there with page-local state instead of
+ * touching this component); a PO acceptance audit of Phase 2.2 (2026-08-11)
+ * found the same warning reproduces on every taxonomy list page's
+ * row-level Delete (`ConfirmDialog` wrapping a `DropdownMenuItem` trigger,
+ * the framework's own standard pattern) — fixed here, at the root, instead
+ * of patching each call site.
+ */
+export const DropdownMenuItem = forwardRef<
+  ElementRef<typeof RadixDropdownMenu.Item>,
+  RadixDropdownMenu.DropdownMenuItemProps & { destructive?: boolean }
+>(function DropdownMenuItem({ className, destructive, ...props }, ref) {
   return (
     <RadixDropdownMenu.Item
+      ref={ref}
       className={cn(
         'relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-body outline-none',
         'data-[highlighted]:bg-surface-subtle',
@@ -44,7 +57,7 @@ export function DropdownMenuItem({
       {...props}
     />
   );
-}
+});
 
 export function DropdownMenuCheckboxItem({ className, children, ...props }: RadixDropdownMenu.DropdownMenuCheckboxItemProps) {
   return (

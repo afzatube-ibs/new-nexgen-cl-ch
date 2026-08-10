@@ -175,7 +175,15 @@ export function AttributeGroupsListPage() {
               onClear={() => setSelectedIds(new Set())}
               actions={[
                 { label: 'Restore', onClick: () => runBulk('restore') },
-                { label: 'Delete', variant: 'destructive', onClick: () => runBulk('delete') },
+                {
+                  label: 'Delete',
+                  variant: 'destructive',
+                  onClick: () => runBulk('delete'),
+                  confirm: {
+                    title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'attribute group' : 'attribute groups'}?`,
+                    description: 'Attributes in these groups will be ungrouped, not deleted. This cannot be undone.',
+                  },
+                },
               ]}
             />
           ) : undefined

@@ -230,7 +230,16 @@ export function CategoriesListPage() {
               actions={[
                 { label: 'Archive', onClick: () => runBulk('archive') },
                 { label: 'Restore', onClick: () => runBulk('restore') },
-                { label: 'Delete', variant: 'destructive', onClick: () => runBulk('delete') },
+                {
+                  label: 'Delete',
+                  variant: 'destructive',
+                  onClick: () => runBulk('delete'),
+                  confirm: {
+                    title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'category' : 'categories'}?`,
+                    description:
+                      'Any products assigned to these categories will lose that categorization — if a product depended on it to meet the "at least one category" publish requirement, it will no longer satisfy it. This cannot be undone.',
+                  },
+                },
               ]}
             />
           ) : undefined

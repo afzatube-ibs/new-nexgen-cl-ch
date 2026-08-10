@@ -158,7 +158,16 @@ export function OptionsListPage() {
               onClear={() => setSelectedIds(new Set())}
               actions={[
                 { label: 'Restore', onClick: () => runBulk('restore') },
-                { label: 'Delete', variant: 'destructive', onClick: () => runBulk('delete') },
+                {
+                  label: 'Delete',
+                  variant: 'destructive',
+                  onClick: () => runBulk('delete'),
+                  confirm: {
+                    title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'option' : 'options'}?`,
+                    description:
+                      'Options still assigned to a product or variant are protected by the backend and will fail individually with an error — this only deletes the ones that are unused. This cannot be undone.',
+                  },
+                },
               ]}
             />
           ) : undefined

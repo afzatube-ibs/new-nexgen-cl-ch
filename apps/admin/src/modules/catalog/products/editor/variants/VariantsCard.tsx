@@ -78,6 +78,8 @@ export function VariantsCard({ product, canManage }: VariantsCardProps) {
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editSku, setEditSku] = useState('');
   const [editBarcode, setEditBarcode] = useState('');
+  /** Per-combo failures from the last "Generate all" — see `handleGenerateAll`'s own docs for why this exists separately from `mutationError` below. */
+  const [generateAllErrors, setGenerateAllErrors] = useState<string[] | null>(null);
 
   const effectiveSelectedIds = optionsDirty ? selectedOptionIds : inferredOptionIds;
   const selectedOptions = allOptions.filter((o) => effectiveSelectedIds.has(o.id));
@@ -107,9 +109,27 @@ export function VariantsCard({ product, canManage }: VariantsCardProps) {
   }
 
   async function handleGenerateAll(): Promise<void> {
+    setGenerateAllErrors(null);
+    const failures: string[] = [];
     for (const combo of missingCombos) {
-      // SKUs must be created sequentially so each uniqueness check runs against the real, just-committed state, not a stale snapshot.
-      await handleGenerateVariant(combo);
+      try {
+        // SKUs must be created sequentially so each uniqueness check runs against the real, just-committed state, not a stale snapshot.
+        await handleGenerateVariant(combo);
+      } catch (err) {
+        // Continue through the rest of the combinations even when one
+        // fails, and report every failure — not just the last. Found via
+        // a PO acceptance audit of Phase 2.2 (2026-08-11): the original
+        // bare for-loop let the first failure (e.g. a soft-deleted
+        // variant's SKU still being reserved — see the backend fix on
+        // `AddProductVariantRequest`) silently abort the entire batch,
+        // leaving every combination after it un-attempted with no visible
+        // error at all — "Generate all" looked like it only ever created
+        // one variant per click.
+        failures.push(`${combo.map((v) => v.value).join(' / ')}: ${catalogErrorMessage(err)}`);
+      }
+    }
+    if (failures.length > 0) {
+      setGenerateAllErrors(failures);
     }
   }
 
@@ -150,6 +170,18 @@ export function VariantsCard({ product, canManage }: VariantsCardProps) {
         {mutationError && (
           <Alert variant="danger" role="alert">
             {catalogErrorMessage(mutationError)}
+          </Alert>
+        )}
+        {generateAllErrors && generateAllErrors.length > 0 && (
+          <Alert variant="danger" role="alert">
+            <div>
+              {generateAllErrors.length} of the selected variant{generateAllErrors.length === 1 ? '' : 's'} could not be created:
+            </div>
+            <ul className="ml-4 list-disc">
+              {generateAllErrors.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
           </Alert>
         )}
         {isError && (

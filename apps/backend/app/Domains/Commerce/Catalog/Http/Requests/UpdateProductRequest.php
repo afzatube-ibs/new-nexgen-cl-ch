@@ -22,7 +22,8 @@ final class UpdateProductRequest extends FormRequest
     {
         return [
             'brand_id' => ['sometimes', 'nullable', 'uuid', 'exists:brands,id'],
-            'sku' => ['sometimes', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($this->route('product'))],
+            // See `CreateProductRequest`'s identical fix for why `whereNull('deleted_at')` is required here.
+            'sku' => ['sometimes', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($this->route('product'))->whereNull('deleted_at')],
             'barcode' => ['sometimes', 'nullable', 'string', 'max:100'],
             'name' => ['sometimes', 'string', 'max:255'],
             'slug' => ['sometimes', 'string', 'max:255'],

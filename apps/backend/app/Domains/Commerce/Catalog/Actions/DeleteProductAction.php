@@ -23,6 +23,15 @@ final readonly class DeleteProductAction
             $product->options()->detach();
 
             $before = $product->only(['name', 'sku']);
+
+            // Free the SKU for reuse — see `DeleteProductVariantAction`'s
+            // identical fix (same audit, same reasoning: `Product` also
+            // uses SoftDeletes over a physical unique index that can't
+            // exclude soft-deleted rows on this platform's chosen engine,
+            // and needs its own explicit `save()` for the same reason —
+            // `SoftDeletes::delete()` only persists `deleted_at`).
+            $product->sku = mb_substr($product->sku, 0, 54).'--deleted-'.$product->id;
+            $product->save();
             $product->delete();
 
             $this->auditLogger->log(

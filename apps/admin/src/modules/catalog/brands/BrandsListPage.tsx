@@ -236,7 +236,15 @@ export function BrandsListPage() {
               actions={[
                 { label: 'Archive', onClick: () => runBulk('archive') },
                 { label: 'Restore', onClick: () => runBulk('restore') },
-                { label: 'Delete', variant: 'destructive', onClick: () => runBulk('delete') },
+                {
+                  label: 'Delete',
+                  variant: 'destructive',
+                  onClick: () => runBulk('delete'),
+                  confirm: {
+                    title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'brand' : 'brands'}?`,
+                    description: 'Any products using these brands will have their brand cleared, not be deleted. This cannot be undone.',
+                  },
+                },
               ]}
             />
           ) : undefined

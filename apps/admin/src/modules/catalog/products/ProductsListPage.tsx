@@ -233,7 +233,15 @@ export function ProductsListPage() {
                 { label: 'Publish', onClick: () => runBulk('publish') },
                 { label: 'Archive', onClick: () => runBulk('archive') },
                 { label: 'Restore', onClick: () => runBulk('restore') },
-                { label: 'Delete', variant: 'destructive', onClick: () => runBulk('delete') },
+                {
+                  label: 'Delete',
+                  variant: 'destructive',
+                  onClick: () => runBulk('delete'),
+                  confirm: {
+                    title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'product' : 'products'}?`,
+                    description: 'This permanently deletes them and all their variants, media, and organization data. This cannot be undone.',
+                  },
+                },
               ]}
             />
           ) : undefined
