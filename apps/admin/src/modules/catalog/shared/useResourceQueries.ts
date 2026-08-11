@@ -47,6 +47,51 @@ export function createResourceHooks<TDTO extends { id: string }, TCreate, TUpdat
     });
   }
 
+  /**
+   * Every backend `index()` this factory talks to calls `->paginate()`
+   * (Laravel's default 15-per-page) — correct for a browsing *table*
+   * (`useResourceList` above, paired with the real `Pagination` UI), but
+   * wrong for a *selector*: the Product Editor's Brand dropdown and
+   * Categories/Collections/Tags/Options checklists all called the plain
+   * first-page hook with no `page` argument, so a merchant with more than
+   * 15 of any of them could never see — let alone select — the 16th one
+   * anywhere in the Product Editor. Found via a Product Owner acceptance
+   * audit of Phase 2.2 (2026-08-11), auditing every selector specifically
+   * for this after the identical bug was already found and fixed on the
+   * list-browsing pages themselves.
+   *
+   * Fixed here, once, for every entity that uses this factory: follow the
+   * existing pagination to its end and return every record, using only the
+   * `page` parameter the backend and `ListQuery` type already support — no
+   * new endpoint, no new query parameter, just repeating an existing
+   * request until `meta.last_page` is reached. A merchant's taxonomy
+   * dictionaries (categories, tags, brands, options) are realistically in
+   * the tens-to-low-hundreds, so a handful of sequential 15-per-page
+   * requests, cached by TanStack Query, is a reasonable cost for
+   * guaranteeing completeness regardless of count — unlike Products itself
+   * (genuinely 100k+ at scale), which keeps its own real, paginated
+   * `useResourceList` and never needs this.
+   */
+  function useResourceListAll(
+    query?: Omit<TListQuery, 'page'>,
+    options?: { enabled?: boolean },
+  ): UseQueryResult<TDTO[]> {
+    return useQuery({
+      queryKey: [queryKeyBase, 'list-all', query],
+      queryFn: async () => {
+        const firstPage = await api.list({ ...query, page: 1 } as TListQuery);
+        const items = [...firstPage.data];
+        const lastPage = firstPage.meta?.last_page ?? 1;
+        for (let page = 2; page <= lastPage; page++) {
+          const nextPage = await api.list({ ...query, page } as TListQuery);
+          items.push(...nextPage.data);
+        }
+        return items;
+      },
+      enabled: options?.enabled ?? true,
+    });
+  }
+
   function useCreateResource(): UseMutationResult<TDTO, unknown, TCreate> {
     const invalidate = useInvalidate();
     return useMutation({ mutationFn: (input: TCreate) => api.create(input), onSuccess: invalidate });
@@ -78,7 +123,7 @@ export function createResourceHooks<TDTO extends { id: string }, TCreate, TUpdat
     return useMutation({ mutationFn: (id: string) => api.restore(id), onSuccess: invalidate });
   }
 
-  return { useResourceList, useCreateResource, useUpdateResource, useArchiveResource, useDestroyResource, useRestoreResource };
+  return { useResourceList, useResourceListAll, useCreateResource, useUpdateResource, useArchiveResource, useDestroyResource, useRestoreResource };
 }
 
 export { apiClient };

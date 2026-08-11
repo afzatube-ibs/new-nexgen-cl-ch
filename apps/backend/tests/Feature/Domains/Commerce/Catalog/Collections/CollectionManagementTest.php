@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domains\Commerce\Catalog\Models\Collection;
+use App\Domains\Commerce\Catalog\Models\Product;
 
 it('creates a collection with a generated slug', function () {
     $caller = userWithPermissions(['catalog.collections.manage']);
@@ -22,13 +23,27 @@ it('archives a collection', function () {
         ->assertJsonPath('data.status', 'archived');
 });
 
-it('deletes a collection and detaches its products', function () {
+it('deletes an unassigned collection', function () {
     $caller = userWithPermissions(['catalog.collections.manage']);
     $collection = Collection::factory()->create();
 
     $this->actingAs($caller, 'sanctum')
         ->deleteJson("/api/v1/collections/{$collection->id}", ['expected_version' => 1])
         ->assertStatus(204);
+});
+
+it('refuses to delete a collection still assigned to a product, returning a 409', function () {
+    $caller = userWithPermissions(['catalog.collections.manage']);
+    $collection = Collection::factory()->create();
+    $product = Product::factory()->create();
+    $collection->products()->attach($product->id);
+
+    $this->actingAs($caller, 'sanctum')
+        ->deleteJson("/api/v1/collections/{$collection->id}", ['expected_version' => 1])
+        ->assertStatus(409)
+        ->assertJsonPath('error.type', 'conflict');
+
+    expect(Collection::query()->find($collection->id))->not->toBeNull();
 });
 
 it('restores a deleted collection', function () {

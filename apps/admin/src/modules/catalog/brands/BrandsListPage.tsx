@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import {
   DataTable,
@@ -28,6 +28,7 @@ import {
 } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
 import { apiClient } from '../../../lib/apiClient.js';
+import { catalogErrorMessage } from '../shared/errors.js';
 import { runCsvImport } from '../shared/csvImport.js';
 import { useBrands, useArchiveBrand, useDestroyBrand, useRestoreBrand } from './queries.js';
 import { BrandFormDialog } from './BrandFormDialog.js';
@@ -45,6 +46,16 @@ export function BrandsListPage() {
   const [editingBrand, setEditingBrand] = useState<BrandDTO | undefined>(undefined);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'archive' | 'restore' | 'delete' | null>(null);
+  /**
+   * `BrandController::index` calls `$query->paginate()` (Laravel's default
+   * 15-per-page) but nothing here ever read `meta`/passed `page`, so a
+   * catalog beyond 15 brands had no way to be reached from this screen.
+   * Found in a Product Owner acceptance audit at 100k+-record scale
+   * (2026-08-11) — pure missing wiring to the framework's existing
+   * `pagination` support, not a new feature.
+   */
+  const [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [status]);
 
   // BrandController::index (apps/backend) supports a `status` filter only —
   // no server-side `search`. The search box below filters client-side over
@@ -52,7 +63,7 @@ export function BrandsListPage() {
   // page…" rather than "Search…" (a real "search all brands" needs a
   // backend change this slice deliberately doesn't make — see
   // PROJECT_STATUS.md's Phase 2.2 entry).
-  const { data, status: queryStatus, refetch } = useBrands({ status: status === 'all' ? undefined : status });
+  const { data, status: queryStatus, refetch } = useBrands({ status: status === 'all' ? undefined : status, page });
   const allBrands = useMemo(() => data?.data ?? [], [data]);
   const brands = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -136,6 +147,7 @@ export function BrandsListPage() {
                   confirmLabel="Delete"
                   destructive
                   onConfirm={() => destroyMutation.mutateAsync({ id: row.id, expectedVersion: row.version })}
+                  getErrorMessage={catalogErrorMessage}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -242,12 +254,18 @@ export function BrandsListPage() {
                   onClick: () => runBulk('delete'),
                   confirm: {
                     title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'brand' : 'brands'}?`,
-                    description: 'Any products using these brands will have their brand cleared, not be deleted. This cannot be undone.',
+                    description:
+                      "Brands still assigned to a product can't be deleted — those will fail and stay, with the reason shown per item. Clear the brand from its products (or archive it instead) before deleting it. This cannot be undone for the ones that do delete.",
                   },
                 },
               ]}
             />
           ) : undefined
+        }
+        pagination={
+          data?.meta?.last_page
+            ? { currentPage: data.meta.current_page ?? page, totalPages: data.meta.last_page, onPageChange: setPage }
+            : undefined
         }
       >
         <DataTable

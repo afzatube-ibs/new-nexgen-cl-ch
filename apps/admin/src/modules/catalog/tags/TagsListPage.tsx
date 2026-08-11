@@ -16,6 +16,7 @@ import {
 } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
 import { apiClient } from '../../../lib/apiClient.js';
+import { catalogErrorMessage } from '../shared/errors.js';
 import { runCsvImport } from '../shared/csvImport.js';
 import { useTags, useDestroyTag, useRestoreTag } from './queries.js';
 import { TagFormDialog } from './TagFormDialog.js';
@@ -31,8 +32,21 @@ export function TagsListPage() {
   const [editingTag, setEditingTag] = useState<TagDTO | undefined>(undefined);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'restore' | 'delete' | null>(null);
+  /**
+   * `TagController::index` calls `$query->paginate()` (Laravel's default
+   * 15-per-page, honored automatically via the request's `?page=` even
+   * though this controller reads no other query params) but nothing here
+   * ever read `meta`/passed `page`, so a catalog beyond 15 tags had no way
+   * to be reached from this screen. Found in a Product Owner acceptance
+   * audit at 100k+-record scale (2026-08-11) — pure missing wiring to the
+   * framework's existing `pagination` support, not a new feature. No
+   * page-reset-on-filter-change needed here (unlike Categories/Brands/
+   * Collections) — this entity's search is entirely client-side over the
+   * already-loaded page and never changes what the server returns.
+   */
+  const [page, setPage] = useState(1);
 
-  const { data, status: queryStatus, refetch } = useTags(undefined);
+  const { data, status: queryStatus, refetch } = useTags({ page });
   const allTags = useMemo(() => data?.data ?? [], [data]);
   const tags = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -98,6 +112,7 @@ export function TagsListPage() {
                   confirmLabel="Delete"
                   destructive
                   onConfirm={() => destroyMutation.mutateAsync({ id: row.id, expectedVersion: row.version })}
+                  getErrorMessage={catalogErrorMessage}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -178,12 +193,18 @@ export function TagsListPage() {
                   onClick: () => runBulk('delete'),
                   confirm: {
                     title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'tag' : 'tags'}?`,
-                    description: 'Any products tagged with these will lose that tag, not be deleted. This cannot be undone.',
+                    description:
+                      "Tags still assigned to a product can't be deleted — those will fail and stay, with the reason shown per item. Untag the affected products before deleting. This cannot be undone for the ones that do delete.",
                   },
                 },
               ]}
             />
           ) : undefined
+        }
+        pagination={
+          data?.meta?.last_page
+            ? { currentPage: data.meta.current_page ?? page, totalPages: data.meta.last_page, onPageChange: setPage }
+            : undefined
         }
       >
         <DataTable

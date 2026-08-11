@@ -13,7 +13,15 @@ import {
 } from '@nexgen/api-client';
 import { createResourceHooks, apiClient } from '../shared/useResourceQueries.js';
 
-export const { useResourceList: useBrands, useCreateResource: useCreateBrand, useUpdateResource: useUpdateBrand, useArchiveResource: useArchiveBrand, useDestroyResource: useDestroyBrand, useRestoreResource: useRestoreBrand } =
+export const {
+  useResourceList: useBrands,
+  useResourceListAll: useAllBrands,
+  useCreateResource: useCreateBrand,
+  useUpdateResource: useUpdateBrand,
+  useArchiveResource: useArchiveBrand,
+  useDestroyResource: useDestroyBrand,
+  useRestoreResource: useRestoreBrand,
+} =
   createResourceHooks<BrandDTO, CreateBrandInput, UpdateBrandInput, ListQuery>('catalog-brands', {
     list: (query) => listBrands(apiClient, query),
     create: (input) => createBrand(apiClient, input),

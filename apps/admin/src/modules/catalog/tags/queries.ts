@@ -13,6 +13,7 @@ import { createResourceHooks, apiClient } from '../shared/useResourceQueries.js'
 
 export const {
   useResourceList: useTags,
+  useResourceListAll: useAllTags,
   useCreateResource: useCreateTag,
   useUpdateResource: useUpdateTag,
   useDestroyResource: useDestroyTag,

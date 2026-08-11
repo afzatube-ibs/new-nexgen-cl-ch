@@ -1,7 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, MoreHorizontal, Pencil, UploadCloud, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
-import { DataTable, type DataTableColumn, Button, Badge, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, Select, Text, Tooltip, TooltipTrigger, TooltipContent } from '@nexgen/ui';
+import {
+  DataTable,
+  type DataTableColumn,
+  type DataTableSortState,
+  Button,
+  Badge,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  Select,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@nexgen/ui';
 import { PRODUCT_STATUSES, PRODUCT_VISIBILITIES, type ProductDTO, type ProductStatus, type ProductVisibility } from '@nexgen/api-client';
 import {
   CrudPageLayout,
@@ -16,7 +31,8 @@ import {
   type BulkItem,
 } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
-import { useBrands } from '../brands/queries.js';
+import { catalogErrorMessage } from '../shared/errors.js';
+import { useAllBrands } from '../brands/queries.js';
 import { useProducts, useArchiveProduct, useDestroyProduct, useRestoreProduct, usePublishProduct } from './queries.js';
 
 type StatusFilter = 'all' | ProductStatus;
@@ -45,21 +61,64 @@ export function ProductsListPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'archive' | 'restore' | 'delete' | 'publish' | null>(null);
+  /**
+   * `ProductController::index` (apps/backend) genuinely supports server-side
+   * `sort`/`direction` (`name`/`sku`/`created_at`/`published_at`) — the
+   * `ListProductsQuery` type and `listProducts()` wrapper have carried these
+   * fields since Slice 1, but no list page ever wired a sortable column to
+   * them, leaving a merchant with no way to sort products from the UI at
+   * all (always insertion order) despite the backend already supporting
+   * it. Found in a Product Owner acceptance audit at 100k+-product scale
+   * framing (2026-08-11). Only `name`/`sku` are marked sortable here since
+   * those are the only backend-supported sort keys with an existing column
+   * in this table — not adding new columns/fields, just wiring what's
+   * already there end-to-end.
+   */
+  const [sort, setSort] = useState<DataTableSortState | null>(null);
+  /**
+   * `ProductController::index` (apps/backend) calls `$query->paginate()` —
+   * Laravel's default 15-per-page — but nothing in this page ever read
+   * `meta`/passed a `page` param, so a catalog beyond 15 products had no
+   * way to be reached from this screen at all: no page 2 link, no error,
+   * just a silently-truncated list. Found in a Product Owner acceptance
+   * audit explicitly testing at 100k+-product scale (2026-08-11) — the
+   * single most severe finding of that audit. `CrudPageLayout` already had
+   * a full `pagination` prop and `ListEnvelope.meta` already carried
+   * `current_page`/`last_page`; this was pure missing wiring, not a new
+   * feature.
+   */
+  const [page, setPage] = useState(1);
 
-  const { data: brandsData } = useBrands(undefined);
+  /**
+   * `useAllBrands` (not `useBrands`) — this drives both the filter dropdown
+   * and the table's own Brand-name lookup; the plain first-page hook used
+   * to mean a product whose brand fell outside the first 15 brands showed
+   * "—" in the Brand column and could never be found via the filter,
+   * despite genuinely having a brand assigned. Same audit, same fix as the
+   * Product Editor's own Brand selector.
+   */
+  const { data: allBrands } = useAllBrands();
   const brandOptions = useMemo(
-    () => [{ value: 'all', label: 'All brands' }, ...(brandsData?.data ?? []).map((b) => ({ value: b.id, label: b.name }))],
-    [brandsData],
+    () => [{ value: 'all', label: 'All brands' }, ...(allBrands ?? []).map((b) => ({ value: b.id, label: b.name }))],
+    [allBrands],
   );
-  const brandNameById = useMemo(() => new Map((brandsData?.data ?? []).map((b) => [b.id, b.name])), [brandsData]);
+  const brandNameById = useMemo(() => new Map((allBrands ?? []).map((b) => [b.id, b.name])), [allBrands]);
 
   const { data, status: queryStatus, refetch } = useProducts({
     search: search || undefined,
     status: status === 'all' ? undefined : status,
     visibility: visibility === 'all' ? undefined : visibility,
     brandId: brandId === 'all' ? undefined : brandId,
+    sort: sort?.columnId,
+    direction: sort?.direction,
+    page,
   });
   const products = data?.data ?? [];
+
+  // Any filter/search/sort change invalidates the current page number —
+  // silently staying on, say, page 5 after a search narrows the result set
+  // to 2 pages would show an empty table with no explanation.
+  useEffect(() => setPage(1), [search, status, visibility, brandId, sort]);
 
   const archiveMutation = useArchiveProduct();
   const destroyMutation = useDestroyProduct();
@@ -100,8 +159,8 @@ export function ProductsListPage() {
 
   const columns: DataTableColumn<ProductDTO>[] = useMemo(
     () => [
-      { id: 'name', header: 'Name', cell: (row) => <Text variant="body-strong">{row.name}</Text> },
-      { id: 'sku', header: 'SKU', cell: (row) => row.sku },
+      { id: 'name', header: 'Name', cell: (row) => <Text variant="body-strong">{row.name}</Text>, sortable: true },
+      { id: 'sku', header: 'SKU', cell: (row) => row.sku, sortable: true },
       { id: 'type', header: 'Type', cell: (row) => <Badge variant="outline">{row.productType}</Badge> },
       { id: 'status', header: 'Status', cell: (row) => <Badge variant={STATUS_BADGE_VARIANT[row.status]}>{row.status}</Badge> },
       { id: 'brand', header: 'Brand', cell: (row) => (row.brandId ? (brandNameById.get(row.brandId) ?? '—') : '—') },
@@ -146,6 +205,7 @@ export function ProductsListPage() {
                   confirmLabel="Delete"
                   destructive
                   onConfirm={() => destroyMutation.mutateAsync({ id: row.id, expectedVersion: row.version })}
+                  getErrorMessage={catalogErrorMessage}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -246,6 +306,11 @@ export function ProductsListPage() {
             />
           ) : undefined
         }
+        pagination={
+          data?.meta?.last_page
+            ? { currentPage: data.meta.current_page ?? page, totalPages: data.meta.last_page, onPageChange: setPage }
+            : undefined
+        }
       >
         <DataTable
           columns={columns}
@@ -257,6 +322,8 @@ export function ProductsListPage() {
           emptyState={{ title: 'No products yet', description: 'Create your first product to get started.' }}
           selectedIds={canManage ? selectedIds : undefined}
           onSelectionChange={canManage ? setSelectedIds : undefined}
+          sort={sort}
+          onSortChange={setSort}
         />
       </CrudPageLayout>
 

@@ -22,7 +22,7 @@ import {
 } from '@nexgen/ui';
 import { ConfirmDialog } from '../../../../../framework/index.js';
 import { catalogErrorMessage } from '../../../shared/errors.js';
-import { useOptions } from '../../../options/queries.js';
+import { useAllOptions } from '../../../options/queries.js';
 import {
   useProductVariants,
   useSyncProductVariantOptions,
@@ -45,8 +45,12 @@ export interface VariantsCardProps {
  * `PublishProductAction`'s own real completeness rule.
  */
 export function VariantsCard({ product, canManage }: VariantsCardProps) {
-  const { data: optionsData } = useOptions();
-  const allOptions = optionsData?.data ?? [];
+  // `useAllOptions` (not `useOptions`) — a merchant with more than 15
+  // options could never select the 16th anywhere on this Matrix before this
+  // fix. Same audit, same fix as OrganizationCard's Categories/
+  // Collections/Tags and the Product Editor's Brand selector.
+  const { data: allOptionsData } = useAllOptions();
+  const allOptions = allOptionsData ?? [];
 
   const { data: variantsData, isLoading, isError, refetch } = useProductVariants(product.id);
   const variants = useMemo(() => variantsData?.data ?? [], [variantsData]);

@@ -16,6 +16,7 @@ import {
 } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
 import { apiClient } from '../../../lib/apiClient.js';
+import { catalogErrorMessage } from '../shared/errors.js';
 import { runCsvImport } from '../shared/csvImport.js';
 import { useAttributes, useDestroyAttribute, useRestoreAttribute } from './queries.js';
 import { AttributeFormDialog } from './AttributeFormDialog.js';
@@ -35,8 +36,18 @@ export function AttributesListPage() {
   const [editing, setEditing] = useState<AttributeDTO | undefined>(undefined);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'restore' | 'delete' | null>(null);
+  /**
+   * `AttributeController::index` calls `->paginate()` (Laravel's default
+   * 15-per-page, honored via `?page=` even though no other query params are
+   * read) but nothing here ever read `meta`/passed `page`, so a catalog
+   * beyond 15 attributes had no way to be reached from this screen. Found
+   * in a Product Owner acceptance audit at 100k+-record scale
+   * (2026-08-11) — pure missing wiring to the framework's existing
+   * `pagination` support, not a new feature.
+   */
+  const [page, setPage] = useState(1);
 
-  const { data, status: queryStatus, refetch } = useAttributes(undefined);
+  const { data, status: queryStatus, refetch } = useAttributes({ page });
   const allAttributes = useMemo(() => data?.data ?? [], [data]);
   const attributes = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -106,6 +117,7 @@ export function AttributesListPage() {
                   confirmLabel="Delete"
                   destructive
                   onConfirm={() => destroyMutation.mutateAsync({ id: row.id, expectedVersion: row.version })}
+                  getErrorMessage={catalogErrorMessage}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -197,6 +209,11 @@ export function AttributesListPage() {
               ]}
             />
           ) : undefined
+        }
+        pagination={
+          data?.meta?.last_page
+            ? { currentPage: data.meta.current_page ?? page, totalPages: data.meta.last_page, onPageChange: setPage }
+            : undefined
         }
       >
         <DataTable

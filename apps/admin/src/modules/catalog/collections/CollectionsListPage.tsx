@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import {
   DataTable,
@@ -28,6 +28,7 @@ import {
 } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
 import { apiClient } from '../../../lib/apiClient.js';
+import { catalogErrorMessage } from '../shared/errors.js';
 import { runCsvImport } from '../shared/csvImport.js';
 import { useCollections, useArchiveCollection, useDestroyCollection, useRestoreCollection } from './queries.js';
 import { CollectionFormDialog } from './CollectionFormDialog.js';
@@ -46,8 +47,18 @@ export function CollectionsListPage() {
   const [editingCollection, setEditingCollection] = useState<CollectionDTO | undefined>(undefined);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'archive' | 'restore' | 'delete' | null>(null);
+  /**
+   * `CollectionController::index` calls `$query->paginate()` (Laravel's
+   * default 15-per-page) but nothing here ever read `meta`/passed `page`,
+   * so a catalog beyond 15 collections had no way to be reached from this
+   * screen. Found in a Product Owner acceptance audit at 100k+-record
+   * scale (2026-08-11) — pure missing wiring to the framework's existing
+   * `pagination` support, not a new feature.
+   */
+  const [page, setPage] = useState(1);
+  useEffect(() => setPage(1), [status]);
 
-  const { data, status: queryStatus, refetch } = useCollections({ status: status === 'all' ? undefined : status });
+  const { data, status: queryStatus, refetch } = useCollections({ status: status === 'all' ? undefined : status, page });
   const allCollections = useMemo(() => data?.data ?? [], [data]);
   const collections = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -128,6 +139,7 @@ export function CollectionsListPage() {
                   confirmLabel="Delete"
                   destructive
                   onConfirm={() => destroyMutation.mutateAsync({ id: row.id, expectedVersion: row.version })}
+                  getErrorMessage={catalogErrorMessage}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -228,12 +240,18 @@ export function CollectionsListPage() {
                   onClick: () => runBulk('delete'),
                   confirm: {
                     title: `Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'collection' : 'collections'}?`,
-                    description: 'Any products in these collections will be removed from them, not deleted. This cannot be undone.',
+                    description:
+                      "Collections still assigned to a product can't be deleted — those will fail and stay, with the reason shown per item. Unassign a collection from its products (or archive it instead) before deleting it. This cannot be undone for the ones that do delete.",
                   },
                 },
               ]}
             />
           ) : undefined
+        }
+        pagination={
+          data?.meta?.last_page
+            ? { currentPage: data.meta.current_page ?? page, totalPages: data.meta.last_page, onPageChange: setPage }
+            : undefined
         }
       >
         <DataTable

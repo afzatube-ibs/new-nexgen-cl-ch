@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domains\Commerce\Catalog\Audit\AuditLog;
 use App\Domains\Commerce\Catalog\Models\Brand;
+use App\Domains\Commerce\Catalog\Models\Product;
 
 it('denies listing brands without the view permission', function () {
     $caller = userWithPermissions([]);
@@ -85,6 +86,19 @@ it('deletes a brand', function () {
         ->assertStatus(204);
 
     expect(Brand::query()->find($brand->id))->toBeNull();
+});
+
+it('refuses to delete a brand still assigned to a product, returning a 409', function () {
+    $caller = userWithPermissions(['catalog.brands.manage']);
+    $brand = Brand::factory()->create();
+    Product::factory()->create(['brand_id' => $brand->id]);
+
+    $this->actingAs($caller, 'sanctum')
+        ->deleteJson("/api/v1/brands/{$brand->id}", ['expected_version' => 1])
+        ->assertStatus(409)
+        ->assertJsonPath('error.type', 'conflict');
+
+    expect(Brand::query()->find($brand->id))->not->toBeNull();
 });
 
 it('restores a deleted brand', function () {

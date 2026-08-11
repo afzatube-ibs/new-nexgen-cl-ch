@@ -14,6 +14,7 @@ import {
   type BulkItem,
 } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
+import { catalogErrorMessage } from '../shared/errors.js';
 import { useOptions, useDestroyOption, useRestoreOption } from './queries.js';
 import { OptionFormDialog } from './OptionFormDialog.js';
 
@@ -34,8 +35,21 @@ export function OptionsListPage() {
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'restore' | 'delete' | null>(null);
+  /**
+   * `OptionController::index` calls `->paginate()` (Laravel's default
+   * 15-per-page, honored via `?page=` even though no other query params are
+   * read) but nothing here ever read `meta`/passed `page`, so a catalog
+   * beyond 15 options had no way to be reached from this screen. Found in
+   * a Product Owner acceptance audit at 100k+-record scale (2026-08-11) —
+   * pure missing wiring to the framework's existing `pagination` support,
+   * not a new feature. (Other callers of `useOptions()` — e.g. the Variant
+   * Matrix's option checklist — still implicitly read only the first page;
+   * that's a separate, lower-severity concern for a future pass, not fixed
+   * here to keep this change scoped to the list-browsing regression.)
+   */
+  const [page, setPage] = useState(1);
 
-  const { data, status: queryStatus, refetch } = useOptions(undefined);
+  const { data, status: queryStatus, refetch } = useOptions({ page });
   const allOptions = useMemo(() => data?.data ?? [], [data]);
   const options = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -104,6 +118,7 @@ export function OptionsListPage() {
                   confirmLabel="Delete"
                   destructive
                   onConfirm={() => destroyMutation.mutateAsync({ id: row.id, expectedVersion: row.version })}
+                  getErrorMessage={catalogErrorMessage}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -171,6 +186,11 @@ export function OptionsListPage() {
               ]}
             />
           ) : undefined
+        }
+        pagination={
+          data?.meta?.last_page
+            ? { currentPage: data.meta.current_page ?? page, totalPages: data.meta.last_page, onPageChange: setPage }
+            : undefined
         }
       >
         <DataTable

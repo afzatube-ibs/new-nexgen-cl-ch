@@ -20,7 +20,7 @@ import {
 import { ConflictError, ValidationApiError, PRODUCT_TYPES, PRODUCT_VISIBILITIES, type ProductNotReadyDetails } from '@nexgen/api-client';
 import { applyServerValidationErrors } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
-import { useBrands } from '../brands/queries.js';
+import { useAllBrands } from '../brands/queries.js';
 import { useProduct, useCreateProduct, useUpdateProduct, usePublishProduct, useArchiveProduct, useRestoreProduct, useDestroyProduct } from './queries.js';
 import { StickyActionBar } from './editor/StickyActionBar.js';
 import { CompletionChecklist } from './editor/CompletionChecklist.js';
@@ -87,10 +87,10 @@ export function ProductFormPage() {
   const canManage = can('catalog.products.manage');
 
   const { data: product, status: loadStatus } = useProduct(isNew ? undefined : id);
-  const { data: brandsData } = useBrands(undefined);
+  const { data: allBrands } = useAllBrands();
   const brandOptions = useMemo(
-    () => [{ value: '', label: 'No brand' }, ...(brandsData?.data ?? []).map((b) => ({ value: b.id, label: b.name }))],
-    [brandsData],
+    () => [{ value: '', label: 'No brand' }, ...(allBrands ?? []).map((b) => ({ value: b.id, label: b.name }))],
+    [allBrands],
   );
 
   const createMutation = useCreateProduct();

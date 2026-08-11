@@ -16,6 +16,7 @@ import {
 } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
 import { apiClient } from '../../../lib/apiClient.js';
+import { catalogErrorMessage } from '../shared/errors.js';
 import { runCsvImport } from '../shared/csvImport.js';
 import { useAttributeGroups, useDestroyAttributeGroup, useRestoreAttributeGroup } from './queries.js';
 import { AttributeGroupFormDialog } from './AttributeGroupFormDialog.js';
@@ -31,8 +32,18 @@ export function AttributeGroupsListPage() {
   const [editing, setEditing] = useState<AttributeGroupDTO | undefined>(undefined);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'restore' | 'delete' | null>(null);
+  /**
+   * `AttributeGroupController::index` calls `->paginate()` (Laravel's
+   * default 15-per-page, honored via `?page=` even though no other query
+   * params are read) but nothing here ever read `meta`/passed `page`, so a
+   * catalog beyond 15 groups had no way to be reached from this screen.
+   * Found in a Product Owner acceptance audit at 100k+-record scale
+   * (2026-08-11) — pure missing wiring to the framework's existing
+   * `pagination` support, not a new feature.
+   */
+  const [page, setPage] = useState(1);
 
-  const { data, status: queryStatus, refetch } = useAttributeGroups(undefined);
+  const { data, status: queryStatus, refetch } = useAttributeGroups({ page });
   const allGroups = useMemo(() => data?.data ?? [], [data]);
   const groups = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -100,6 +111,7 @@ export function AttributeGroupsListPage() {
                   confirmLabel="Delete"
                   destructive
                   onConfirm={() => destroyMutation.mutateAsync({ id: row.id, expectedVersion: row.version })}
+                  getErrorMessage={catalogErrorMessage}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -187,6 +199,11 @@ export function AttributeGroupsListPage() {
               ]}
             />
           ) : undefined
+        }
+        pagination={
+          data?.meta?.last_page
+            ? { currentPage: data.meta.current_page ?? page, totalPages: data.meta.last_page, onPageChange: setPage }
+            : undefined
         }
       >
         <DataTable

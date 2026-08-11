@@ -22,14 +22,26 @@ final readonly class DeleteCategoryAction
                 throw new DependentRecordsExistException(Category::class, $category->id, 'it still has child categories.');
             }
 
-            // Detaching before delete makes the audit record's "before"
-            // state explicit rather than relying on a reader inferring it
-            // from the products migration's cascade — mirrors Identity &
-            // Access's DeleteRoleAction.
-            $affectedProductIds = $category->products()->pluck('products.id')->all();
-            $category->products()->detach();
+            // Deleting a category a live product still depends on used to
+            // silently detach it — a published product's own "at least one
+            // category" completeness gate could be left unsatisfied with no
+            // warning at all. Blocking here, exactly like the sibling check
+            // above (and like DeleteAttributeAction/DeleteOptionAction
+            // already do for products still valuing an Attribute/Option),
+            // is the fix: never remove a product relationship without the
+            // merchant explicitly acknowledging it first (Organization tab,
+            // or archive this category instead). Found via a Product Owner
+            // acceptance audit of Phase 2.2 (2026-08-11).
+            $productCount = $category->products()->count();
+            if ($productCount > 0) {
+                throw new DependentRecordsExistException(
+                    Category::class,
+                    $category->id,
+                    "it is still assigned to {$productCount} product(s). Unassign it from those products (Organization tab), or archive this category instead.",
+                );
+            }
 
-            $before = $category->only(['name', 'slug']) + ['affected_product_ids' => $affectedProductIds];
+            $before = $category->only(['name', 'slug']);
             $category->delete();
 
             $this->auditLogger->log(

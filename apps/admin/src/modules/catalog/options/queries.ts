@@ -19,6 +19,7 @@ const QUERY_KEY = 'catalog-options';
 
 export const {
   useResourceList: useOptions,
+  useResourceListAll: useAllOptions,
   useCreateResource: useCreateOption,
   useUpdateResource: useUpdateOption,
   useDestroyResource: useDestroyOption,

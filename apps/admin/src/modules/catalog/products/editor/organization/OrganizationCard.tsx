@@ -2,9 +2,9 @@ import { useState } from 'react';
 import type { ProductDTO } from '@nexgen/api-client';
 import { Card, CardHeader, CardTitle, CardContent, Button, Checkbox, Alert, Text } from '@nexgen/ui';
 import { catalogErrorMessage } from '../../../shared/errors.js';
-import { useCategories } from '../../../categories/queries.js';
-import { useCollections } from '../../../collections/queries.js';
-import { useTags } from '../../../tags/queries.js';
+import { useAllCategories } from '../../../categories/queries.js';
+import { useAllCollections } from '../../../collections/queries.js';
+import { useAllTags } from '../../../tags/queries.js';
 import { useSyncProductCategories, useSyncProductCollections, useSyncProductTags } from './organizationQueries.js';
 
 export interface OrganizationCardProps {
@@ -24,9 +24,17 @@ function idSet(items: { id: string }[] | undefined): Set<string> {
  * here, not a client-invented count.
  */
 export function OrganizationCard({ product, canManage }: OrganizationCardProps) {
-  const { data: categoriesData } = useCategories();
-  const { data: collectionsData } = useCollections();
-  const { data: tagsData } = useTags();
+  /**
+   * `useAllCategories`/`useAllCollections`/`useAllTags` (not the plain
+   * first-page hooks) — a merchant with more than 15 of any of these could
+   * never even see, let alone assign, the 16th one on a product before this
+   * fix. Found via a Product Owner acceptance audit of Phase 2.2
+   * (2026-08-11), auditing every Product Editor selector for the same
+   * pagination cap already found and fixed on the list-browsing pages.
+   */
+  const { data: allCategories } = useAllCategories();
+  const { data: allCollections } = useAllCollections();
+  const { data: allTags } = useAllTags();
 
   const [selectedCategoryIds, setSelectedCategoryIds] = useState(() => idSet(product.categories));
   const [selectedCollectionIds, setSelectedCollectionIds] = useState(() => idSet(product.collections));
@@ -39,7 +47,7 @@ export function OrganizationCard({ product, canManage }: OrganizationCardProps) 
   const saving = syncCategories.isPending || syncCollections.isPending || syncTags.isPending;
   const mutationError = syncCategories.error ?? syncCollections.error ?? syncTags.error;
 
-  const categoriesById = new Map((categoriesData?.data ?? []).map((c) => [c.id, c]));
+  const categoriesById = new Map((allCategories ?? []).map((c) => [c.id, c]));
 
   async function handleSave(): Promise<void> {
     await Promise.all([
@@ -74,13 +82,13 @@ export function OrganizationCard({ product, canManage }: OrganizationCardProps) 
           <Text variant="body-strong" className="mb-2">
             Categories
           </Text>
-          {(categoriesData?.data.length ?? 0) === 0 ? (
+          {(allCategories?.length ?? 0) === 0 ? (
             <Text variant="caption" className="text-text-secondary">
               No categories exist yet.
             </Text>
           ) : (
             <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto rounded-md border border-border p-3">
-              {(categoriesData?.data ?? []).map((category) => (
+              {(allCategories ?? []).map((category) => (
                 <Checkbox
                   key={category.id}
                   disabled={!canManage}
@@ -97,13 +105,13 @@ export function OrganizationCard({ product, canManage }: OrganizationCardProps) 
           <Text variant="body-strong" className="mb-2">
             Collections
           </Text>
-          {(collectionsData?.data.length ?? 0) === 0 ? (
+          {(allCollections?.length ?? 0) === 0 ? (
             <Text variant="caption" className="text-text-secondary">
               No collections exist yet.
             </Text>
           ) : (
             <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto rounded-md border border-border p-3">
-              {(collectionsData?.data ?? []).map((collection) => (
+              {(allCollections ?? []).map((collection) => (
                 <Checkbox
                   key={collection.id}
                   disabled={!canManage}
@@ -120,13 +128,13 @@ export function OrganizationCard({ product, canManage }: OrganizationCardProps) 
           <Text variant="body-strong" className="mb-2">
             Tags
           </Text>
-          {(tagsData?.data.length ?? 0) === 0 ? (
+          {(allTags?.length ?? 0) === 0 ? (
             <Text variant="caption" className="text-text-secondary">
               No tags exist yet.
             </Text>
           ) : (
             <div className="flex flex-wrap gap-4 rounded-md border border-border p-3">
-              {(tagsData?.data ?? []).map((tag) => (
+              {(allTags ?? []).map((tag) => (
                 <Checkbox
                   key={tag.id}
                   disabled={!canManage}

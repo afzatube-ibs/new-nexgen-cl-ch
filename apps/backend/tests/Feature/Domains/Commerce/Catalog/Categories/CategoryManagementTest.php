@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domains\Commerce\Catalog\Models\Category;
+use App\Domains\Commerce\Catalog\Models\Product;
 
 it('creates a root category', function () {
     $caller = userWithPermissions(['catalog.categories.manage']);
@@ -44,7 +45,7 @@ it('refuses to delete a category that still has children, returning a 409', func
         ->assertJsonPath('error.type', 'conflict');
 });
 
-it('deletes a childless category and detaches its products', function () {
+it('deletes a childless, unassigned category', function () {
     $caller = userWithPermissions(['catalog.categories.manage']);
     $category = Category::factory()->create();
 
@@ -53,6 +54,20 @@ it('deletes a childless category and detaches its products', function () {
         ->assertStatus(204);
 
     expect(Category::query()->find($category->id))->toBeNull();
+});
+
+it('refuses to delete a category still assigned to a product, returning a 409', function () {
+    $caller = userWithPermissions(['catalog.categories.manage']);
+    $category = Category::factory()->create();
+    $product = Product::factory()->create();
+    $category->products()->attach($product->id);
+
+    $this->actingAs($caller, 'sanctum')
+        ->deleteJson("/api/v1/categories/{$category->id}", ['expected_version' => 1])
+        ->assertStatus(409)
+        ->assertJsonPath('error.type', 'conflict');
+
+    expect(Category::query()->find($category->id))->not->toBeNull();
 });
 
 it('archives a category', function () {

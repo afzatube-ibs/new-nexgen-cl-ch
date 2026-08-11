@@ -14,6 +14,7 @@ import { createResourceHooks, apiClient } from '../shared/useResourceQueries.js'
 
 export const {
   useResourceList: useCollections,
+  useResourceListAll: useAllCollections,
   useCreateResource: useCreateCollection,
   useUpdateResource: useUpdateCollection,
   useArchiveResource: useArchiveCollection,

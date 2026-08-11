@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Commerce\Catalog\Actions;
 
 use App\Domains\Commerce\Catalog\Audit\AuditLogger;
+use App\Domains\Commerce\Catalog\Exceptions\DependentRecordsExistException;
 use App\Domains\Commerce\Catalog\Models\Brand;
 use App\Domains\Commerce\Catalog\Models\Product;
 use Illuminate\Support\Facades\DB;
@@ -18,12 +19,21 @@ final readonly class DeleteBrandAction
         DB::transaction(function () use ($brand, $expectedVersion, $actorId) {
             $brand->assertVersionMatches($expectedVersion);
 
-            // The products migration's brand_id foreign key is
-            // nullOnDelete, but that only fires on a real row deletion —
-            // Brand uses SoftDeletes, so the row never physically
-            // disappears and the database-level cascade never triggers.
-            // See DeleteAttributeGroupAction for the identical reasoning.
-            Product::query()->where('brand_id', $brand->id)->update(['brand_id' => null]);
+            // Deleting a brand still assigned to a live product used to
+            // silently clear it (see the removed nullOnDelete-workaround
+            // comment this replaces) — never remove a product relationship
+            // without the merchant explicitly acknowledging it first
+            // (clear the brand from those products, or archive this brand
+            // instead). Found via a Product Owner acceptance audit of
+            // Phase 2.2 (2026-08-11).
+            $productCount = Product::query()->where('brand_id', $brand->id)->count();
+            if ($productCount > 0) {
+                throw new DependentRecordsExistException(
+                    Brand::class,
+                    $brand->id,
+                    "it is still assigned to {$productCount} product(s). Clear the brand from those products, or archive this brand instead.",
+                );
+            }
 
             $before = $brand->only(['name', 'slug']);
             $brand->delete();
