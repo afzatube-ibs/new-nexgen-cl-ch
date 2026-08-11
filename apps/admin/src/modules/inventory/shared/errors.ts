@@ -12,9 +12,13 @@ import { ConflictError, ForbiddenError, ApiError } from '@nexgen/api-client';
 export function inventoryErrorMessage(error: unknown): string {
   if (error instanceof ConflictError) {
     // `InsufficientStockException`: "Stock item [id] has only {available} available, but {requested} were requested."
+    // Verb-neutral wording (not "can't remove N") — this same exception fires
+    // for both removing on-hand stock (Adjust Stock) and reserving it (Reserve
+    // Stock), and "remove" read wrong for the latter: reserving doesn't remove
+    // anything, it holds it. One honest phrasing that fits both call sites.
     const insufficientStock = /has only (\d+) available, but (\d+) were requested/.exec(error.message);
     if (insufficientStock) {
-      return `Only ${insufficientStock[1]} available — can't remove ${insufficientStock[2]}.`;
+      return `Only ${insufficientStock[1]} available — ${insufficientStock[2]} requested.`;
     }
 
     // `DependentRecordsExistException`: "{aggregateType} [{id}] cannot be deleted: {reason}"

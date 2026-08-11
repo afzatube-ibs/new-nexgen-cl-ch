@@ -37,8 +37,15 @@ export function StockLevelsPage() {
 
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustPrefill, setAdjustPrefill] = useState<{ warehouseId?: string; sku?: string }>({});
-  const [detailItem, setDetailItem] = useState<StockItemDTO | undefined>(undefined);
+  const [detailItemId, setDetailItemId] = useState<string | undefined>(undefined);
   const [detailOpen, setDetailOpen] = useState(false);
+  // Derived from the live list, not a frozen snapshot from the click that
+  // opened the drawer — Slice 2's Reservations tab can change this same
+  // item's quantityReserved/quantityAvailable while the drawer stays open
+  // (unlike Adjust Stock, which always closes the drawer first), so the
+  // header numbers must track whatever `useStockItems` refetches into after
+  // a hold is placed or released, not the row object as it looked at open time.
+  const detailItem = stockItems.find((item) => item.id === detailItemId);
 
   function openAdjust(prefill: { warehouseId?: string; sku?: string } = {}): void {
     setAdjustPrefill(prefill);
@@ -46,7 +53,7 @@ export function StockLevelsPage() {
   }
 
   function openDetail(row: StockItemDTO): void {
-    setDetailItem(row);
+    setDetailItemId(row.id);
     setDetailOpen(true);
   }
 

@@ -6,7 +6,14 @@ import { CrudPageLayout, Toolbar, FilterBar } from '../../../framework/index.js'
 import { DeltaBadge } from '../shared/DeltaBadge.js';
 import { dayGroupLabel, shortTime } from '../shared/formatTimestamp.js';
 import { useInventoryActivity } from './queries.js';
-import { humanizeAuditAction, stockAdjustedDetails, stockAdjustedSummary, warehouseSnapshot } from './activityFormat.js';
+import {
+  humanizeAuditAction,
+  stockAdjustedDetails,
+  stockAdjustedSummary,
+  reservationEventDetails,
+  reservationEventSummary,
+  warehouseSnapshot,
+} from './activityFormat.js';
 import { StockItemSkuLabel } from './StockItemSkuLabel.js';
 import { ActivityEntryIcon } from './ActivityEntryIcon.js';
 
@@ -119,8 +126,9 @@ export function InventoryActivityPage() {
               <ol className="flex flex-col gap-4">
                 {group.entries.map((entry) => {
                   const stockDetails = stockAdjustedDetails(entry);
+                  const reservation = reservationEventDetails(entry);
                   const warehouse = warehouseSnapshot(entry);
-                  const summary = stockDetails ? stockAdjustedSummary(stockDetails) : null;
+                  const summary = stockDetails ? stockAdjustedSummary(stockDetails) : reservation ? reservationEventSummary(reservation) : null;
                   const actorInitials = entry.actorId ? entry.actorId.replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() : '?';
 
                   return (

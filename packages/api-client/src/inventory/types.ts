@@ -1,12 +1,13 @@
 /**
  * Inventory DTOs — the exact camelCase shape of `apps/backend`'s real
  * Inventory API Resources (`Http/Resources/*Resource.php`) and the exact
- * fields the real `Create*Request`/`Update*Request`/`AdjustStockRequest`
- * classes accept. Scoped to Phase 2.3 Slice 1 only (Warehouses, Stock
- * Items/Levels, Manual Adjustment, Activity) — Reservations and Transfers
- * have real backend endpoints too (see
- * `planning/architecture/PHASE_2_3_INVENTORY_ARCHITECTURE.md` §5) but no
- * DTOs here yet, since no Slice 1 screen consumes them.
+ * fields the real `Create*Request`/`Update*Request`/`AdjustStockRequest`/
+ * `ReserveStockRequest` classes accept. Slice 1 covered Warehouses, Stock
+ * Items/Levels, Manual Adjustment, and Activity; Slice 2 adds Stock
+ * Reservations (`StockReservation`, `ReserveStockAction`/
+ * `ReleaseReservationAction`). Transfers still have no DTOs here — no
+ * Slice 2 screen consumes them either (see
+ * `planning/architecture/PHASE_2_3_INVENTORY_ARCHITECTURE.md` §5/§13).
  */
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,44 @@ export interface StockAdjustmentDTO {
 }
 
 export interface ListStockAdjustmentsQuery {
+  page?: number;
+  perPage?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Stock Reservation — `StockReservation`, apps/backend. A temporary hold
+// against a StockItem's `quantityAvailable`, never its `quantityOnHand`.
+// No `actorId` field on the resource itself (confirmed by reading
+// `StockReservationResource` directly) — "who placed/released this hold"
+// is only ever recorded in the Inventory Audit Log (`stock.reserved`/
+// `stock.released` entries), not on the reservation record. `commit`
+// (`POST /reservations/{id}/commit`) is a real endpoint but deliberately
+// has no wrapper here — Slice 2 doesn't expose it in the UI (see the
+// architecture doc §4.5: committing represents "this held stock actually
+// shipped," a future Fulfillment-module call, not a manual merchant action).
+// ---------------------------------------------------------------------------
+
+export type StockReservationStatus = 'active' | 'released' | 'committed';
+
+export interface StockReservationDTO {
+  id: string;
+  stockItemId: string;
+  quantity: number;
+  referenceType: string | null;
+  referenceId: string | null;
+  status: StockReservationStatus;
+  expiresAt: string | null;
+  createdAt: string | null;
+}
+
+/** `ReserveStockRequest`, apps/backend — `quantity` required min 1; `reference_type`/`reference_id` both nullable free-text. */
+export interface ReserveStockInput {
+  quantity: number;
+  referenceType?: string | null;
+  referenceId?: string | null;
+}
+
+export interface ListStockItemReservationsQuery {
   page?: number;
   perPage?: number;
 }

@@ -15,11 +15,15 @@ export function humanizeAuditAction(action: string): string {
 }
 
 /**
- * `stock.adjusted`/`stock.reservation_committed` entries carry
- * `quantity_delta`/`reason`/`quantity_on_hand` in `after` (see
- * `AdjustStockAction`, apps/backend) — split out from the summary string
- * (below) so the timeline can render the delta as its own `DeltaBadge`
- * rather than duplicating the number inside a sentence.
+ * `stock.adjusted` entries carry `quantity_delta`/`reason`/
+ * `quantity_on_hand` in `after` (see `AdjustStockAction`, apps/backend).
+ * `stock.reservation_committed` entries carry only `reservation_id`/
+ * `quantity` (see `CommitReservationAction`) — no `reason`, no
+ * `quantity_on_hand`, and the delta is always negative-by-the-held-quantity
+ * (committing a hold permanently decreases on-hand by exactly what was
+ * held), read directly from the source rather than assumed. Split out from
+ * the summary string (below) so the timeline can render the delta as its
+ * own `DeltaBadge` rather than duplicating the number inside a sentence.
  */
 export interface StockAdjustedDetails {
   delta: number;
@@ -28,10 +32,45 @@ export interface StockAdjustedDetails {
 }
 
 export function stockAdjustedDetails(entry: InventoryAuditLogDTO): StockAdjustedDetails | null {
-  if (entry.action !== 'stock.adjusted' && entry.action !== 'stock.reservation_committed') return null;
-  const after = entry.after as { quantity_delta?: number; reason?: string; quantity_on_hand?: number } | null;
-  if (!after || typeof after.quantity_delta !== 'number') return null;
-  return { delta: after.quantity_delta, reason: after.reason, quantityOnHand: after.quantity_on_hand };
+  if (entry.action === 'stock.adjusted') {
+    const after = entry.after as { quantity_delta?: number; reason?: string; quantity_on_hand?: number } | null;
+    if (!after || typeof after.quantity_delta !== 'number') return null;
+    return { delta: after.quantity_delta, reason: after.reason, quantityOnHand: after.quantity_on_hand };
+  }
+  if (entry.action === 'stock.reservation_committed') {
+    const after = entry.after as { quantity?: number } | null;
+    if (!after || typeof after.quantity !== 'number') return null;
+    return { delta: -after.quantity, reason: 'Reservation committed' };
+  }
+  return null;
+}
+
+/**
+ * `stock.reserved`/`stock.released` entries (`ReserveStockAction`/
+ * `ReleaseReservationAction`) carry `reservation_id`/`quantity` in `after` —
+ * no `reason` (a reservation's own "why" lives on the `StockReservation`
+ * record itself, not the audit log; see `reservationLabel.ts`) and no
+ * on-hand change (a reservation moves `quantityReserved`, never
+ * `quantityOnHand`). The action itself is kept alongside the quantity so the
+ * summary can say "reserved" vs. "released" rather than a single generic verb.
+ */
+export interface ReservationEventDetails {
+  reservationId?: string;
+  quantity?: number;
+  action: 'stock.reserved' | 'stock.released';
+}
+
+export function reservationEventDetails(entry: InventoryAuditLogDTO): ReservationEventDetails | null {
+  if (entry.action !== 'stock.reserved' && entry.action !== 'stock.released') return null;
+  const after = entry.after as { reservation_id?: string; quantity?: number } | null;
+  if (!after) return null;
+  return { reservationId: after.reservation_id, quantity: after.quantity, action: entry.action };
+}
+
+export function reservationEventSummary(details: ReservationEventDetails): string | null {
+  if (typeof details.quantity !== 'number') return null;
+  const verb = details.action === 'stock.released' ? 'released' : 'reserved';
+  return `${details.quantity} unit${details.quantity === 1 ? '' : 's'} ${verb}`;
 }
 
 /**
@@ -66,6 +105,9 @@ export function warehouseSnapshot(entry: InventoryAuditLogDTO): WarehouseSnapsho
 export function summarizeInventoryAuditEntry(entry: InventoryAuditLogDTO): string | null {
   const stock = stockAdjustedDetails(entry);
   if (stock) return stockAdjustedSummary(stock);
+
+  const reservation = reservationEventDetails(entry);
+  if (reservation) return reservationEventSummary(reservation);
 
   const warehouse = warehouseSnapshot(entry);
   if (warehouse) return warehouse.code ? `${warehouse.name} (${warehouse.code})` : warehouse.name;

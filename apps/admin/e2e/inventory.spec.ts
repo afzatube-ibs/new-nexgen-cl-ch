@@ -355,7 +355,193 @@ test.describe('Inventory — Stock Levels', () => {
     await page.getByLabel('Quantity').fill('10');
     await page.getByRole('dialog', { name: 'Adjust stock' }).getByRole('button', { name: 'Adjust stock' }).click();
 
-    await expect(page.getByRole('alert').getByText("Only 4 available — can't remove 10.")).toBeVisible();
+    await expect(page.getByRole('alert').getByText('Only 4 available — 10 requested.')).toBeVisible();
+  });
+});
+
+test.describe('Inventory — Reservations (Slice 2)', () => {
+  const warehouse: FakeWarehouse = { id: 'w1', code: 'MAIN', name: 'Main Warehouse', isDefault: true, status: 'active', version: 1 };
+  const stockItem = { id: 'si1', warehouseId: 'w1', sku: 'RESERVE-ME', quantityOnHand: 50, quantityReserved: 5, quantityAvailable: 45, version: 1, createdAt: null, updatedAt: null };
+
+  async function openReservationsTab(page: Page): Promise<void> {
+    await page.goto('/inventory/stock-levels');
+    await page.getByRole('row', { name: /RESERVE-ME/ }).click();
+    await expect(page.getByRole('dialog', { name: 'RESERVE-ME' })).toBeVisible();
+    await page.getByRole('tab', { name: 'Reservations' }).click();
+  }
+
+  test('shows an empty state with a "Reserve stock" action when nothing is reserved', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouse]);
+    await mockEmptyProducts(page);
+    await page.route('**/api/v1/stock-items*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ json: { data: [stockItem], meta: { current_page: 1, per_page: 50, total: 1, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/stock-items/si1/adjustments*', async (route) => {
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 25, total: 0, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/stock-items/si1/reservations*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 25, total: 0, last_page: 1 } } });
+    });
+
+    await openReservationsTab(page);
+    await expect(page.getByText('No stock reserved')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reserve stock' })).toBeVisible();
+  });
+
+  test('reserving stock succeeds, shows a success toast, and the release action frees it', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouse]);
+    await mockEmptyProducts(page);
+    await page.route('**/api/v1/stock-items*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ json: { data: [stockItem], meta: { current_page: 1, per_page: 50, total: 1, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/stock-items/si1/adjustments*', async (route) => {
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 25, total: 0, last_page: 1 } } });
+    });
+
+    let reservationStatus = 'none';
+    await page.route('**/api/v1/stock-items/si1/reservations*', async (route) => {
+      if (route.request().method() === 'POST') {
+        reservationStatus = 'active';
+        await route.fulfill({
+          status: 201,
+          json: { data: { id: 'r1', stockItemId: 'si1', quantity: 5, referenceType: 'manual_hold', referenceId: 'Phone order #42', status: 'active', expiresAt: null, createdAt: '2026-08-12T10:00:00.000Z' } },
+        });
+        return;
+      }
+      const data =
+        reservationStatus === 'none'
+          ? []
+          : [
+              {
+                id: 'r1',
+                stockItemId: 'si1',
+                quantity: 5,
+                referenceType: 'manual_hold',
+                referenceId: 'Phone order #42',
+                status: reservationStatus,
+                expiresAt: null,
+                createdAt: '2026-08-12T10:00:00.000Z',
+              },
+            ];
+      await route.fulfill({ json: { data, meta: { current_page: 1, per_page: 25, total: data.length, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/reservations/r1/release', async (route) => {
+      reservationStatus = 'released';
+      await route.fulfill({
+        json: { data: { id: 'r1', stockItemId: 'si1', quantity: 5, referenceType: 'manual_hold', referenceId: 'Phone order #42', status: 'released', expiresAt: null, createdAt: '2026-08-12T10:00:00.000Z' } },
+      });
+    });
+
+    await openReservationsTab(page);
+    await page.getByRole('button', { name: 'Reserve stock' }).click();
+    await expect(page.getByRole('dialog', { name: 'Reserve stock' })).toBeVisible();
+    await page.getByLabel('Quantity to reserve').fill('5');
+    await page.getByLabel('Reference').fill('Phone order #42');
+    await page.getByRole('dialog', { name: 'Reserve stock' }).getByRole('button', { name: 'Reserve stock' }).click();
+
+    await expect(page.getByText('Stock reserved').first()).toBeVisible();
+    await expect(page.getByText('Reference: Phone order #42')).toBeVisible();
+    await expect(page.getByText('Active', { exact: true })).toBeVisible();
+
+    await page.getByRole('button', { name: /Release reservation/ }).click();
+    await expect(page.getByText('Reservation released').first()).toBeVisible();
+    await expect(page.getByText('Released', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Release reservation/ })).toHaveCount(0);
+  });
+
+  test('reserving stock that would oversell shows the real InsufficientStockException reason', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouse]);
+    await mockEmptyProducts(page);
+    await page.route('**/api/v1/stock-items*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ json: { data: [stockItem], meta: { current_page: 1, per_page: 50, total: 1, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/stock-items/si1/adjustments*', async (route) => {
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 25, total: 0, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/stock-items/si1/reservations*', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 409,
+          json: { error: { type: 'conflict', message: 'Stock item [si1] has only 45 available, but 100 were requested.' } },
+        });
+        return;
+      }
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 25, total: 0, last_page: 1 } } });
+    });
+
+    await openReservationsTab(page);
+    await page.getByRole('button', { name: 'Reserve stock' }).click();
+    await page.getByLabel('Quantity to reserve').fill('100');
+    // The client-side "would exceed" warning fires immediately from the
+    // already-known Available figure, before the round trip even starts.
+    await expect(page.getByText(/Only 45 Available — the server will reject/)).toBeVisible();
+    await page.getByRole('dialog', { name: 'Reserve stock' }).getByRole('button', { name: 'Reserve stock' }).click();
+
+    // The real server error replaces the client-side prediction once it arrives.
+    await expect(page.getByRole('alert').getByText('Only 45 available — 100 requested.')).toBeVisible();
+    await expect(page.getByText(/Only 45 Available — the server will reject/)).toHaveCount(0);
+  });
+
+  test('has no critical or serious automated accessibility violations on a populated Reservations tab and its Reserve stock dialog', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouse]);
+    await mockEmptyProducts(page);
+    await page.route('**/api/v1/stock-items*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ json: { data: [stockItem], meta: { current_page: 1, per_page: 50, total: 1, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/stock-items/si1/adjustments*', async (route) => {
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 25, total: 0, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/stock-items/si1/reservations*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        json: {
+          data: [{ id: 'r1', stockItemId: 'si1', quantity: 5, referenceType: 'manual_hold', referenceId: 'Phone order #42', status: 'active', expiresAt: null, createdAt: '2026-08-12T10:00:00.000Z' }],
+          meta: { current_page: 1, per_page: 25, total: 1, last_page: 1 },
+        },
+      });
+    });
+
+    await openReservationsTab(page);
+    await expect(page.getByText('Reference: Phone order #42')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Who reserved this?' })).toBeVisible();
+
+    let results = await new AxeBuilder({ page }).analyze();
+    let seriousOrWorse = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+    expect(seriousOrWorse, JSON.stringify(seriousOrWorse, null, 2)).toEqual([]);
+
+    await page.getByRole('button', { name: 'Reserve stock' }).click();
+    await expect(page.getByRole('dialog', { name: 'Reserve stock' })).toBeVisible();
+
+    results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+    seriousOrWorse = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+    expect(seriousOrWorse, JSON.stringify(seriousOrWorse, null, 2)).toEqual([]);
   });
 });
 

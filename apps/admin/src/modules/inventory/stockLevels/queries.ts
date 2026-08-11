@@ -3,11 +3,16 @@ import {
   listStockItems,
   adjustStock,
   listStockItemAdjustments,
+  listStockItemReservations,
+  reserveStock,
+  releaseReservation,
   getStockItem,
   type StockItemDTO,
   type ListStockItemsQuery,
   type AdjustStockInput,
   type StockAdjustmentDTO,
+  type StockReservationDTO,
+  type ReserveStockInput,
   type ListEnvelope,
 } from '@nexgen/api-client';
 import { apiClient } from '../../../lib/apiClient.js';
@@ -63,6 +68,48 @@ export function useAdjustStock(): UseMutationResult<StockItemDTO, unknown, Adjus
   return useMutation({
     mutationFn: (input: AdjustStockInput) => adjustStock(apiClient, input),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: ['inventory-audit-logs'] });
+    },
+  });
+}
+
+const RESERVATIONS_QUERY_KEY = 'inventory-reservations';
+
+/** `GET /stock-items/{id}/reservations` — per-item only, no cross-item list endpoint exists (Slice 2 scope, per the architecture doc). */
+export function useStockItemReservations(stockItemId: string | undefined, page: number): UseQueryResult<ListEnvelope<StockReservationDTO>> {
+  return useQuery({
+    queryKey: [RESERVATIONS_QUERY_KEY, 'list', stockItemId, page],
+    queryFn: () => listStockItemReservations(apiClient, stockItemId as string, { page }),
+    enabled: Boolean(stockItemId),
+  });
+}
+
+/**
+ * `POST /stock-items/{id}/reservations` — invalidates this item's own
+ * reservation list, the Stock Levels list (`quantityReserved`/
+ * `quantityAvailable` just changed), and Activity (the same action appends
+ * a `stock.reserved` audit-log entry).
+ */
+export function useReserveStock(stockItemId: string): UseMutationResult<StockReservationDTO, unknown, ReserveStockInput> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReserveStockInput) => reserveStock(apiClient, stockItemId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [RESERVATIONS_QUERY_KEY, 'list', stockItemId] });
+      void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: ['inventory-audit-logs'] });
+    },
+  });
+}
+
+/** `POST /reservations/{id}/release` — same invalidation footprint as placing one (the hold's release also changes `quantityReserved`/`quantityAvailable` and appends a `stock.released` audit-log entry). */
+export function useReleaseReservation(stockItemId: string): UseMutationResult<StockReservationDTO, unknown, string> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reservationId: string) => releaseReservation(apiClient, reservationId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [RESERVATIONS_QUERY_KEY, 'list', stockItemId] });
       void queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
       void queryClient.invalidateQueries({ queryKey: ['inventory-audit-logs'] });
     },

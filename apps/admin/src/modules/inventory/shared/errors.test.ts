@@ -3,9 +3,9 @@ import { ConflictError, ForbiddenError } from '@nexgen/api-client';
 import { inventoryErrorMessage } from './errors.js';
 
 describe('inventoryErrorMessage', () => {
-  it('renders InsufficientStockException as an actionable, specific message', () => {
+  it('renders InsufficientStockException as an actionable, specific, verb-neutral message (shared by Adjust Stock and Reserve Stock — "remove" would misdescribe a reservation)', () => {
     const error = new ConflictError({ type: 'conflict', message: 'Stock item [abc-123] has only 4 available, but 10 were requested.' });
-    expect(inventoryErrorMessage(error)).toBe("Only 4 available — can't remove 10.");
+    expect(inventoryErrorMessage(error)).toBe('Only 4 available — 10 requested.');
   });
 
   it('renders DependentRecordsExistException (warehouse delete blocked) verbatim', () => {
