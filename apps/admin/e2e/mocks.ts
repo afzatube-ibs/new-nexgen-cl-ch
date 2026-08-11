@@ -117,6 +117,36 @@ export async function mockCatalogSession(page: Page): Promise<void> {
   });
 }
 
+/** Every real Inventory permission (`PermissionRegistry.php`, `app/Domains/Commerce/Inventory/Authorization/`) — mirrors `mockCatalogSession`'s own pattern for a different module's permission set. */
+const INVENTORY_PERMISSIONS = [
+  'inventory.warehouses.view',
+  'inventory.warehouses.manage',
+  'inventory.stock.view',
+  'inventory.stock.manage',
+  'inventory.reservations.manage',
+  'inventory.transfers.manage',
+  'inventory.audit_log.view',
+].map((key) => ({ key, label: key, module: 'inventory' }));
+
+export async function mockInventorySession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'admin', label: 'Administrator', version: 1, createdAt: null, updatedAt: null, permissions: INVENTORY_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
 export interface MockCatalogRecord {
   id: string;
   version: number;

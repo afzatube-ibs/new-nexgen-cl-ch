@@ -6,3 +6,4 @@
 import './dashboard/module.js';
 import './settings/module.js';
 import './catalog/module.js';
+import './inventory/module.js';
