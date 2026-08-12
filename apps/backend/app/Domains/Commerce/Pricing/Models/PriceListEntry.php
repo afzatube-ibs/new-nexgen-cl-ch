@@ -82,10 +82,24 @@ final class PriceListEntry extends Model
      * ended) schedule window — otherwise the standing base price. This is
      * "Scheduled Pricing" resolved, per planning/IMPLEMENTATION_MASTER_
      * PLAN.md's Pricing & Tax entry.
+     *
+     * Both branches are explicitly cast to `string`, matching this
+     * method's own declared return type — `base_price`/`sale_price` have
+     * no explicit Eloquent cast (`decimal(14,4)` columns), so what PHP
+     * type reaches here depends on the PDO driver: MySQL/MariaDB (this
+     * platform's real target, ADR-0003) return decimal columns as
+     * strings, but this local sandbox's SQLite driver returns a native
+     * float — a `TypeError` on this line before the `(string)` was added
+     * here too, live-reproduced the first time any caller actually
+     * exercised this method against SQLite (the backend's own Pest suite
+     * requires real MySQL, unavailable in this sandbox, so this path had
+     * never actually run here before Phase 2.4 Slice 1's own live
+     * verification). Fixing the return type's own contract, not adding
+     * any new one.
      */
     public function effectivePrice(): string
     {
-        return $this->isSaleActive() ? (string) $this->sale_price : $this->base_price;
+        return $this->isSaleActive() ? (string) $this->sale_price : (string) $this->base_price;
     }
 
     public function isSaleActive(): bool

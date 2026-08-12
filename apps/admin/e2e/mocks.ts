@@ -147,6 +147,34 @@ export async function mockInventorySession(page: Page): Promise<void> {
   });
 }
 
+/** Every real Pricing permission (`PermissionRegistry.php`, `app/Domains/Commerce/Pricing/Authorization/`) — mirrors `INVENTORY_PERMISSIONS`'s own pattern. Tax permissions are listed for completeness even though Slice 1 (Price Lists + Entries only) never exercises them. */
+const PRICING_PERMISSIONS = [
+  'pricing.price_lists.view',
+  'pricing.price_lists.manage',
+  'pricing.tax.view',
+  'pricing.tax.manage',
+  'pricing.audit_log.view',
+].map((key) => ({ key, label: key, module: 'pricing' }));
+
+export async function mockPricingSession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'admin', label: 'Administrator', version: 1, createdAt: null, updatedAt: null, permissions: PRICING_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
 export interface MockCatalogRecord {
   id: string;
   version: number;
