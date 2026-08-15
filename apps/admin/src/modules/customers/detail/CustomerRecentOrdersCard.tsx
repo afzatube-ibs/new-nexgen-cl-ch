@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Text, Badge, Skeleton, ErrorState, Pagination } from '@nexgen/ui';
+import { Card, CardHeader, CardTitle, CardContent, Text, Badge, Button, Skeleton, ErrorState, Pagination } from '@nexgen/ui';
 import type { OrderDTO, OrderStatus } from '@nexgen/api-client';
+import { RequirePermission } from '../../../framework/index.js';
 import { formatCurrency } from '../shared/formatCurrency.js';
 import { useCustomerOrders } from '../shared/queries.js';
 
@@ -23,24 +25,32 @@ const STATUS_VARIANT: Record<OrderStatus, 'default' | 'info' | 'warning' | 'succ
  * `RequirePermission` hides the whole card, not just its data, for a
  * merchant who can see Customers but not Orders.
  *
- * Read-only: no Order detail/create/status-transition capability exists
- * anywhere in this admin yet (no Orders module has been built), so rows
- * here are plain, non-interactive summaries — clicking through to a
- * fuller Order view is explicitly a future module's own scope, not
- * something to fake a link toward here. No lifetime spend or average
- * order value is computed — `OrderController::index` returns a plain
- * list, never an aggregate, and deriving one client-side would be
- * inventing a business metric this backend has never committed to.
+ * Rows link to the real Order Detail page (`/orders/:id`) and "View all"
+ * deep-links into the real Orders List pre-filtered to this customer
+ * (`/orders?customer_id=`) — both now real, existing routes as of Phase
+ * 2.6's own Order Management module; this card was read-only with no
+ * links at all until that module existed (Phase 2.5's own note on this
+ * exact point). No lifetime spend or average order value is computed —
+ * `OrderController::index` returns a plain list, never an aggregate, and
+ * deriving one client-side would be inventing a business metric this
+ * backend has never committed to.
  */
-export function CustomerRecentOrdersCard({ customerId }: { customerId: string }) {
+export function CustomerRecentOrdersCard({ customerId, customerName }: { customerId: string; customerName: string }) {
   const [page, setPage] = useState(1);
   const { data, status, refetch } = useCustomerOrders(customerId, page);
   const orders = data?.data ?? [];
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Recent Orders</CardTitle>
+        <RequirePermission anyOf={['orders.orders.view']} inline={null}>
+          <Button asChild variant="ghost" size="sm">
+            <Link to={`/orders?customer_id=${customerId}`} state={{ customerName }}>
+              View all
+            </Link>
+          </Button>
+        </RequirePermission>
       </CardHeader>
       <CardContent>
         {status === 'pending' && (
@@ -60,7 +70,11 @@ export function CustomerRecentOrdersCard({ customerId }: { customerId: string })
           <>
             <div className="flex flex-col divide-y divide-border">
               {orders.map((order: OrderDTO) => (
-                <div key={order.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                <Link
+                  key={order.id}
+                  to={`/orders/${order.id}`}
+                  className="flex items-center justify-between gap-3 rounded-sm py-2.5 first:pt-0 last:pb-0 hover:bg-surface-subtle/60"
+                >
                   <div>
                     <div className="flex items-center gap-1.5">
                       <Text variant="body-strong" className="tabular-nums">
@@ -75,7 +89,7 @@ export function CustomerRecentOrdersCard({ customerId }: { customerId: string })
                   <Text variant="body-strong" className="tabular-nums">
                     {formatCurrency(order.grandTotal, order.currencyCode)}
                   </Text>
-                </div>
+                </Link>
               ))}
             </div>
             {data?.meta?.last_page && data.meta.last_page > 1 && (

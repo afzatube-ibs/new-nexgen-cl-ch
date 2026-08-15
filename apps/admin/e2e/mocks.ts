@@ -214,6 +214,52 @@ export async function mockCustomersSession(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Every real Orders permission (`PermissionRegistry.php`, `app/Domains/
+ * Commerce/Orders/Authorization/`) — mirrors `CUSTOMERS_PERMISSIONS`'s own
+ * pattern. Includes `identity_access.users.view` (gates the real staff
+ * directory Orders' own Audit Log and Notes cross-reference for actor
+ * names, the identical shape Customers already established), plus Slice
+ * 2's own four real, separate-module permissions
+ * (`fulfillment.shipments.view`, `payments.payments.view`,
+ * `notifications.notifications.view`, `customers.customers.view` — the
+ * last one the reciprocal of Customers' own Slice 2 adding
+ * `orders.orders.view` to ITS fake session for its own Recent Orders card)
+ * each confirmed by reading that module's own `PermissionRegistry.php`
+ * directly — genuinely real, existing permissions this module's Slice 2
+ * reads across, not anything invented for this test suite.
+ */
+const ORDERS_PERMISSIONS = [
+  'orders.orders.view',
+  'orders.orders.manage',
+  'orders.notes.manage',
+  'orders.audit_log.view',
+  'identity_access.users.view',
+  'fulfillment.shipments.view',
+  'payments.payments.view',
+  'notifications.notifications.view',
+  'customers.customers.view',
+].map((key) => ({ key, label: key, module: 'orders' }));
+
+export async function mockOrdersSession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'admin', label: 'Administrator', version: 1, createdAt: null, updatedAt: null, permissions: ORDERS_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
 export interface MockCatalogRecord {
   id: string;
   version: number;

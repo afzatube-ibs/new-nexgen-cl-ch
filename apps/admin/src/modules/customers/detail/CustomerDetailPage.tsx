@@ -307,7 +307,7 @@ export function CustomerDetailPage() {
         </Card>
 
         <RequirePermission anyOf={['orders.orders.view']} inline={null}>
-          <CustomerRecentOrdersCard customerId={customer.id} />
+          <CustomerRecentOrdersCard customerId={customer.id} customerName={customer.name} />
         </RequirePermission>
 
         <RequirePermission anyOf={['customers.audit_log.view']} inline={null}>
