@@ -8,3 +8,4 @@ import './settings/module.js';
 import './catalog/module.js';
 import './inventory/module.js';
 import './pricing/module.js';
+import './customers/module.js';

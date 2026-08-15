@@ -9,6 +9,8 @@ export type { LoginResult } from './auth.js';
 
 export { listStores } from './stores.js';
 
+export { listUsers } from './users.js';
+
 export * from './media.js';
 
 export * from './catalog/index.js';
@@ -16,3 +18,7 @@ export * from './catalog/index.js';
 export * from './inventory/index.js';
 
 export * from './pricing/index.js';
+
+export * from './customers/index.js';
+
+export * from './orders/index.js';

@@ -175,6 +175,45 @@ export async function mockPricingSession(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Every real Customers permission (`PermissionRegistry.php`, `app/Domains/
+ * Commerce/Customers/Authorization/`) — mirrors `PRICING_PERMISSIONS`'s own
+ * pattern. Also includes `orders.orders.view` (Orders' own permission,
+ * confirmed by reading `app/Domains/Commerce/Orders/Authorization/
+ * PermissionRegistry.php` directly — genuinely a separate permission from
+ * every `customers.*` key) and `identity_access.users.view` (Identity &
+ * Access's own — gates the real staff directory this module's Slice 2 Audit
+ * Log/Recent Activity cross-reference for actor names) — both real,
+ * existing permissions this module's Slice 2 reads across, not anything
+ * invented for this test suite.
+ */
+const CUSTOMERS_PERMISSIONS = [
+  'customers.customers.view',
+  'customers.customers.manage',
+  'customers.audit_log.view',
+  'orders.orders.view',
+  'identity_access.users.view',
+].map((key) => ({ key, label: key, module: 'customers' }));
+
+export async function mockCustomersSession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'admin', label: 'Administrator', version: 1, createdAt: null, updatedAt: null, permissions: CUSTOMERS_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
 export interface MockCatalogRecord {
   id: string;
   version: number;
