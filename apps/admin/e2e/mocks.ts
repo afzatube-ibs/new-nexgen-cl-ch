@@ -260,6 +260,90 @@ export async function mockOrdersSession(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Every real Shipping permission (`PermissionRegistry.php`, `app/Domains/
+ * Operations/Shipping/Authorization/`) plus Fulfillment's own
+ * (`app/Domains/Operations/Fulfillment/Authorization/`), now including the
+ * four granular workflow permissions Slice 2 exercises
+ * (`fulfillment.shipments.pick|pack|dispatch|cancel`) and the single
+ * `fulfillment.shipments.manage` permission Slice 3's own Destination/Item/
+ * Note editing sits behind — mirrors `ORDERS_PERMISSIONS`'s own pattern.
+ * `identity_access.users.view` gates the real staff directory both Audit
+ * Log pages (and now Notes' own author resolution) cross-reference for
+ * actor names; `orders.orders.view` gates the real "View order" link on the
+ * Shipments List and Shipment Detail. A "full access" session — see
+ * `mockShippingPickerOnlySession` below for the narrower, real-world session
+ * a picker-role warehouse staff member would actually hold.
+ */
+const SHIPPING_PERMISSIONS = [
+  'shipping.zones.view',
+  'shipping.zones.manage',
+  'shipping.methods.view',
+  'shipping.methods.manage',
+  'shipping.rates.view',
+  'shipping.rates.manage',
+  'shipping.providers.view',
+  'shipping.audit_log.view',
+  'fulfillment.shipments.view',
+  'fulfillment.shipments.manage',
+  'fulfillment.shipments.pick',
+  'fulfillment.shipments.pack',
+  'fulfillment.shipments.dispatch',
+  'fulfillment.shipments.cancel',
+  'fulfillment.audit_log.view',
+  'identity_access.users.view',
+  'orders.orders.view',
+].map((key) => ({ key, label: key, module: 'shipping' }));
+
+export async function mockShippingSession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'admin', label: 'Administrator', version: 1, createdAt: null, updatedAt: null, permissions: SHIPPING_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
+/**
+ * A real, narrower warehouse role — `fulfillment.shipments.{view,pick}`
+ * only, per `Authorization\PermissionRegistry.php`'s own least-privilege
+ * intent ("a picker should not necessarily hold dispatch authority").
+ * Deliberately excludes `.pack`/`.dispatch`/`.cancel` and every Shipping
+ * configuration permission, so Slice 2's own permission-gating can be
+ * verified against a genuinely restricted, real-shaped session rather than
+ * only ever the full-access one.
+ */
+const SHIPPING_PICKER_ONLY_PERMISSIONS = ['fulfillment.shipments.view', 'fulfillment.shipments.pick'].map((key) => ({ key, label: key, module: 'shipping' }));
+
+export async function mockShippingPickerOnlySession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'picker', label: 'Warehouse Picker', version: 1, createdAt: null, updatedAt: null, permissions: SHIPPING_PICKER_ONLY_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
 export interface MockCatalogRecord {
   id: string;
   version: number;

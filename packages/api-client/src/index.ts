@@ -23,6 +23,8 @@ export * from './customers/index.js';
 
 export * from './orders/index.js';
 
+export * from './shipping/index.js';
+
 export * from './fulfillment/index.js';
 
 export * from './payments/index.js';
