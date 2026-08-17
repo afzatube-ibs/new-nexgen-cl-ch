@@ -11,3 +11,4 @@ import './pricing/module.js';
 import './customers/module.js';
 import './orders/module.js';
 import './shipping/module.js';
+import './payments/module.js';

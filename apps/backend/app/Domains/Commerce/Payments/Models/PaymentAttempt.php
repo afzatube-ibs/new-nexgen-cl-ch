@@ -79,6 +79,14 @@ final class PaymentAttempt extends Model
     protected function casts(): array
     {
         return [
+            // `decimal:4` matches this table's own nullable `decimal(14,4)`
+            // column (`database/migrations/2026_08_05_210002_create_payment_attempts_table.php`)
+            // and this class's own documented `@property string|null` type
+            // above — see Models\Payment's own equivalent cast for why this
+            // is a genuine bug fix (SQLite returning `int`/`float` instead
+            // of the `string` every caller already requires), not a
+            // contract change.
+            'amount' => 'decimal:4',
             'request_payload' => 'array',
             'response_payload' => 'array',
             'occurred_at' => 'datetime',

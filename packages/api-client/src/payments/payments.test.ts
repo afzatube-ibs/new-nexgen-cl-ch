@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { ApiClient } from '../client.js';
-import { listPayments } from './payments.js';
+import { listPayments, getPayment, listPaymentMethods } from './payments.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -36,5 +36,24 @@ describe('payments', () => {
 
     const [url] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://api.test/payments?status=captured');
+  });
+
+  it('getPayment() hits the real show() endpoint and unwraps the data envelope', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: { id: 'p1', attempts: [] } }));
+
+    const result = await getPayment(client, 'p1');
+
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://api.test/payments/p1');
+    expect(result).toEqual({ id: 'p1', attempts: [] });
+  });
+
+  it('listPaymentMethods() hits the real gateway registry endpoint', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [{ code: 'cod', label: 'Cash On Delivery' }] }));
+
+    await listPaymentMethods(client);
+
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://api.test/payments/methods');
   });
 });

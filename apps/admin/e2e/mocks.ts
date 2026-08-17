@@ -344,6 +344,73 @@ export async function mockShippingPickerOnlySession(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Every real Payments permission (`PermissionRegistry.php`, `app/Domains/
+ * Commerce/Payments/Authorization/`) — mirrors `SHIPPING_PERMISSIONS`'s own
+ * pattern. `identity_access.users.view` gates the real staff directory the
+ * Audit Log page cross-references for actor names; `orders.orders.view`/
+ * `customers.customers.view` gate the real "View order"/"View customer"
+ * links on Payments List and Payment Detail.
+ */
+const PAYMENTS_PERMISSIONS = [
+  'payments.payments.view',
+  'payments.payments.manage',
+  'payments.bank_transfer.verify',
+  'payments.audit_log.view',
+  'identity_access.users.view',
+  'orders.orders.view',
+  'customers.customers.view',
+].map((key) => ({ key, label: key, module: 'payments' }));
+
+export async function mockPaymentsSession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'admin', label: 'Administrator', version: 1, createdAt: null, updatedAt: null, permissions: PAYMENTS_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
+/**
+ * A real, narrower Payments role — `payments.payments.view` only, per
+ * `Authorization\PermissionRegistry.php`'s own least-privilege intent (a
+ * read-only finance/support viewer should not necessarily hold operator
+ * authority). Deliberately excludes `.manage` and `.bank_transfer.verify`,
+ * so Slice 2's own permission-gating can be verified against a genuinely
+ * restricted, real-shaped session rather than only ever the full-access
+ * one — mirrors `mockShippingPickerOnlySession`'s own pattern.
+ */
+const PAYMENTS_VIEWER_ONLY_PERMISSIONS = ['payments.payments.view'].map((key) => ({ key, label: key, module: 'payments' }));
+
+export async function mockPaymentsViewerOnlySession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r2', name: 'payments-viewer', label: 'Payments Viewer', version: 1, createdAt: null, updatedAt: null, permissions: PAYMENTS_VIEWER_ONLY_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
 export interface MockCatalogRecord {
   id: string;
   version: number;

@@ -117,6 +117,25 @@ final class Payment extends Model
     protected function casts(): array
     {
         return [
+            // `decimal:4` matches this table's own `decimal(14,4)` columns
+            // (`database/migrations/2026_08_05_210001_create_payments_table.php`,
+            // `2026_08_08_000001_add_refund_columns_to_payments_table.php`) and
+            // this class's own documented `@property string` type above.
+            // Genuine bug fix, not a contract change: without this cast, a
+            // whole-number amount comes back from SQLite as a PHP `int`
+            // (or a non-whole one as `float`) instead of the `string` every
+            // caller — `Actions\CapturePaymentAction`, `Events\
+            // PaymentInitiated`, this module's entire JSON API — already
+            // requires, throwing a `TypeError` on the very first capture of
+            // any such payment (confirmed via `POST /payments/{id}/capture`
+            // against a real dev payment during Phase 2.9 Slice 2's own live
+            // verification). MySQL/PostgreSQL's own PDO drivers already
+            // return decimal columns as strings, so this was masked there;
+            // SQLite does not, so this cast makes both drivers agree,
+            // exactly matching PaymentAttempt's own equivalent fix below.
+            'amount' => 'decimal:4',
+            'amount_captured' => 'decimal:4',
+            'amount_refunded' => 'decimal:4',
             'initiated_at' => 'datetime',
             'authorized_at' => 'datetime',
             'captured_at' => 'datetime',
