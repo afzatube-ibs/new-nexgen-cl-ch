@@ -45,6 +45,13 @@ final class PromotionCondition extends Model
         'numeric_value',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'numeric_value' => 'decimal:4',
+        ];
+    }
+
     /**
      * See Identity & Access's User::newFactory() docblock for why this
      * project keeps every factory directly under database/factories/

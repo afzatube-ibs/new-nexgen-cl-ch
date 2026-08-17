@@ -411,6 +411,76 @@ export async function mockPaymentsViewerOnlySession(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Every real Promotions permission (`PermissionRegistry.php`, `app/Domains/
+ * Commerce/Promotions/Authorization/`) — mirrors `PAYMENTS_PERMISSIONS`'s
+ * own pattern. `customers.customers.view` gates the real "View customer"
+ * cross-link Slice 2 added to the Redemption Timeline and Redemptions List
+ * (Promotion Owner's own real `customer_id` cross-domain reference).
+ */
+const PROMOTIONS_PERMISSIONS = [
+  'promotions.promotions.view',
+  'promotions.promotions.manage',
+  'promotions.coupons.view',
+  'promotions.coupons.manage',
+  'promotions.redemptions.view',
+  'promotions.audit_log.view',
+  'customers.customers.view',
+].map((key) => ({ key, label: key, module: 'promotions' }));
+
+export async function mockPromotionsSession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [{ id: 'r1', name: 'admin', label: 'Administrator', version: 1, createdAt: null, updatedAt: null, permissions: PROMOTIONS_PERMISSIONS }],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
+/**
+ * A real, narrower Promotions role — `promotions.promotions.view` only.
+ * Deliberately excludes `.manage`, so Marketing Slice 1's own
+ * permission-gating can be verified against a genuinely restricted,
+ * real-shaped session — mirrors `mockPaymentsViewerOnlySession`'s own
+ * pattern exactly.
+ */
+const PROMOTIONS_VIEWER_ONLY_PERMISSIONS = ['promotions.promotions.view', 'promotions.coupons.view'].map((key) => ({
+  key,
+  label: key,
+  module: 'promotions',
+}));
+
+export async function mockPromotionsViewerOnlySession(page: Page): Promise<void> {
+  await page.route('**/api/v1/auth/me', async (route) => {
+    await route.fulfill({
+      json: {
+        data: {
+          ...fakeUser(),
+          roles: [
+            { id: 'r2', name: 'promotions-viewer', label: 'Promotions Viewer', version: 1, createdAt: null, updatedAt: null, permissions: PROMOTIONS_VIEWER_ONLY_PERMISSIONS },
+          ],
+        },
+      },
+    });
+  });
+  await page.route('**/api/v1/stores', async (route) => {
+    await route.fulfill({ json: { data: [{ id: 's1', name: 'Demo Store', status: 'active' }] } });
+  });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('nexgen-admin-token', 'fake-token-for-e2e');
+  });
+}
+
 export interface MockCatalogRecord {
   id: string;
   version: number;

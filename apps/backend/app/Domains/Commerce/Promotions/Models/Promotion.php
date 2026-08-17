@@ -99,6 +99,8 @@ final class Promotion extends Model
     protected function casts(): array
     {
         return [
+            'discount_value' => 'decimal:4',
+            'get_y_discount_percentage' => 'decimal:2',
             'is_stackable' => 'boolean',
             'requires_coupon' => 'boolean',
             'starts_at' => 'datetime',
