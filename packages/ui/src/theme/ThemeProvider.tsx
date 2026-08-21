@@ -1,3 +1,10 @@
+'use client';
+
+// No-op under Vite (apps/admin); required under Next.js's RSC boundary
+// analysis (apps/storefront) since this module uses genuinely client-only
+// hooks (createContext/useState/useEffect). See lib/motion.ts's own
+// docblock for the full "why every hook-using file in this barrel-exported
+// package needs this" explanation — found live during Beta Milestone 1.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 export type ThemePreference = 'light' | 'dark' | 'system';

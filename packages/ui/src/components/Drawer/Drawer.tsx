@@ -73,5 +73,5 @@ export const DrawerContent = forwardRef<HTMLDivElement, DrawerContentProps>(func
 });
 
 export function DrawerFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('mt-auto flex items-center justify-end gap-2 pt-6', className)} {...props} />;
+  return <div className={cn('mt-auto flex items-center justify-end gap-2 pt-5', className)} {...props} />;
 }

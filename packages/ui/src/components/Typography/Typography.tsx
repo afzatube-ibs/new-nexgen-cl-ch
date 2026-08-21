@@ -12,9 +12,12 @@ export interface TextProps extends HTMLAttributes<HTMLElement> {
 const VARIANT_CLASS: Record<TextStyle, string> = {
   display: 'text-display',
   heading: 'text-heading',
+  section: 'text-section',
   subheading: 'text-subheading',
+  stat: 'text-stat',
   body: 'text-body',
   'body-strong': 'text-body-strong',
+  label: 'text-label',
   caption: 'text-caption',
   code: 'text-code font-mono',
 };

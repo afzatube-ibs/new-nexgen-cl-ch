@@ -63,8 +63,16 @@ export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLD
   return <div className={cn('mb-4 flex flex-col gap-1', className)} {...props} />;
 }
 
+/**
+ * `text-section` (20px/600), not `text-heading` — a Dialog's title is a
+ * Section Title, not a Page Title, per the Design Foundation Refresh's own
+ * typography scale (`packages/tokens`'s own docblock). Previously shared
+ * `text-heading` with `PageHeader`'s page title, which meant the Refresh's
+ * own Page-Title enlargement (24px→28px) would have inflated every dialog
+ * title along with it — corrected here at the source instead.
+ */
 export function DialogTitle({ className, ...props }: RadixDialog.DialogTitleProps) {
-  return <RadixDialog.Title className={cn('text-heading text-text-primary', className)} {...props} />;
+  return <RadixDialog.Title className={cn('text-section text-text-primary', className)} {...props} />;
 }
 
 export function DialogDescription({ className, ...props }: RadixDialog.DialogDescriptionProps) {
@@ -72,5 +80,5 @@ export function DialogDescription({ className, ...props }: RadixDialog.DialogDes
 }
 
 export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('mt-6 flex items-center justify-end gap-2', className)} {...props} />;
+  return <div className={cn('mt-5 flex items-center justify-end gap-2', className)} {...props} />;
 }

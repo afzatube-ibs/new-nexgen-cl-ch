@@ -21,10 +21,16 @@ export const buttonVariants = cva(
         ghost: 'bg-transparent text-text-primary hover:bg-surface-subtle',
         destructive: 'bg-feedback-danger text-white hover:opacity-90 active:opacity-80',
       },
+      // `lg` was `h-11` (44px) — trimmed to `h-10` (40px), the Design
+      // Foundation Refresh's own "avoid large buttons" requirement; `sm`'s
+      // text moved off `text-caption` (12px, meant for helper text) onto
+      // the same `text-label` (13px/600) scale as every form field label,
+      // matching the refresh's own "Buttons: 13–14px" target more closely
+      // than a helper-text size ever did.
       size: {
-        sm: 'h-8 px-3 text-caption',
+        sm: 'h-8 px-3 text-label',
         md: 'h-9 px-4 text-body',
-        lg: 'h-11 px-6 text-body-strong',
+        lg: 'h-10 px-6 text-body-strong',
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },

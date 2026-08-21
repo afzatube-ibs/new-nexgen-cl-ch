@@ -95,18 +95,47 @@ const colors = {
   },
 };
 
-/** Typography tokens — §1.2. Sizes/line-heights in px (Tailwind consumes as rem via preset). */
+/**
+ * Typography tokens — §1.2. Sizes/line-heights in px (Tailwind consumes as
+ * rem via preset). Rescaled per the Phase 2.x Design Foundation Refresh
+ * (`planning/reviews/PHASE_2X_DESIGN_FOUNDATION_REFRESH_REPORT.md`) to a
+ * compact, information-dense enterprise scale — closer to Stripe Dashboard/
+ * GitHub/Linear than a marketing site: no size in this scale exceeds 32px,
+ * and every numeric-value ("KPI/metric") context gets its own `stat` style
+ * deliberately smaller than a real page title, so the two never compete for
+ * visual weight the way they used to when both shared `heading`.
+ *
+ * - `display` — hero numerals only (e.g. the 404 page's own "404"), never a
+ *   data value.
+ * - `heading` — Page Title. The *only* size in this scale in the 28-32px
+ *   band the refresh's own brief specifies, and confined to true page/
+ *   screen titles (`PageHeader`, `LoginPage`) — nothing else consumes it.
+ * - `section` (NEW) — Section Titles / Dialog & Drawer titles.
+ * - `subheading` — Card Titles (`CardTitle`'s own `text-subheading` class).
+ * - `stat` (NEW) — KPI/metric numbers (KPI cards, dialog Current/
+ *   Adjustment/Expected previews, drawer stat blocks) — bold enough to
+ *   read as a number, deliberately smaller than `heading` so a KPI card
+ *   never outweighs the page title above it, addressing the refresh
+ *   brief's own "avoid oversized KPI numbers" requirement.
+ * - `label` (NEW) — form field labels (Input/Select/Textarea/Label), split
+ *   out from `body-strong` so a label can be tuned independently of every
+ *   other bold-body use (toasts, alert titles, table row emphasis, ...)
+ *   that also uses `body-strong` and must NOT shrink with it.
+ */
 const typography = {
   fontFamily: {
     sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
     mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
   },
   textStyles: {
-    display: { fontSize: 36, lineHeight: 44, fontWeight: 600 },
-    heading: { fontSize: 24, lineHeight: 32, fontWeight: 600 },
-    subheading: { fontSize: 18, lineHeight: 28, fontWeight: 600 },
+    display: { fontSize: 32, lineHeight: 40, fontWeight: 700 },
+    heading: { fontSize: 28, lineHeight: 36, fontWeight: 700 },
+    section: { fontSize: 20, lineHeight: 28, fontWeight: 600 },
+    subheading: { fontSize: 17, lineHeight: 24, fontWeight: 600 },
+    stat: { fontSize: 22, lineHeight: 28, fontWeight: 700 },
     body: { fontSize: 14, lineHeight: 20, fontWeight: 400 },
     'body-strong': { fontSize: 14, lineHeight: 20, fontWeight: 600 },
+    label: { fontSize: 13, lineHeight: 18, fontWeight: 600 },
     caption: { fontSize: 12, lineHeight: 16, fontWeight: 400 },
     code: { fontSize: 13, lineHeight: 20, fontWeight: 400 },
   },

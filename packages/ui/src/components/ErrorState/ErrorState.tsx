@@ -14,7 +14,7 @@ export function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-feedback-danger/30 bg-feedback-danger/5 p-12 text-center">
+    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-feedback-danger/30 bg-feedback-danger/5 p-8 text-center">
       <AlertTriangle className="size-8 text-feedback-danger" aria-hidden="true" />
       <p className="text-body-strong text-text-primary">{title}</p>
       <p className="max-w-sm text-body text-text-secondary">{description}</p>

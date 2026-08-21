@@ -1,3 +1,8 @@
+'use client';
+
+// No-op under Vite (apps/admin); required under Next.js's RSC boundary
+// analysis (apps/storefront) — `useSyncExternalStore` is genuinely
+// client-only. See packages/ui/src/lib/motion.ts's own docblock.
 import { useSyncExternalStore } from 'react';
 import { addToast, dismissToast, subscribe, type ToastItem } from './toast-store.js';
 
