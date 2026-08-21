@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "//": "Does not extend packages/config/tsconfig.base.json — that base targets browser/React apps (jsx, DOM lib) per ADR-0005/0006's own frontends; this is a pure Node.js service with no UI, so it defines its own Node-appropriate compiler options instead of fighting a React-shaped base. Shares the same strictness bar (strict, noUncheckedIndexedAccess, etc.) as every other TypeScript workspace member, per PRINCIPLES:CONSISTENCY_OVER_NOVELTY applied to what actually matters (strictness), not to settings that don't apply here (jsx, DOM lib). This is the typecheck-everything config (src + test); tsconfig.build.json is the narrower, src-only config the production build actually emits from.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}

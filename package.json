@@ -1,10 +1,12 @@
 {
   "name": "nexgen-core",
   "private": true,
-  "description": "neXgen Core frontend monorepo — apps/admin (ADR-0005), apps/storefront (ADR-0006, future), packages/* (ADR-0009). apps/backend is the separate Laravel application and is not part of this workspace.",
+  "description": "neXgen Core frontend monorepo — apps/admin (ADR-0005), apps/storefront (ADR-0006, Beta Milestone 1 foundation + Beta Milestone 2 customer experience), apps/store-api-gateway (STORE_API_GATEWAY_ARCHITECTURE.md — the Storefront's own BFF, standalone per the Product Owner's explicit Phase 4.1 direction), packages/* (ADR-0009, including packages/storefront-engine). apps/backend is the separate Laravel application and is not part of this workspace. CONSTRAINT: React is pinned to ^18.3 monorepo-wide (every apps/* and packages/* peer/devDependency) because @nexgen/ui ships raw .tsx source pinned to React 18 types with no build step of its own (packages/ui/COMPATIBILITY.md) — do not bump any single package's own React range independently; upgrade @nexgen/ui first.",
   "type": "module",
   "workspaces": [
     "apps/admin",
+    "apps/storefront",
+    "apps/store-api-gateway",
     "packages/*"
   ],
   "engines": {
