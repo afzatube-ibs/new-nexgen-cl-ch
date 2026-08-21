@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-surface text-text-primary antialiased;
+  }
+
+  /* DESIGN_SYSTEM.md §5: focus-visible, not focus. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /*
+   * Beta Milestone 2 — Accessibility build item 9's own "Reduced motion"
+   * requirement: every hover-zoom/scale transition in the new Store
+   * Components (`ProductCard`, `ProductGallery`, `CategoryGrid`, ...) uses
+   * plain Tailwind `transition-*`/`duration-*` utilities, none of which
+   * respect `prefers-reduced-motion` on their own — this is the one,
+   * real, global override that makes all of them honor it, rather than
+   * hand-adding a `motion-reduce:` variant to every single className.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
