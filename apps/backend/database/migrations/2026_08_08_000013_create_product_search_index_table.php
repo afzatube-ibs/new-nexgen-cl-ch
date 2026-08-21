@@ -58,7 +58,15 @@ return new class extends Migration
             $table->index('brand_id');
         });
 
-        DB::statement('ALTER TABLE product_search_index ADD FULLTEXT search_fulltext_index (name, searchable_text)');
+        // FULLTEXT is MySQL/MariaDB-specific DDL (see this migration's own
+        // docblock) — guarded here, not removed, so this file still runs
+        // clean on a local sqlite dev database (a documented, non-committed
+        // deviation from ADR-0003 for local verification only; sqlite has
+        // no FULLTEXT equivalent, and MODULE:SEARCH's own LIKE fallback
+        // already covers that case at the query layer).
+        if (DB::connection()->getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE product_search_index ADD FULLTEXT search_fulltext_index (name, searchable_text)');
+        }
     }
 
     public function down(): void
