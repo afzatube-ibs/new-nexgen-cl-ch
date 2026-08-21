@@ -79,7 +79,7 @@ export function StockItemDetailDrawer({ open, onOpenChange, stockItem, warehouse
                 <Text as="dt" variant="caption" className="text-text-secondary">
                   Available to sell
                 </Text>
-                <Text as="dd" variant="display" className="m-0 tabular-nums leading-tight">
+                <Text as="dd" variant="stat" className="m-0 tabular-nums leading-tight">
                   {stockItem.quantityAvailable}
                 </Text>
               </div>
@@ -162,7 +162,11 @@ export function StockItemDetailDrawer({ open, onOpenChange, stockItem, warehouse
               </TabsContent>
 
               <TabsContent value="reservations">
-                <ReservationsPanel stockItem={stockItem} canManage={canManage} />
+                {/* ReservationsPanel derives its own `inventory.reservations.manage`
+                    check internally — it must not reuse this drawer's `canManage`,
+                    which gates the unrelated `inventory.stock.manage`-scoped Adjust
+                    Stock action below. See ReservationsPanel's own docblock. */}
+                <ReservationsPanel stockItem={stockItem} />
               </TabsContent>
             </Tabs>
           )}

@@ -73,7 +73,7 @@ export function InventoryKpiSummary({ warehouseCount, totalStockItems, pageItems
             {loading ? (
               <Skeleton shape="text" className="h-6 w-10" />
             ) : (
-              <Text variant="heading" as="p" className="leading-none">
+              <Text variant="stat" as="p" className="leading-none">
                 {kpi.value ?? '—'}
               </Text>
             )}

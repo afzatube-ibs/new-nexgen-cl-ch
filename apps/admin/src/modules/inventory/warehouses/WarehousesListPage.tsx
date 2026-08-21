@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2, Star, Warehouse as WarehouseIcon } from 'lucide-react';
+import { Plus, MoreHorizontal, Pencil, Archive, Trash2, Star, Warehouse as WarehouseIcon } from 'lucide-react';
 import {
   DataTable,
   type DataTableColumn,
@@ -17,7 +17,7 @@ import type { WarehouseDTO } from '@nexgen/api-client';
 import { CrudPageLayout, Toolbar, FilterBar, ConfirmDialog, RequirePermission } from '../../../framework/index.js';
 import { useAuth } from '../../../auth/useAuth.js';
 import { inventoryErrorMessage } from '../shared/errors.js';
-import { useWarehouses, useArchiveWarehouse, useDestroyWarehouse, useRestoreWarehouse } from './queries.js';
+import { useWarehouses, useArchiveWarehouse, useDestroyWarehouse } from './queries.js';
 import { WarehouseFormDialog } from './WarehouseFormDialog.js';
 import { WarehouseStockCountCell } from './WarehouseStockCountCell.js';
 
@@ -51,7 +51,6 @@ export function WarehousesListPage() {
 
   const archiveMutation = useArchiveWarehouse();
   const destroyMutation = useDestroyWarehouse();
-  const restoreMutation = useRestoreWarehouse();
 
   const handleArchive = useCallback(
     async (row: WarehouseDTO): Promise<void> => {
@@ -65,17 +64,21 @@ export function WarehousesListPage() {
     [archiveMutation, toast],
   );
 
-  const handleRestore = useCallback(
-    async (row: WarehouseDTO): Promise<void> => {
-      try {
-        await restoreMutation.mutateAsync(row.id);
-        toast({ variant: 'success', title: 'Warehouse restored', description: `"${row.name}" is active again.` });
-      } catch (error) {
-        toast({ variant: 'danger', title: "Couldn't restore warehouse", description: inventoryErrorMessage(error) });
-      }
-    },
-    [restoreMutation, toast],
-  );
+  // No `handleRestore` here — found during the Inventory Freeze audit:
+  // `POST /warehouses/{id}/restore` only reverses a *soft-delete*
+  // (`$warehouse->restore()` clears `deleted_at`), it never touches
+  // `status`. `WarehouseController::index()` also never lists soft-deleted
+  // rows, so no row this page can render is ever actually in that
+  // soft-deleted state — meaning a "Restore" action wired to an archived
+  // row here would always be a silent no-op: a 200 response and a
+  // misleading success toast, with the warehouse staying archived forever.
+  // There is currently no backend action that reverses `archive` (neither
+  // `UpdateWarehouseRequest` nor any other route accepts a `status`
+  // change), and adding one is a new API contract this audit's own rules
+  // don't allow inventing. The honest fix available within the existing
+  // backend is to not offer an action that doesn't work — see the Inventory
+  // Freeze report for the follow-up recommendation (a real "reactivate
+  // warehouse" capability) this leaves for Product Owner decision.
 
   const columns: DataTableColumn<WarehouseDTO>[] = useMemo(() => {
     const cols: DataTableColumn<WarehouseDTO>[] = [
@@ -134,13 +137,9 @@ export function WarehousesListPage() {
                 >
                   <Pencil className="size-4" /> Edit
                 </DropdownMenuItem>
-                {row.status === 'active' ? (
+                {row.status === 'active' && (
                   <DropdownMenuItem onSelect={() => void handleArchive(row)}>
                     <Archive className="size-4" /> Archive
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onSelect={() => void handleRestore(row)}>
-                    <ArchiveRestore className="size-4" /> Restore
                   </DropdownMenuItem>
                 )}
                 <ConfirmDialog
@@ -163,7 +162,7 @@ export function WarehousesListPage() {
       },
     );
     return cols;
-  }, [canViewStock, destroyMutation, handleArchive, handleRestore]);
+  }, [canViewStock, destroyMutation, handleArchive]);
 
   return (
     <div>

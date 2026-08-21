@@ -1,4 +1,4 @@
-import { Plus, Pencil, Archive, ArchiveRestore, Trash2, Building2, TrendingUp, TrendingDown, Lock, LockOpen } from 'lucide-react';
+import { Plus, Pencil, Archive, ArchiveRestore, Trash2, Building2, TrendingUp, TrendingDown, Lock, LockOpen, ArrowRightLeft, CheckCircle2, XCircle } from 'lucide-react';
 import type { InventoryAuditLogDTO } from '@nexgen/api-client';
 import type { StockAdjustedDetails } from './activityFormat.js';
 
@@ -13,6 +13,12 @@ const WAREHOUSE_ACTION_ICON: Record<string, typeof Plus> = {
 const RESERVATION_ACTION_ICON: Record<string, { icon: typeof Lock; className: string }> = {
   'stock.reserved': { icon: Lock, className: 'bg-feedback-info/10 text-feedback-info' },
   'stock.released': { icon: LockOpen, className: 'bg-surface-subtle text-text-secondary' },
+};
+
+const TRANSFER_ACTION_ICON: Record<string, { icon: typeof ArrowRightLeft; className: string }> = {
+  'stock_transfer.initiated': { icon: ArrowRightLeft, className: 'bg-feedback-info/10 text-feedback-info' },
+  'stock_transfer.completed': { icon: CheckCircle2, className: 'bg-feedback-success/10 text-feedback-success' },
+  'stock_transfer.cancelled': { icon: XCircle, className: 'bg-surface-subtle text-text-secondary' },
 };
 
 export interface ActivityEntryIconProps {
@@ -42,6 +48,16 @@ export function ActivityEntryIcon({ entry, stockDetails }: ActivityEntryIconProp
     const Icon = reservationIcon.icon;
     return (
       <div className={`flex size-8 shrink-0 items-center justify-center rounded-full ${reservationIcon.className}`}>
+        <Icon className="size-4" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  const transferIcon = TRANSFER_ACTION_ICON[entry.action];
+  if (transferIcon) {
+    const Icon = transferIcon.icon;
+    return (
+      <div className={`flex size-8 shrink-0 items-center justify-center rounded-full ${transferIcon.className}`}>
         <Icon className="size-4" aria-hidden="true" />
       </div>
     );

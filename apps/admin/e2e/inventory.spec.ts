@@ -143,8 +143,96 @@ async function mockEmptyProducts(page: Page): Promise<void> {
   });
 }
 
+interface FakeTransfer {
+  id: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  sku: string;
+  quantity: number;
+  status: 'pending' | 'completed' | 'cancelled';
+}
+
+function toTransferResource(t: FakeTransfer) {
+  return {
+    id: t.id,
+    fromWarehouseId: t.fromWarehouseId,
+    toWarehouseId: t.toWarehouseId,
+    sku: t.sku,
+    quantity: t.quantity,
+    status: t.status,
+    createdAt: '2026-08-13T10:00:00.000Z',
+    updatedAt: '2026-08-13T10:00:00.000Z',
+  };
+}
+
+/** Mirrors `mockWarehousesResource`'s own two-tier routing (bare `stock-transfers*` for list/create, `stock-transfers/**` for the id-scoped show/complete/cancel actions) — same reasoning, different entity. */
+async function mockTransfersResource(page: Page, initial: FakeTransfer[]): Promise<void> {
+  const items = [...initial];
+  let nextId = items.length + 1;
+
+  await page.route('**/api/v1/stock-transfers*', async (route) => {
+    const request = route.request();
+    if (request.method() === 'GET') {
+      const url = new URL(request.url());
+      const status = url.searchParams.get('status');
+      const filtered = status ? items.filter((i) => i.status === status) : items;
+      await route.fulfill({
+        json: { data: filtered.map(toTransferResource), meta: { current_page: 1, per_page: 15, total: filtered.length, last_page: 1 } },
+      });
+      return;
+    }
+    if (request.method() === 'POST') {
+      const body = (request.postDataJSON() ?? {}) as Record<string, unknown>;
+      const item: FakeTransfer = {
+        id: String(nextId++),
+        fromWarehouseId: String(body.from_warehouse_id),
+        toWarehouseId: String(body.to_warehouse_id),
+        sku: String(body.sku),
+        quantity: Number(body.quantity),
+        status: 'pending',
+      };
+      items.push(item);
+      await route.fulfill({ status: 201, json: { data: toTransferResource(item) } });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.route('**/api/v1/stock-transfers/**', async (route) => {
+    const request = route.request();
+    const segments = new URL(request.url()).pathname.split('/').filter(Boolean);
+    const lastSegment = segments.at(-1);
+    const action = lastSegment === 'complete' || lastSegment === 'cancel' ? lastSegment : null;
+    const id = action ? segments.at(-2) : lastSegment;
+    const index = items.findIndex((i) => i.id === id);
+    if (index === -1) {
+      await route.fulfill({ status: 404, json: { error: { type: 'not_found', message: 'Not found.' } } });
+      return;
+    }
+    const item = items[index];
+
+    if (request.method() === 'GET') {
+      await route.fulfill({ json: { data: toTransferResource(item) } });
+      return;
+    }
+    if (request.method() === 'POST' && (action === 'complete' || action === 'cancel')) {
+      if (item.status !== 'pending') {
+        await route.fulfill({
+          status: 409,
+          json: { error: { type: 'conflict', message: `Stock transfer [${id}] is already [${item.status}] and cannot be changed.` } },
+        });
+        return;
+      }
+      items[index] = { ...item, status: action === 'complete' ? 'completed' : 'cancelled' };
+      await route.fulfill({ json: { data: toTransferResource(items[index]) } });
+      return;
+    }
+    await route.continue();
+  });
+}
+
 test.describe('Inventory — Warehouses', () => {
-  test('create, edit, archive, and restore a warehouse; delete is blocked with the real dependent-records reason', async ({ page }) => {
+  test('create, edit, and archive a warehouse; delete is blocked with the real dependent-records reason', async ({ page }) => {
     await mockInventorySession(page);
     await mockWarehousesResource(page, []);
     await mockEmptyStockItems(page);
@@ -165,14 +253,19 @@ test.describe('Inventory — Warehouses', () => {
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Main Warehouse Renamed', { exact: true })).toBeVisible();
 
-    // Archive -> Restore
+    // Archive. No "Restore" is offered afterward — found during the
+    // Inventory Freeze audit: the backend's restore route only reverses a
+    // soft-delete, never `status`, so a "Restore" item here would be a
+    // silent no-op forever leaving the warehouse archived (see
+    // WarehousesListPage's own docblock on the removed `handleRestore`).
     await page.getByRole('row', { name: /Main Warehouse Renamed/ }).getByRole('button', { name: /Actions for/ }).click();
     await page.getByRole('menuitem', { name: 'Archive' }).click();
     await expect(page.getByRole('row', { name: /Main Warehouse Renamed/ }).getByText('archived')).toBeVisible();
 
     await page.getByRole('row', { name: /Main Warehouse Renamed/ }).getByRole('button', { name: /Actions for/ }).click();
-    await page.getByRole('menuitem', { name: 'Restore' }).click();
-    await expect(page.getByRole('row', { name: /Main Warehouse Renamed/ }).getByText('active')).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Restore' })).not.toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Archive' })).not.toBeVisible();
+    await page.keyboard.press('Escape');
 
     // Delete is blocked (still has stock items) — the real 409 reason surfaces
     // in the dialog itself, not a silent failure (ConfirmDialog stays open).
@@ -545,6 +638,178 @@ test.describe('Inventory — Reservations (Slice 2)', () => {
   });
 });
 
+test.describe('Inventory — Transfers (Slice 3)', () => {
+  const warehouseA: FakeWarehouse = { id: 'w1', code: 'MAIN', name: 'Main Warehouse', isDefault: true, status: 'active', version: 1 };
+  const warehouseB: FakeWarehouse = { id: 'w2', code: 'SECOND', name: 'Second Warehouse', isDefault: false, status: 'active', version: 1 };
+
+  test('shows an empty state with a "New transfer" action when nothing has been transferred', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouseA, warehouseB]);
+    await mockTransfersResource(page, []);
+
+    await page.goto('/inventory/transfers');
+    await expect(page.getByText('No transfers yet')).toBeVisible();
+    // Both the page header's own "New transfer" button and the empty
+    // state's action button render the identical label — `.first()`
+    // matches `WarehousesListPage`'s own precedent for the same shape.
+    await expect(page.getByRole('button', { name: 'New transfer' }).first()).toBeVisible();
+  });
+
+  test('starting a transfer succeeds, shows a success toast, and lists it as Pending', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouseA, warehouseB]);
+    await mockTransfersResource(page, []);
+    await mockEmptyProducts(page);
+    await page.route('**/api/v1/stock-items*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      const url = new URL(route.request().url());
+      if (url.searchParams.get('warehouse_id') === 'w1' && url.searchParams.get('sku') === 'TRANSFER-ME') {
+        await route.fulfill({
+          json: {
+            data: [{ id: 'si1', warehouseId: 'w1', sku: 'TRANSFER-ME', quantityOnHand: 50, quantityReserved: 0, quantityAvailable: 50, version: 1, createdAt: null, updatedAt: null }],
+            meta: { current_page: 1, per_page: 50, total: 1, last_page: 1 },
+          },
+        });
+        return;
+      }
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 50, total: 0, last_page: 1 } } });
+    });
+
+    await page.goto('/inventory/transfers');
+    await page.getByRole('button', { name: 'New transfer' }).first().click();
+    await expect(page.getByRole('dialog', { name: 'Start transfer' })).toBeVisible();
+
+    await page.getByRole('combobox', { name: 'Source warehouse' }).click();
+    await page.getByRole('option', { name: /Main Warehouse/ }).click();
+    await page.getByRole('combobox', { name: 'Destination warehouse' }).click();
+    await page.getByRole('option', { name: /Second Warehouse/ }).click();
+    await page.getByLabel('SKU').fill('TRANSFER-ME');
+    await page.getByLabel('Quantity to transfer').fill('10');
+
+    await expect(page.getByText('40 will remain Available at the source after this transfer.')).toBeVisible();
+
+    await page.getByRole('dialog', { name: 'Start transfer' }).getByRole('button', { name: 'Start transfer' }).click();
+
+    await expect(page.getByText('Transfer started').first()).toBeVisible();
+    await expect(page.getByRole('row', { name: /TRANSFER-ME/ }).getByText('Pending')).toBeVisible();
+    await expect(page.getByRole('row', { name: /TRANSFER-ME/ })).toContainText('Main Warehouse');
+    await expect(page.getByRole('row', { name: /TRANSFER-ME/ })).toContainText('Second Warehouse');
+  });
+
+  test('completing a pending transfer succeeds, shows a success toast, and updates its status', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouseA, warehouseB]);
+    await mockTransfersResource(page, [{ id: 't1', fromWarehouseId: 'w1', toWarehouseId: 'w2', sku: 'TRANSFER-ME', quantity: 10, status: 'pending' }]);
+    await mockEmptyProducts(page);
+
+    await page.goto('/inventory/transfers');
+    await page.getByRole('row', { name: /TRANSFER-ME/ }).getByRole('button', { name: /Actions for/ }).click();
+    await page.getByRole('menuitem', { name: 'Complete' }).click();
+    await expect(page.getByRole('dialog', { name: 'Complete this transfer?' })).toBeVisible();
+    await page.getByRole('dialog', { name: 'Complete this transfer?' }).getByRole('button', { name: 'Complete transfer' }).click();
+
+    await expect(page.getByText('Transfer completed').first()).toBeVisible();
+    // The row's own Actions menu (its DropdownMenuItem is the ConfirmDialog's
+    // trigger, same pattern as Warehouses' delete confirmation) stays open
+    // underneath the now-closed dialog and hides the rest of the page from
+    // the accessibility tree while it's up — reload to check the underlying
+    // data directly instead of fighting that focus-trap state.
+    await page.reload();
+    await expect(page.getByRole('row', { name: /TRANSFER-ME/ }).getByText('Completed')).toBeVisible();
+  });
+
+  test('cancelling a pending transfer succeeds, shows a success toast, and updates its status', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouseA, warehouseB]);
+    await mockTransfersResource(page, [{ id: 't1', fromWarehouseId: 'w1', toWarehouseId: 'w2', sku: 'TRANSFER-ME', quantity: 10, status: 'pending' }]);
+    await mockEmptyProducts(page);
+
+    await page.goto('/inventory/transfers');
+    await page.getByRole('row', { name: /TRANSFER-ME/ }).getByRole('button', { name: /Actions for/ }).click();
+    await page.getByRole('menuitem', { name: 'Cancel' }).click();
+
+    await expect(page.getByText('Transfer cancelled').first()).toBeVisible();
+    await expect(page.getByRole('row', { name: /TRANSFER-ME/ }).getByText('Cancelled')).toBeVisible();
+  });
+
+  test('starting a transfer that would oversell shows the real InsufficientStockException reason', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouseA, warehouseB]);
+    await mockEmptyProducts(page);
+    await page.route('**/api/v1/stock-items*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 50, total: 0, last_page: 1 } } });
+    });
+    await page.route('**/api/v1/stock-transfers*', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          status: 409,
+          json: { error: { type: 'conflict', message: 'Stock item [si1] has only 0 available, but 10 were requested.' } },
+        });
+        return;
+      }
+      await route.fulfill({ json: { data: [], meta: { current_page: 1, per_page: 15, total: 0, last_page: 1 } } });
+    });
+
+    await page.goto('/inventory/transfers');
+    await page.getByRole('button', { name: 'New transfer' }).first().click();
+    await page.getByRole('combobox', { name: 'Source warehouse' }).click();
+    await page.getByRole('option', { name: /Main Warehouse/ }).click();
+    await page.getByRole('combobox', { name: 'Destination warehouse' }).click();
+    await page.getByRole('option', { name: /Second Warehouse/ }).click();
+    await page.getByLabel('SKU').fill('NEVER-STOCKED');
+    await page.getByLabel('Quantity to transfer').fill('10');
+    await page.getByRole('dialog', { name: 'Start transfer' }).getByRole('button', { name: 'Start transfer' }).click();
+
+    await expect(page.getByRole('alert').getByText('Only 0 available — 10 requested.')).toBeVisible();
+  });
+
+  test('filtering by status requests the matching status param', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouseA, warehouseB]);
+    await mockTransfersResource(page, [{ id: 't1', fromWarehouseId: 'w1', toWarehouseId: 'w2', sku: 'TRANSFER-ME', quantity: 10, status: 'completed' }]);
+    await mockEmptyProducts(page);
+
+    await page.goto('/inventory/transfers');
+    await expect(page.getByRole('row', { name: /TRANSFER-ME/ })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Filters' }).click();
+    const requestPromise = page.waitForRequest((req) => req.url().includes('/api/v1/stock-transfers?') && req.url().includes('status=completed'));
+    await page.getByRole('combobox', { name: 'Status' }).click();
+    await page.getByRole('option', { name: 'Completed' }).click();
+    await requestPromise;
+
+    await expect(page.getByRole('row', { name: /TRANSFER-ME/ })).toBeVisible();
+  });
+
+  test('has no critical or serious automated accessibility violations on a populated Transfers list and its Start transfer dialog', async ({ page }) => {
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [warehouseA, warehouseB]);
+    await mockTransfersResource(page, [{ id: 't1', fromWarehouseId: 'w1', toWarehouseId: 'w2', sku: 'TRANSFER-ME', quantity: 10, status: 'pending' }]);
+    await mockEmptyProducts(page);
+
+    await page.goto('/inventory/transfers');
+    await expect(page.getByRole('row', { name: /TRANSFER-ME/ })).toBeVisible();
+
+    let results = await new AxeBuilder({ page }).analyze();
+    let seriousOrWorse = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+    expect(seriousOrWorse, JSON.stringify(seriousOrWorse, null, 2)).toEqual([]);
+
+    await page.getByRole('button', { name: 'New transfer' }).first().click();
+    await expect(page.getByRole('dialog', { name: 'Start transfer' })).toBeVisible();
+
+    results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+    seriousOrWorse = results.violations.filter((v) => v.impact === 'critical' || v.impact === 'serious');
+    expect(seriousOrWorse, JSON.stringify(seriousOrWorse, null, 2)).toEqual([]);
+  });
+});
+
 test.describe('Inventory — Activity', () => {
   test('renders a stock adjustment entry with a delta badge, reason, resulting on-hand, actor, and grouped under "Today"', async ({ page }) => {
     // Pins the browser clock so day-grouping ("Today"/"Yesterday") is
@@ -552,6 +817,12 @@ test.describe('Inventory — Activity', () => {
     // happens to run on.
     await page.clock.install({ time: new Date('2026-08-12T12:00:00.000Z') });
     await mockInventorySession(page);
+    // The Activity page resolves warehouse names for its own
+    // stock_transfer.initiated summary line (see activityFormat.ts) — an
+    // empty, always-200 stub keeps every test isolated from needing to
+    // care about it explicitly, the same treatment `mockEmptyStockItems`
+    // already gives the Warehouses list's own per-row stock count.
+    await mockWarehousesResource(page, []);
     await page.route('**/api/v1/inventory/audit-logs*', async (route) => {
       await route.fulfill({
         json: {
@@ -593,6 +864,12 @@ test.describe('Inventory — Activity', () => {
   test('groups entries from different days under separate headers', async ({ page }) => {
     await page.clock.install({ time: new Date('2026-08-12T12:00:00.000Z') });
     await mockInventorySession(page);
+    // The Activity page resolves warehouse names for its own
+    // stock_transfer.initiated summary line (see activityFormat.ts) — an
+    // empty, always-200 stub keeps every test isolated from needing to
+    // care about it explicitly, the same treatment `mockEmptyStockItems`
+    // already gives the Warehouses list's own per-row stock count.
+    await mockWarehousesResource(page, []);
     await page.route('**/api/v1/inventory/audit-logs*', async (route) => {
       await route.fulfill({
         json: {
@@ -633,8 +910,43 @@ test.describe('Inventory — Activity', () => {
     await expect(page.getByText('Old Warehouse (OLD)')).toBeVisible();
   });
 
+  test('renders a stock_transfer.initiated entry with real warehouse names resolved from/to', async ({ page }) => {
+    await page.clock.install({ time: new Date('2026-08-12T12:00:00.000Z') });
+    await mockInventorySession(page);
+    await mockWarehousesResource(page, [
+      { id: 'w1', code: 'MAIN', name: 'Main Warehouse', isDefault: true, status: 'active', version: 1 },
+      { id: 'w2', code: 'SECOND', name: 'Second Warehouse', isDefault: false, status: 'active', version: 1 },
+    ]);
+    await page.route('**/api/v1/inventory/audit-logs*', async (route) => {
+      await route.fulfill({
+        json: {
+          data: [
+            {
+              id: 'log1',
+              actorId: 'user-1',
+              action: 'stock_transfer.initiated',
+              targetType: 'App\\Domains\\Commerce\\Inventory\\Models\\StockTransfer',
+              targetId: 't1',
+              before: null,
+              after: { from_warehouse_id: 'w1', to_warehouse_id: 'w2', sku: 'TRANSFER-ME', quantity: 5 },
+              correlationId: null,
+              createdAt: '2026-08-12T10:00:00.000Z',
+            },
+          ],
+          meta: { current_page: 1, per_page: 25, total: 1, last_page: 1 },
+        },
+      });
+    });
+
+    await page.goto('/inventory/activity');
+
+    await expect(page.getByText('Stock transfer initiated')).toBeVisible();
+    await expect(page.getByText('5 units — Main Warehouse → Second Warehouse')).toBeVisible();
+  });
+
   test('filtering by type requests the matching target_type', async ({ page }) => {
     await mockInventorySession(page);
+    await mockWarehousesResource(page, []);
     let lastTargetType: string | null = null;
     await page.route('**/api/v1/inventory/audit-logs*', async (route) => {
       lastTargetType = new URL(route.request().url()).searchParams.get('target_type');
@@ -649,11 +961,22 @@ test.describe('Inventory — Activity', () => {
     await page.getByRole('option', { name: 'Warehouses' }).click();
 
     await expect.poll(() => lastTargetType).toBe('App\\Domains\\Commerce\\Inventory\\Models\\Warehouse');
+
+    await page.getByRole('combobox', { name: 'Type' }).click();
+    await page.getByRole('option', { name: 'Transfers' }).click();
+
+    await expect.poll(() => lastTargetType).toBe('App\\Domains\\Commerce\\Inventory\\Models\\StockTransfer');
   });
 
   test('has no critical or serious automated accessibility violations with a populated, day-grouped timeline', async ({ page }) => {
     await page.clock.install({ time: new Date('2026-08-12T12:00:00.000Z') });
     await mockInventorySession(page);
+    // The Activity page resolves warehouse names for its own
+    // stock_transfer.initiated summary line (see activityFormat.ts) — an
+    // empty, always-200 stub keeps every test isolated from needing to
+    // care about it explicitly, the same treatment `mockEmptyStockItems`
+    // already gives the Warehouses list's own per-row stock count.
+    await mockWarehousesResource(page, []);
     await page.route('**/api/v1/inventory/audit-logs*', async (route) => {
       await route.fulfill({
         json: {

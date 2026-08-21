@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { History } from 'lucide-react';
 import { Select, Text, Skeleton, EmptyState, ErrorState, Avatar } from '@nexgen/ui';
-import { INVENTORY_STOCK_ITEM_TARGET_TYPE, INVENTORY_WAREHOUSE_TARGET_TYPE, type InventoryAuditLogDTO } from '@nexgen/api-client';
+import {
+  INVENTORY_STOCK_ITEM_TARGET_TYPE,
+  INVENTORY_WAREHOUSE_TARGET_TYPE,
+  INVENTORY_STOCK_TRANSFER_TARGET_TYPE,
+  type InventoryAuditLogDTO,
+} from '@nexgen/api-client';
 import { CrudPageLayout, Toolbar, FilterBar } from '../../../framework/index.js';
+import { useAllWarehouses } from '../warehouses/queries.js';
 import { DeltaBadge } from '../shared/DeltaBadge.js';
 import { dayGroupLabel, shortTime } from '../shared/formatTimestamp.js';
 import { useInventoryActivity } from './queries.js';
@@ -12,17 +18,27 @@ import {
   stockAdjustedSummary,
   reservationEventDetails,
   reservationEventSummary,
+  transferEventDetails,
+  transferEventSummary,
   warehouseSnapshot,
 } from './activityFormat.js';
 import { StockItemSkuLabel } from './StockItemSkuLabel.js';
 import { ActivityEntryIcon } from './ActivityEntryIcon.js';
 
-type TargetFilter = 'all' | 'stock' | 'warehouses';
+type TargetFilter = 'all' | 'stock' | 'warehouses' | 'transfers';
 
 const TARGET_TYPE_BY_FILTER: Record<TargetFilter, string | undefined> = {
   all: undefined,
   stock: INVENTORY_STOCK_ITEM_TARGET_TYPE,
   warehouses: INVENTORY_WAREHOUSE_TARGET_TYPE,
+  transfers: INVENTORY_STOCK_TRANSFER_TARGET_TYPE,
+};
+
+const TARGET_FILTER_LABEL: Record<TargetFilter, string> = {
+  all: 'All activity',
+  stock: 'Stock',
+  warehouses: 'Warehouses',
+  transfers: 'Transfers',
 };
 
 interface DayGroup {
@@ -61,14 +77,21 @@ export function InventoryActivityPage() {
   const entries = useMemo(() => data?.data ?? [], [data]);
   const groups = useMemo(() => groupByDay(entries), [entries]);
 
+  // Resolves the from/to warehouse ids a stock_transfer.initiated entry's
+  // own `after` payload carries into real names for the summary line —
+  // the same `useAllWarehouses()` call Stock Levels/Transfers already use,
+  // so this rarely triggers its own network request in practice.
+  const { data: warehouses } = useAllWarehouses();
+  const warehouseById = useMemo(() => new Map((warehouses ?? []).map((w) => [w.id, w])), [warehouses]);
+
   return (
     <CrudPageLayout
-      header={{ title: 'Activity', description: 'Every recorded stock and warehouse change — what, who, when, and why.' }}
+      header={{ title: 'Activity', description: 'Every recorded stock, warehouse, and transfer change — what, who, when, and why.' }}
       toolbar={
         <Toolbar
           filters={
             <FilterBar
-              active={filter === 'all' ? [] : [{ key: 'target', label: 'Type', displayValue: filter === 'stock' ? 'Stock' : 'Warehouses' }]}
+              active={filter === 'all' ? [] : [{ key: 'target', label: 'Type', displayValue: TARGET_FILTER_LABEL[filter] }]}
               onRemove={() => setFilter('all')}
             >
               <Select
@@ -79,6 +102,7 @@ export function InventoryActivityPage() {
                   { value: 'all', label: 'All activity' },
                   { value: 'stock', label: 'Stock' },
                   { value: 'warehouses', label: 'Warehouses' },
+                  { value: 'transfers', label: 'Transfers' },
                 ]}
               />
             </FilterBar>
@@ -112,7 +136,7 @@ export function InventoryActivityPage() {
         <EmptyState
           icon={<History className="size-8" aria-hidden="true" />}
           title="No activity yet"
-          description="Stock adjustments and warehouse changes will appear here."
+          description="Stock adjustments, warehouse changes, and transfers will appear here."
         />
       )}
 
@@ -127,8 +151,15 @@ export function InventoryActivityPage() {
                 {group.entries.map((entry) => {
                   const stockDetails = stockAdjustedDetails(entry);
                   const reservation = reservationEventDetails(entry);
+                  const transfer = transferEventDetails(entry);
                   const warehouse = warehouseSnapshot(entry);
-                  const summary = stockDetails ? stockAdjustedSummary(stockDetails) : reservation ? reservationEventSummary(reservation) : null;
+                  const summary = stockDetails
+                    ? stockAdjustedSummary(stockDetails)
+                    : reservation
+                      ? reservationEventSummary(reservation)
+                      : transfer
+                        ? transferEventSummary(transfer, warehouseById)
+                        : null;
                   const actorInitials = entry.actorId ? entry.actorId.replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() : '?';
 
                   return (

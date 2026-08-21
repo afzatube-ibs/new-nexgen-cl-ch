@@ -13,7 +13,6 @@ import { PlaceHoldDialog } from './PlaceHoldDialog.js';
 
 export interface ReservationsPanelProps {
   stockItem: StockItemDTO;
-  canManage: boolean;
 }
 
 /**
@@ -26,9 +25,22 @@ export interface ReservationsPanelProps {
  * Activity in Slice 1. UX refinement pass: each row now points there
  * explicitly (permission-gated on the same `inventory.audit_log.view` the
  * Activity route itself requires) rather than leaving "who" as a silent gap.
+ *
+ * Found during the Inventory Freeze audit: reservation mutations
+ * (`POST .../reservations`, `POST .../release`) are gated server-side on
+ * `inventory.reservations.manage`, a distinct permission from
+ * `inventory.stock.manage` (which only covers Adjust Stock). This panel
+ * used to trust a `canManage` prop threaded down from `StockLevelsPage`'s
+ * own `inventory.stock.manage` check — meaning a user with stock-manage but
+ * not reservations-manage saw a "Reserve stock"/"Release" button that would
+ * 403 on click, and a user with reservations-manage but not stock-manage
+ * never saw those controls at all despite having real permission to use
+ * them. This panel now derives its own permission directly, the same way
+ * `canViewActivity` already does below.
  */
-export function ReservationsPanel({ stockItem, canManage }: ReservationsPanelProps) {
+export function ReservationsPanel({ stockItem }: ReservationsPanelProps) {
   const { can } = useAuth();
+  const canManage = can('inventory.reservations.manage');
   const canViewActivity = can('inventory.audit_log.view');
   const [page, setPage] = useState(1);
   const { data, status, refetch } = useStockItemReservations(stockItem.id, page);

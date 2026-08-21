@@ -9,7 +9,7 @@ export interface AvailabilityCellProps {
 export function AvailabilityCell({ item }: AvailabilityCellProps) {
   return (
     <div className="text-right">
-      <Text variant="subheading" className="tabular-nums leading-tight">
+      <Text variant="body-strong" className="tabular-nums leading-tight">
         {item.quantityAvailable}
       </Text>
       <Text variant="caption" className="tabular-nums text-text-secondary">

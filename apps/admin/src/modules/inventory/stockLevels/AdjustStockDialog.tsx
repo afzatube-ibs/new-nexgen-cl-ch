@@ -224,7 +224,7 @@ export function AdjustStockDialog({ open, onOpenChange, initialWarehouseId, init
                 <Text variant="caption" className="text-text-secondary">
                   Current
                 </Text>
-                <Text variant="subheading" className="tabular-nums">
+                <Text variant="stat" className="tabular-nums">
                   {isLoadingCurrent ? '…' : currentOnHand}
                 </Text>
                 {isNewRecord && (
@@ -237,7 +237,7 @@ export function AdjustStockDialog({ open, onOpenChange, initialWarehouseId, init
                 <Text variant="caption" className="text-text-secondary">
                   Adjustment
                 </Text>
-                <Text variant="subheading" className={`tabular-nums ${signedDelta >= 0 ? 'text-feedback-success' : 'text-feedback-danger'}`}>
+                <Text variant="stat" className={`tabular-nums ${signedDelta >= 0 ? 'text-feedback-success' : 'text-feedback-danger'}`}>
                   {signedDelta >= 0 ? '+' : ''}
                   {signedDelta}
                 </Text>
@@ -246,7 +246,7 @@ export function AdjustStockDialog({ open, onOpenChange, initialWarehouseId, init
                 <Text variant="caption" className="text-text-secondary">
                   Expected
                 </Text>
-                <Text variant="subheading" className={`tabular-nums ${wouldOversell ? 'text-feedback-danger' : ''}`}>
+                <Text variant="stat" className={`tabular-nums ${wouldOversell ? 'text-feedback-danger' : ''}`}>
                   {expectedOnHand}
                 </Text>
               </div>

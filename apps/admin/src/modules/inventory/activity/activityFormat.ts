@@ -99,8 +99,59 @@ export function warehouseSnapshot(entry: InventoryAuditLogDTO): WarehouseSnapsho
 }
 
 /**
+ * `stock_transfer.initiated`/`.completed`/`.cancelled` (`InitiateStockTransferAction`/
+ * `CompleteStockTransferAction`/`CancelStockTransferAction`, apps/backend).
+ * Only `.initiated` carries a real `after` payload
+ * (`{from_warehouse_id, to_warehouse_id, sku, quantity}` — confirmed by
+ * reading `InitiateStockTransferAction::execute()` directly); `.completed`/
+ * `.cancelled` log no `after`/`before` at all, so those two fall back to
+ * `humanizeAuditAction()`'s own generic "Stock transfer completed"/
+ * "Stock transfer cancelled" headline with no extra summary line — an
+ * honest reflection of what the audit log actually records, not a
+ * fabricated one.
+ */
+export interface TransferEventDetails {
+  action: 'stock_transfer.initiated' | 'stock_transfer.completed' | 'stock_transfer.cancelled';
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
+  sku?: string;
+  quantity?: number;
+}
+
+export function transferEventDetails(entry: InventoryAuditLogDTO): TransferEventDetails | null {
+  if (entry.action !== 'stock_transfer.initiated' && entry.action !== 'stock_transfer.completed' && entry.action !== 'stock_transfer.cancelled') {
+    return null;
+  }
+  if (entry.action === 'stock_transfer.initiated') {
+    const after = entry.after as { from_warehouse_id?: string; to_warehouse_id?: string; sku?: string; quantity?: number } | null;
+    return {
+      action: entry.action,
+      fromWarehouseId: after?.from_warehouse_id,
+      toWarehouseId: after?.to_warehouse_id,
+      sku: after?.sku,
+      quantity: after?.quantity,
+    };
+  }
+  return { action: entry.action };
+}
+
+/**
+ * `warehouseById` is an optional id→name lookup (the Activity page already
+ * has one cached from the same `useAllWarehouses()` call other Inventory
+ * screens use) — falls back to the generic "source"/"destination" when a
+ * name can't be resolved (e.g. still loading), never a raw UUID, which
+ * would mean nothing to a merchant.
+ */
+export function transferEventSummary(details: TransferEventDetails, warehouseById?: Map<string, { name: string }>): string | null {
+  if (details.action !== 'stock_transfer.initiated' || typeof details.quantity !== 'number') return null;
+  const fromName = (details.fromWarehouseId && warehouseById?.get(details.fromWarehouseId)?.name) || 'source';
+  const toName = (details.toWarehouseId && warehouseById?.get(details.toWarehouseId)?.name) || 'destination';
+  return `${details.quantity} unit${details.quantity === 1 ? '' : 's'} — ${fromName} → ${toName}`;
+}
+
+/**
  * Backward-compatible combined summary (still used by tests exercising the
- * plain-text form) — defers to the two functions above.
+ * plain-text form) — defers to the functions above.
  */
 export function summarizeInventoryAuditEntry(entry: InventoryAuditLogDTO): string | null {
   const stock = stockAdjustedDetails(entry);
@@ -108,6 +159,9 @@ export function summarizeInventoryAuditEntry(entry: InventoryAuditLogDTO): strin
 
   const reservation = reservationEventDetails(entry);
   if (reservation) return reservationEventSummary(reservation);
+
+  const transfer = transferEventDetails(entry);
+  if (transfer) return transferEventSummary(transfer);
 
   const warehouse = warehouseSnapshot(entry);
   if (warehouse) return warehouse.code ? `${warehouse.name} (${warehouse.code})` : warehouse.name;

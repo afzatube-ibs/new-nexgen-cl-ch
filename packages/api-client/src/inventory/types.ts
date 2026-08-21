@@ -2,12 +2,12 @@
  * Inventory DTOs — the exact camelCase shape of `apps/backend`'s real
  * Inventory API Resources (`Http/Resources/*Resource.php`) and the exact
  * fields the real `Create*Request`/`Update*Request`/`AdjustStockRequest`/
- * `ReserveStockRequest` classes accept. Slice 1 covered Warehouses, Stock
- * Items/Levels, Manual Adjustment, and Activity; Slice 2 adds Stock
- * Reservations (`StockReservation`, `ReserveStockAction`/
- * `ReleaseReservationAction`). Transfers still have no DTOs here — no
- * Slice 2 screen consumes them either (see
- * `planning/architecture/PHASE_2_3_INVENTORY_ARCHITECTURE.md` §5/§13).
+ * `ReserveStockRequest`/`InitiateStockTransferRequest` classes accept.
+ * Slice 1 covered Warehouses, Stock Items/Levels, Manual Adjustment, and
+ * Activity; Slice 2 added Stock Reservations (`StockReservation`,
+ * `ReserveStockAction`/`ReleaseReservationAction`); Slice 3 adds Stock
+ * Transfers (`StockTransfer`, `InitiateStockTransferAction`/
+ * `CompleteStockTransferAction`/`CancelStockTransferAction`).
  */
 
 // ---------------------------------------------------------------------------
@@ -164,6 +164,7 @@ export interface ListStockItemReservationsQuery {
 
 export const INVENTORY_STOCK_ITEM_TARGET_TYPE = 'App\\Domains\\Commerce\\Inventory\\Models\\StockItem';
 export const INVENTORY_WAREHOUSE_TARGET_TYPE = 'App\\Domains\\Commerce\\Inventory\\Models\\Warehouse';
+export const INVENTORY_STOCK_TRANSFER_TARGET_TYPE = 'App\\Domains\\Commerce\\Inventory\\Models\\StockTransfer';
 
 export interface InventoryAuditLogDTO {
   id: string;
@@ -181,4 +182,51 @@ export interface ListInventoryAuditLogsQuery {
   targetType?: string;
   page?: number;
   perPage?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Stock Transfer — `StockTransfer`, apps/backend. Movement of one SKU
+// between two Warehouses. `InitiateStockTransferAction` places a hold (a
+// StockReservation referencing this transfer) against the source
+// warehouse's stock the moment a transfer is created (`status: pending`) —
+// so the held units can't be sold out from under an in-progress transfer —
+// but does not touch the destination warehouse until
+// `CompleteStockTransferAction` runs, moving the held quantity from the
+// source's on-hand into the destination's (creating the destination
+// StockItem if this is its first stock there) and marking the reservation
+// `committed`. `CancelStockTransferAction` simply releases that same hold
+// without ever having touched the destination. Both `complete`/`cancel`
+// only operate on a `pending` transfer — `InvalidTransferStateException`
+// (409, already handled by `inventoryErrorMessage()`'s generic "is already
+// [...] and cannot be changed" pattern) otherwise. No `actorId` field on
+// the resource itself, same as `StockReservationDTO` — "who initiated /
+// completed / cancelled this" is only ever recorded in the Inventory Audit
+// Log (`stock_transfer.initiated`/`.completed`/`.cancelled` entries).
+// ---------------------------------------------------------------------------
+
+export type StockTransferStatus = 'pending' | 'completed' | 'cancelled';
+
+export interface StockTransferDTO {
+  id: string;
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  sku: string;
+  quantity: number;
+  status: StockTransferStatus;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/** `InitiateStockTransferRequest`, apps/backend — all four fields required; `to_warehouse_id` must differ from `from_warehouse_id` (`different:from_warehouse_id`), enforced server-side and mirrored client-side for immediate feedback, never relied on alone. */
+export interface InitiateStockTransferInput {
+  fromWarehouseId: string;
+  toWarehouseId: string;
+  sku: string;
+  quantity: number;
+}
+
+/** `StockTransferController::index` (apps/backend) reads `status` and Laravel's own `page` param via `paginate()` only — no `per_page` support (never reads it), same shape as `ListWarehousesQuery`. */
+export interface ListStockTransfersQuery {
+  status?: StockTransferStatus;
+  page?: number;
 }

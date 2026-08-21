@@ -6,6 +6,8 @@ import {
   stockAdjustedSummary,
   reservationEventDetails,
   reservationEventSummary,
+  transferEventDetails,
+  transferEventSummary,
   warehouseSnapshot,
   summarizeInventoryAuditEntry,
 } from './activityFormat.js';
@@ -87,6 +89,47 @@ describe('reservationEventDetails / reservationEventSummary', () => {
   });
 });
 
+describe('transferEventDetails / transferEventSummary', () => {
+  it('extracts from/to warehouse ids, sku, and quantity from a stock_transfer.initiated entry', () => {
+    const details = transferEventDetails(
+      entry({ action: 'stock_transfer.initiated', after: { from_warehouse_id: 'w1', to_warehouse_id: 'w2', sku: 'SKU-100', quantity: 5 } }),
+    );
+    expect(details).toEqual({ action: 'stock_transfer.initiated', fromWarehouseId: 'w1', toWarehouseId: 'w2', sku: 'SKU-100', quantity: 5 });
+  });
+
+  it('extracts just the action for stock_transfer.completed / .cancelled — no after payload exists for either', () => {
+    expect(transferEventDetails(entry({ action: 'stock_transfer.completed', after: null }))).toEqual({ action: 'stock_transfer.completed' });
+    expect(transferEventDetails(entry({ action: 'stock_transfer.cancelled', after: null }))).toEqual({ action: 'stock_transfer.cancelled' });
+  });
+
+  it('returns null for a non-transfer action', () => {
+    expect(transferEventDetails(entry({ action: 'stock.adjusted' }))).toBeNull();
+  });
+
+  it('summarizes an initiated transfer with resolved warehouse names when a lookup map is given', () => {
+    const details = transferEventDetails(
+      entry({ action: 'stock_transfer.initiated', after: { from_warehouse_id: 'w1', to_warehouse_id: 'w2', sku: 'SKU-100', quantity: 5 } }),
+    )!;
+    const warehouseById = new Map([
+      ['w1', { name: 'Main Warehouse' }],
+      ['w2', { name: 'Overflow Warehouse' }],
+    ]);
+    expect(transferEventSummary(details, warehouseById)).toBe('5 units — Main Warehouse → Overflow Warehouse');
+  });
+
+  it('falls back to generic source/destination text when no lookup map is given or a name is unresolved', () => {
+    const details = transferEventDetails(
+      entry({ action: 'stock_transfer.initiated', after: { from_warehouse_id: 'w1', to_warehouse_id: 'w2', sku: 'SKU-100', quantity: 1 } }),
+    )!;
+    expect(transferEventSummary(details)).toBe('1 unit — source → destination');
+  });
+
+  it('returns null for completed/cancelled — no extra summary line, just the humanized action headline', () => {
+    expect(transferEventSummary({ action: 'stock_transfer.completed' })).toBeNull();
+    expect(transferEventSummary({ action: 'stock_transfer.cancelled' })).toBeNull();
+  });
+});
+
 describe('warehouseSnapshot', () => {
   it('reads name/code from a warehouse.* entry\'s after snapshot', () => {
     expect(warehouseSnapshot(entry({ action: 'warehouse.archived', before: { status: 'active' }, after: { status: 'archived', name: 'Main Warehouse', code: 'MAIN' } }))).toEqual({
@@ -123,6 +166,17 @@ describe('summarizeInventoryAuditEntry (combined convenience form)', () => {
   it('summarizes a stock.released entry', () => {
     const result = summarizeInventoryAuditEntry(entry({ action: 'stock.released', after: { reservation_id: 'r1', quantity: 5 } }));
     expect(result).toBe('5 units released');
+  });
+
+  it('summarizes a stock_transfer.initiated entry (without a warehouse lookup map — the generic fallback)', () => {
+    const result = summarizeInventoryAuditEntry(
+      entry({ action: 'stock_transfer.initiated', after: { from_warehouse_id: 'w1', to_warehouse_id: 'w2', sku: 'SKU-100', quantity: 5 } }),
+    );
+    expect(result).toBe('5 units — source → destination');
+  });
+
+  it('returns null for a stock_transfer.completed entry — no after payload to summarize, headline only', () => {
+    expect(summarizeInventoryAuditEntry(entry({ action: 'stock_transfer.completed', after: null }))).toBeNull();
   });
 
   it('summarizes a warehouse.* entry', () => {

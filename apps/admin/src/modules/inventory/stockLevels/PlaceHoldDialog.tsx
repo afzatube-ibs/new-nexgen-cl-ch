@@ -105,7 +105,7 @@ export function PlaceHoldDialog({ open, onOpenChange, stockItem }: PlaceHoldDial
             <Text as="dt" variant="caption" className="text-text-secondary">
               Available
             </Text>
-            <Text as="dd" variant="subheading" className="m-0 tabular-nums">
+            <Text as="dd" variant="stat" className="m-0 tabular-nums">
               {stockItem.quantityAvailable}
             </Text>
           </div>
@@ -113,7 +113,7 @@ export function PlaceHoldDialog({ open, onOpenChange, stockItem }: PlaceHoldDial
             <Text as="dt" variant="caption" className="text-text-secondary">
               On hand
             </Text>
-            <Text as="dd" variant="subheading" className="m-0 tabular-nums">
+            <Text as="dd" variant="stat" className="m-0 tabular-nums">
               {stockItem.quantityOnHand}
             </Text>
           </div>
@@ -121,7 +121,7 @@ export function PlaceHoldDialog({ open, onOpenChange, stockItem }: PlaceHoldDial
             <Text as="dt" variant="caption" className="text-text-secondary">
               Reserved
             </Text>
-            <Text as="dd" variant="subheading" className="m-0 tabular-nums">
+            <Text as="dd" variant="stat" className="m-0 tabular-nums">
               {stockItem.quantityReserved}
             </Text>
           </div>

@@ -79,6 +79,31 @@ it('refuses to delete a warehouse that still has stock items', function () {
         ->assertStatus(409);
 });
 
+it('refuses to delete a warehouse that is the destination of a pending transfer, even with no stock items of its own yet', function () {
+    // Found during the Inventory Freeze audit: CompleteStockTransferAction
+    // only creates the destination's StockItem row when the transfer
+    // actually completes, not when it's initiated — so a brand-new,
+    // still-empty destination warehouse used to pass the stock-items check
+    // above and could be deleted out from under an in-flight transfer.
+    $caller = userWithPermissions(['inventory.warehouses.manage', 'inventory.transfers.manage']);
+    $source = Warehouse::factory()->create();
+    $destination = Warehouse::factory()->create();
+    $source->stockItems()->create(['sku' => 'SKU-1', 'quantity_on_hand' => 10]);
+
+    $this->actingAs($caller, 'sanctum')->postJson('/api/v1/stock-transfers', [
+        'from_warehouse_id' => $source->id,
+        'to_warehouse_id' => $destination->id,
+        'sku' => 'SKU-1',
+        'quantity' => 5,
+    ])->assertCreated();
+
+    expect($destination->stockItems()->exists())->toBeFalse();
+
+    $this->actingAs($caller, 'sanctum')
+        ->deleteJson("/api/v1/warehouses/{$destination->id}", ['expected_version' => 1])
+        ->assertStatus(409);
+});
+
 it('deletes and restores a warehouse with no stock items', function () {
     $caller = userWithPermissions(['inventory.warehouses.manage']);
     $warehouse = Warehouse::factory()->create();
