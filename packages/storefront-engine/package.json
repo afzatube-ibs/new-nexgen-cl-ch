@@ -1,0 +1,38 @@
+{
+  "name": "@nexgen/storefront-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Theme Engine's own resolution contract, the Storefront Engine (Section-tree walking + component resolution), default Storefront Component Engine primitives, the Gateway typed client, and the normalized Store Context — per docs/frontend/THEME_ENGINE_ARCHITECTURE.md, docs/frontend/STOREFRONT_COMPONENT_ENGINE.md, and docs/frontend/STORE_API_GATEWAY_ARCHITECTURE.md. Consumed only by apps/storefront, per ADR-0009. React is pinned to ^18.3 (Next.js 15 supports 18 or 19) to match @nexgen/ui's own peer dependency exactly — @nexgen/ui ships raw .tsx source (no build step), so a React major-version mismatch across workspace packages produces real, un-ignorable JSX type conflicts rather than a runtime issue; pinning is the actual fix, found and applied during Beta Milestone 1.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@nexgen/tokens": "*",
+    "@nexgen/ui": "*",
+    "server-only": "^0.0.1",
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "next": "^15.0.0",
+    "react": "^18.3.0"
+  },
+  "devDependencies": {
+    "@nexgen/config": "*",
+    "@types/react": "^18.3.12",
+    "eslint": "^9.14.0",
+    "next": "^15.0.3",
+    "react": "^18.3.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
