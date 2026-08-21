@@ -5,3 +5,7 @@ export * from './types.js';
 
 export { listPriceLists, getPriceList, createPriceList, updatePriceList, archivePriceList, destroyPriceList } from './priceLists.js';
 export { createPriceListEntry, updatePriceListEntry, destroyPriceListEntry } from './priceListEntries.js';
+export { lookupPrice, type LookupPriceQuery } from './lookup.js';
+export { listTaxZones, getTaxZone, createTaxZone, updateTaxZone, archiveTaxZone, destroyTaxZone } from './taxZones.js';
+export { listTaxClasses, getTaxClass, createTaxClass, updateTaxClass, archiveTaxClass, destroyTaxClass } from './taxClasses.js';
+export { listTaxRates, getTaxRate, createTaxRate, updateTaxRate, archiveTaxRate, destroyTaxRate } from './taxRates.js';

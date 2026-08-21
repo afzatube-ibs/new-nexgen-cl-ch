@@ -19,6 +19,15 @@ export function pricingErrorMessage(error: unknown): string {
       return "Currency can't be changed — this list already has priced entries. Remove them first, or create a new list in the new currency instead.";
     }
 
+    // `DeleteTaxZoneAction`/`DeleteTaxClassAction`'s own reason strings —
+    // a genuine delete block (not a "change" the way the currency one
+    // above is), so worded for that: matched before the generic fallback
+    // so the wording says "deleted," not "changed."
+    const taxDependentMatch = /one or more tax rates still reference this (zone|class)/.exec(error.message);
+    if (taxDependentMatch) {
+      return `This tax ${taxDependentMatch[1]} can't be deleted — one or more tax rates still reference it. Delete or reassign those rates first.`;
+    }
+
     // The general `DependentRecordsExistException` shape, for any other reason.
     const dependentRecordsMatch = /cannot be deleted: (.+)$/.exec(error.message);
     if (dependentRecordsMatch) {

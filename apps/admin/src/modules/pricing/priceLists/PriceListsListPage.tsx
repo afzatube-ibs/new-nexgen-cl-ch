@@ -245,7 +245,7 @@ export function PriceListsListPage() {
             <Text variant="caption" className="text-text-secondary">
               Price lists
             </Text>
-            <Text variant="heading" className="tabular-nums">
+            <Text variant="stat" className="tabular-nums">
               {lists.length}
             </Text>
           </Card>
@@ -253,7 +253,7 @@ export function PriceListsListPage() {
             <Text variant="caption" className="text-text-secondary">
               Currencies covered
             </Text>
-            <Text variant="heading" className="tabular-nums">
+            <Text variant="stat" className="tabular-nums">
               {currencyOptions.length - 1}
             </Text>
           </Card>
@@ -263,7 +263,7 @@ export function PriceListsListPage() {
             </Text>
             <div className="flex items-center gap-1.5">
               {currenciesMissingDefault.length > 0 && <TriangleAlert className="size-4 text-feedback-warning" aria-hidden="true" />}
-              <Text variant="heading" className="tabular-nums">
+              <Text variant="stat" className="tabular-nums">
                 {currenciesMissingDefault.length}
               </Text>
             </div>

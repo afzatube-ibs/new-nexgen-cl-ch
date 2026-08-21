@@ -68,6 +68,8 @@ export interface PriceListEntryFormDialogProps {
   priceList: PriceListDTO;
   /** Present for edit; absent for create. */
   entry?: PriceListEntryDTO;
+  /** Pre-fills the SKU field on create only (ignored when `entry` is set) — lets Missing Price Detection's "Add price" row action skip retyping a SKU it already found. */
+  initialSku?: string;
 }
 
 const EMPTY_VALUES: FormValues = {
@@ -100,7 +102,7 @@ function valuesFromEntry(entry?: PriceListEntryDTO): FormValues {
  * "Scheduled Pricing" as one mechanism, resolved server-side at read time
  * (`PriceListEntry::effectivePrice()`), never a separate discount rule.
  */
-export function PriceListEntryFormDialog({ open, onOpenChange, priceList, entry }: PriceListEntryFormDialogProps) {
+export function PriceListEntryFormDialog({ open, onOpenChange, priceList, entry, initialSku }: PriceListEntryFormDialogProps) {
   const isEdit = Boolean(entry);
   const createMutation = useCreatePriceListEntry(priceList.id);
   const updateMutation = useUpdatePriceListEntry(priceList.id);
@@ -117,8 +119,9 @@ export function PriceListEntryFormDialog({ open, onOpenChange, priceList, entry 
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: valuesFromEntry(entry) });
 
   useEffect(() => {
-    if (open) reset(valuesFromEntry(entry));
+    if (open) reset(entry ? valuesFromEntry(entry) : { ...EMPTY_VALUES, sku: initialSku ?? '' });
     setFormError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialSku is only meant to apply on open, not re-run every keystroke elsewhere
   }, [open, entry, reset]);
 
   const watchedSku = watch('sku');
