@@ -29,7 +29,7 @@ function validBody(overrides: Partial<SubmitCheckoutRequestBody> = {}): SubmitCh
     name: 'Test Shopper',
     currencyCode: 'BDT',
     address: { recipientName: 'Test Shopper', addressLine1: 'House 1', city: 'Dhaka', countryCode: 'BD' },
-    shippingOptionId: 'standard',
+    shippingOptionId: 'method-1',
     paymentGatewayCode: 'cod',
     lines: [{ productId: 'p1', quantity: 1 }],
     idempotencyKey: 'idem-1',
@@ -42,10 +42,16 @@ describe('checkout/checkoutClient', () => {
     vi.unstubAllGlobals();
   });
 
-  it('fetchShippingOptions unwraps the real Gateway envelope', async () => {
-    stubFetch(200, { data: [{ id: 'standard', label: 'Standard Shipping', amount: '5.0000' }], meta: { requestId: 'r1' } });
-    const options = await fetchShippingOptions();
-    expect(options).toEqual([{ id: 'standard', label: 'Standard Shipping', amount: '5.0000' }]);
+  it('fetchShippingOptions POSTs the real destination + cart lines and unwraps the real Gateway envelope', async () => {
+    stubFetch(200, { data: [{ id: 'method-1', label: 'Standard Delivery', amount: '60.0000', currencyCode: 'BDT' }], meta: { requestId: 'r1' } });
+    const options = await fetchShippingOptions({ countryCode: 'BD', region: 'Dhaka', lines: [{ productId: 'p1', quantity: 1 }] });
+    expect(options).toEqual([{ id: 'method-1', label: 'Standard Delivery', amount: '60.0000', currencyCode: 'BDT' }]);
+
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:4000/v1/checkout/shipping-options');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ countryCode: 'BD', region: 'Dhaka', lines: [{ productId: 'p1', quantity: 1 }] });
   });
 
   it('submitCheckout POSTs the real request body and returns the real order + payment', async () => {
@@ -97,6 +103,6 @@ describe('checkout/checkoutClient', () => {
     vi.resetModules();
     vi.stubEnv('NEXT_PUBLIC_STORE_API_GATEWAY_URL', '');
     const mod = await import('../src/checkout/checkoutClient.js');
-    await expect(mod.fetchShippingOptions()).rejects.toThrow(mod.CheckoutRequestError);
+    await expect(mod.fetchShippingOptions({ countryCode: 'BD', lines: [{ productId: 'p1', quantity: 1 }] })).rejects.toThrow(mod.CheckoutRequestError);
   });
 });

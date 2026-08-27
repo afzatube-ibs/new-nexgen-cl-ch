@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, MapPin, Truck as TruckIcon, Wallet, ShieldCheck, ShoppingBag } from 'lucide-react';
+import { Mail, MapPin, Package, Truck as TruckIcon, Wallet, ShieldCheck, ShoppingBag } from 'lucide-react';
 import { Alert, Button, Card, CardContent, CardHeader, CardTitle, Icon, Input, Text } from '@nexgen/ui';
 import { AddressSelector, type AddressSelectorValue } from '../components/AddressSelector.js';
 import { BANGLADESH_DIVISIONS } from '../components/bdDivisions.js';
@@ -14,7 +14,14 @@ import { useCart } from '../cart/useCart.js';
 import { trackEvent } from '../analytics/trackEvent.js';
 import { PaymentMethodSelector } from './PaymentMethodSelector.js';
 import { emptyCheckoutAddress, type CheckoutAddress } from './types.js';
-import { submitCheckout, CheckoutRequestError, LAST_ORDER_STORAGE_KEY, type SubmitCheckoutRequestBody } from './checkoutClient.js';
+import {
+  submitCheckout,
+  fetchShippingOptions,
+  CheckoutRequestError,
+  LAST_ORDER_STORAGE_KEY,
+  type CheckoutShippingOption,
+  type SubmitCheckoutRequestBody,
+} from './checkoutClient.js';
 import { PaymentMethodsRow, REAL_BACKEND_PAYMENT_METHODS, type PaymentMethodId } from '../components/PaymentMethodBadge.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -88,6 +95,17 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  *   to breathe (`gap-6` → `gap-8`) — `NEXGEN_STOREFRONT_DESIGN_DNA.md`
  *   §4's "whitespace does the persuading" applied to the platform's own
  *   highest-trust page.
+ *
+ * **neXgen Overnight Sprint — Milestone 1, Objective 1 (Checkout →
+ * Shipping Integration).** `shippingOptionId` is no longer the hardcoded
+ * literal `'standard'` — a real "Shipping method" Card now fetches real,
+ * destination- and weight-aware options from the Gateway
+ * (`fetchShippingOptions`, composed from real Catalog weight + real
+ * Shipping rates) the moment a Division is selected, and the shopper must
+ * choose one before submitting, exactly like payment method. An honest
+ * empty state ("No shipping options are available for this address yet")
+ * renders when the real composition returns nothing — never a fabricated
+ * fallback rate.
  */
 export function CheckoutForm() {
   const router = useRouter();
@@ -99,6 +117,10 @@ export function CheckoutForm() {
   const [addressSelector, setAddressSelector] = useState<AddressSelectorValue>({ divisionId: null, districtId: null, upazilaId: null });
   const [preferredCourier, setPreferredCourier] = useState<CourierId | undefined>(undefined);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId | null>(null);
+  const [shippingOptions, setShippingOptions] = useState<CheckoutShippingOption[]>([]);
+  const [shippingOptionId, setShippingOptionId] = useState<string | null>(null);
+  const [shippingOptionsLoading, setShippingOptionsLoading] = useState(false);
+  const [shippingOptionsError, setShippingOptionsError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -108,6 +130,49 @@ export function CheckoutForm() {
     trackEvent({ name: 'checkout_started', properties: { sessionId: 'local' } });
     setStartedTracked(true);
   }
+
+  // A real destination (Division → `region`) plus real cart lines is
+  // everything the real quote needs — refetches whenever either changes,
+  // so switching Division re-quotes rather than silently keeping a stale
+  // price for the wrong destination.
+  const linesKey = activeLines.map((line) => `${line.productId}:${line.quantity}`).join(',');
+
+  useEffect(() => {
+    if (!address.region || activeLines.length === 0) {
+      setShippingOptions([]);
+      setShippingOptionId(null);
+      return;
+    }
+
+    let cancelled = false;
+    setShippingOptionsLoading(true);
+    setShippingOptionsError(null);
+
+    fetchShippingOptions({
+      countryCode: address.countryCode,
+      region: address.region,
+      lines: activeLines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
+    })
+      .then((options) => {
+        if (cancelled) return;
+        setShippingOptions(options);
+        setShippingOptionId((current) => (current && options.some((option) => option.id === current) ? current : (options[0]?.id ?? null)));
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setShippingOptions([]);
+        setShippingOptionId(null);
+        setShippingOptionsError(error instanceof Error ? error.message : 'Could not load shipping options. Please try again.');
+      })
+      .finally(() => {
+        if (!cancelled) setShippingOptionsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `linesKey` is the intentional, stable stand-in for `activeLines` (a new array reference every render).
+  }, [address.region, address.countryCode, linesKey]);
 
   function updateAddress<K extends keyof CheckoutAddress>(key: K, value: CheckoutAddress[K]) {
     setAddress((current) => ({ ...current, [key]: value }));
@@ -131,6 +196,7 @@ export function CheckoutForm() {
     if (!address.addressLine1.trim()) next.addressLine1 = 'Street address is required.';
     if (!address.city.trim()) next.city = 'City is required.';
     if (!addressSelector.divisionId) next.division = 'Division is required.';
+    if (!shippingOptionId) next.shippingOption = 'Select a shipping method.';
     if (!paymentMethod) next.paymentMethod = 'Select a payment method.';
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -139,7 +205,7 @@ export function CheckoutForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError(null);
-    if (!validate() || !paymentMethod) return;
+    if (!validate() || !paymentMethod || !shippingOptionId) return;
 
     setSubmitting(true);
     const body: SubmitCheckoutRequestBody = {
@@ -168,12 +234,11 @@ export function CheckoutForm() {
         postalCode: address.postalCode,
         countryCode: address.countryCode,
       },
-      // The real backend's own `ShippingOptionCatalog` — 'standard' is
-      // real and always available (see `checkout/orchestrator.ts`'s own
-      // docblock for why a real shipping-option SELECTOR isn't built this
-      // pass: the Storefront never collected a preference beyond the
-      // couriers above, which the real backend does not use for pricing).
-      shippingOptionId: 'standard',
+      // A real Operations\Shipping ShippingMethod id the shopper chose
+      // from the real, destination-aware options fetched above — the
+      // Gateway re-resolves and verifies this quote itself before
+      // submitting (see `checkout/orchestrator.ts`'s own docblock).
+      shippingOptionId,
       paymentGatewayCode: paymentMethod,
       lines: activeLines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
       idempotencyKey: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `idem-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -294,6 +359,62 @@ export function CheckoutForm() {
           <Card className="rounded-xl shadow-none">
             <CardHeader className="flex-row items-center gap-2 p-5">
               <Icon icon={TruckIcon} className="text-brand" />
+              <CardTitle>Shipping method</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 p-5 pt-0">
+              {!address.region ? (
+                <Text as="p" variant="caption" className="text-text-secondary">
+                  Select your division above to see real shipping options and rates.
+                </Text>
+              ) : shippingOptionsLoading ? (
+                <Text as="p" variant="caption" className="text-text-secondary">
+                  Loading shipping options…
+                </Text>
+              ) : shippingOptionsError ? (
+                <Alert variant="danger" role="alert">
+                  {shippingOptionsError}
+                </Alert>
+              ) : shippingOptions.length === 0 ? (
+                <Text as="p" variant="caption" className="text-text-secondary">
+                  No shipping options are available for this address yet.
+                </Text>
+              ) : (
+                <div role="radiogroup" aria-label="Shipping method" className="flex flex-col gap-2">
+                  {shippingOptions.map((option) => (
+                    <label
+                      key={option.id}
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border p-3 has-[:checked]:border-brand has-[:checked]:bg-surface-subtle"
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="shippingOptionId"
+                          value={option.id}
+                          checked={shippingOptionId === option.id}
+                          onChange={() => setShippingOptionId(option.id)}
+                        />
+                        <Text as="span" variant="body">
+                          {option.label}
+                        </Text>
+                      </span>
+                      <Text as="span" variant="body-strong">
+                        {option.amount} {option.currencyCode}
+                      </Text>
+                    </label>
+                  ))}
+                </div>
+              )}
+              {errors.shippingOption && (
+                <Text as="p" variant="caption" role="alert" className="text-feedback-danger">
+                  {errors.shippingOption}
+                </Text>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-xl shadow-none">
+            <CardHeader className="flex-row items-center gap-2 p-5">
+              <Icon icon={Package} className="text-brand" />
               <CardTitle>Preferred courier (optional)</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 p-5 pt-0">

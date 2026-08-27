@@ -30,6 +30,14 @@ export interface CheckoutShippingOption {
   id: string;
   label: string;
   amount: string;
+  currencyCode: string;
+}
+
+/** `POST /v1/checkout/shipping-options`'s real request shape — a real destination and real cart lines, since the real quote is destination- and weight-aware (see the Gateway's own `checkout/shippingQuotes.ts` docblock). */
+export interface FetchShippingOptionsParams {
+  countryCode: string;
+  region?: string | null;
+  lines: Array<{ productId: string; quantity: number }>;
 }
 
 export interface CheckoutSubmitAddress {
@@ -218,9 +226,22 @@ async function gatewayRequest<T>(path: string, init: RequestInit): Promise<T> {
   return envelope.data;
 }
 
-/** `GET /v1/checkout/shipping-options` — the real, backend-owned `ShippingOptionCatalog`. */
-export async function fetchShippingOptions(): Promise<CheckoutShippingOption[]> {
-  return gatewayRequest<CheckoutShippingOption[]>('checkout/shipping-options', { method: 'GET' });
+/**
+ * `POST /v1/checkout/shipping-options` — real, destination- and
+ * weight-aware options composed from Catalog's real per-product weight
+ * and Shipping's real, multi-method quote endpoint. Returns an honest
+ * empty list (never a thrown error, never a guessed rate) when no real
+ * option currently covers this destination/cart — see the Gateway's own
+ * `checkout/shippingQuotes.ts` docblock for the full honest-empty
+ * rationale, including the named "product has no weight recorded yet"
+ * case.
+ */
+export async function fetchShippingOptions(params: FetchShippingOptionsParams): Promise<CheckoutShippingOption[]> {
+  return gatewayRequest<CheckoutShippingOption[]>('checkout/shipping-options', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
 }
 
 /**

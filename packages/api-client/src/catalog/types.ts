@@ -253,6 +253,8 @@ export interface ProductDTO {
   description: string | null;
   shortDescription: string | null;
   productType: ProductType;
+  /** neXgen Overnight Sprint — Milestone 1: real per-product weight, needed for a real Shipping rate quote (`Operations\Shipping\Actions\CalculateShippingRateAction`) — `null` until an operator sets it. */
+  weightGrams: number | null;
   status: ProductStatus;
   visibility: ProductVisibility;
   metaTitle: string | null;
@@ -289,6 +291,7 @@ export interface CreateProductInput {
   description?: string;
   shortDescription?: string;
   productType?: ProductType;
+  weightGrams?: number | null;
   visibility?: ProductVisibility;
   metaTitle?: string;
   metaDescription?: string;

@@ -16,9 +16,21 @@ import * as checkoutClient from '../src/checkout/checkoutClient.js';
  * `checkoutClient.test.ts` covers directly against a stubbed `fetch`).
  * `next/navigation`'s `useRouter` is mocked because this component runs
  * outside a real Next.js App Router tree in a unit test.
+ *
+ * neXgen Overnight Sprint — Milestone 1, Objective 1. `fetchShippingOptions`
+ * is mocked the same way: selecting a Division now triggers a real fetch,
+ * so any test that reaches "Place order" successfully selects a Division
+ * and waits for a real (mocked) shipping option to appear and auto-select.
  */
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+
+const REAL_SHIPPING_OPTION = { id: 'method-1', label: 'Standard Delivery', amount: '60.0000', currencyCode: 'BDT' };
+
+function selectDivision() {
+  fireEvent.click(screen.getByRole('combobox', { name: 'Division' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Dhaka' }));
+}
 
 beforeEach(() => {
   clearCart();
@@ -55,12 +67,37 @@ describe('checkout/CheckoutForm', () => {
     expect(screen.getByText('Street address is required.')).toBeTruthy();
     expect(screen.getByText('City is required.')).toBeTruthy();
     expect(screen.getByText('Division is required.')).toBeTruthy();
+    expect(screen.getByText('Select a shipping method.')).toBeTruthy();
     expect(screen.getByText('Select a payment method.')).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('fetches real shipping options once a Division is selected, and auto-selects the first real option', async () => {
+    addItem({ productId: 'p1', name: 'Widget', href: '/products/p1' });
+    const fetchSpy = vi.spyOn(checkoutClient, 'fetchShippingOptions').mockResolvedValue([REAL_SHIPPING_OPTION]);
+
+    render(<CheckoutForm />);
+    selectDivision();
+
+    await waitFor(() => expect(screen.getByText('Standard Delivery')).toBeTruthy());
+    expect(screen.getByText('60.0000 BDT')).toBeTruthy();
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: /Standard Delivery/ }).checked).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledWith({ countryCode: 'BD', region: 'Dhaka', lines: [{ productId: 'p1', quantity: 1 }] });
+  });
+
+  it('shows an honest empty state, never a fabricated rate, when no real shipping option covers this address', async () => {
+    addItem({ productId: 'p1', name: 'Widget', href: '/products/p1' });
+    vi.spyOn(checkoutClient, 'fetchShippingOptions').mockResolvedValue([]);
+
+    render(<CheckoutForm />);
+    selectDivision();
+
+    await waitFor(() => expect(screen.getByText('No shipping options are available for this address yet.')).toBeTruthy());
+  });
+
   it('submits the real request shape, clears the cart, and redirects to /checkout/success on a real success', async () => {
     addItem({ productId: 'p1', name: 'Widget', href: '/products/p1' });
+    vi.spyOn(checkoutClient, 'fetchShippingOptions').mockResolvedValue([REAL_SHIPPING_OPTION]);
     const submitCheckoutSpy = vi.spyOn(checkoutClient, 'submitCheckout').mockResolvedValue({
       order: { id: 'o1', orderNumber: 'ORD-1' } as unknown as checkoutClient.SubmittedOrder,
       payment: { id: 'pay-1', status: 'pending' } as unknown as checkoutClient.CheckoutPayment,
@@ -75,10 +112,9 @@ describe('checkout/CheckoutForm', () => {
     fireEvent.change(screen.getByLabelText('Street address'), { target: { value: 'House 1, Road 2' } });
     fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Dhaka' } });
     fireEvent.click(screen.getByRole('radio', { name: 'Cash on Delivery' }));
+    selectDivision();
 
-    // Division select uses @nexgen/ui's Radix Select — open it and pick an option.
-    fireEvent.click(screen.getByRole('combobox', { name: 'Division' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Dhaka' }));
+    await waitFor(() => expect(screen.getByText('Standard Delivery')).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'Place order' }));
 
@@ -90,7 +126,7 @@ describe('checkout/CheckoutForm', () => {
       email: 'shopper@example.com',
       name: 'Jane Shopper',
       currencyCode: 'BDT',
-      shippingOptionId: 'standard',
+      shippingOptionId: 'method-1',
       paymentGatewayCode: 'cod',
       lines: [{ productId: 'p1', quantity: 1 }],
     });
@@ -101,6 +137,7 @@ describe('checkout/CheckoutForm', () => {
 
   it('shows the real, specific error message on a failed submission — never a fabricated confirmation', async () => {
     addItem({ productId: 'p1', name: 'Widget', href: '/products/p1' });
+    vi.spyOn(checkoutClient, 'fetchShippingOptions').mockResolvedValue([REAL_SHIPPING_OPTION]);
     vi.spyOn(checkoutClient, 'submitCheckout').mockRejectedValue(new Error('Could not reach the server. Please check your connection and try again.'));
 
     render(<CheckoutForm />);
@@ -111,8 +148,9 @@ describe('checkout/CheckoutForm', () => {
     fireEvent.change(screen.getByLabelText('Street address'), { target: { value: 'House 1, Road 2' } });
     fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Dhaka' } });
     fireEvent.click(screen.getByRole('radio', { name: 'Cash on Delivery' }));
-    fireEvent.click(screen.getByRole('combobox', { name: 'Division' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Dhaka' }));
+    selectDivision();
+
+    await waitFor(() => expect(screen.getByText('Standard Delivery')).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: 'Place order' }));
 
