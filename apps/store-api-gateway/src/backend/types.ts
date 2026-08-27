@@ -19,6 +19,7 @@ export interface BackendProduct {
   description: string | null;
   shortDescription: string | null;
   productType: 'simple' | 'configurable' | 'digital';
+  weightGrams: number | null;
   status: 'draft' | 'active' | 'archived';
   visibility: string;
   metaTitle: string | null;

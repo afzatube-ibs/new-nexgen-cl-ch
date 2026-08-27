@@ -37,12 +37,15 @@
  * the Order or fabricates a payment.
  */
 import { randomUUID } from 'node:crypto';
+import type { BackendClient } from '../backend/client.js';
 import type { CheckoutBackendClient } from '../backend/checkoutClient.js';
 import { BackendUpstreamError, GatewayError, extractBackendErrorMessage } from '../lib/errors.js';
+import { resolveShippingOptions } from './shippingQuotes.js';
 import type { BackendCheckoutSession, BackendEnvelope, BackendOrder, BackendPayment, SubmitCheckoutRequestBody, SubmitCheckoutResult } from './types.js';
 
 export interface OrchestrateOptions {
   backend: CheckoutBackendClient;
+  catalogBackend: BackendClient;
   correlationId: string;
 }
 
@@ -74,7 +77,7 @@ function validateBody(body: SubmitCheckoutRequestBody): void {
 export async function orchestrateGuestCheckout(body: SubmitCheckoutRequestBody, options: OrchestrateOptions): Promise<SubmitCheckoutResult> {
   validateBody(body);
 
-  const { backend, correlationId } = options;
+  const { backend, catalogBackend, correlationId } = options;
   const addressPayload = {
     recipient_name: body.address.recipientName,
     phone: body.address.phone ?? undefined,
@@ -128,12 +131,37 @@ export async function orchestrateGuestCheckout(body: SubmitCheckoutRequestBody, 
   });
   session = shippingAddrResponse.data;
 
-  // Step 5 — shipping option (the real, backend-owned ShippingOptionCatalog — see this module's own docblock for the honest scope note on this vs. the separate, unconnected Shipping Zones/Rates module).
+  // Step 5 — shipping option. Never trusts a client-supplied amount: this
+  // re-resolves the real quote for this real destination and these real
+  // cart lines against Shipping's own module right now, then matches the
+  // shopper's chosen `shippingOptionId` against that fresh result — the
+  // exact same composition `POST /v1/checkout/shipping-options` used to
+  // list options in the first place (see checkout/shippingQuotes.ts). A
+  // stale or tampered id (rates changed, or the id never existed) is a
+  // real, honest validation failure, not a silently-accepted number.
+  const shippingOptions = await resolveShippingOptions({
+    backend: catalogBackend,
+    checkoutBackend: backend,
+    destination: { countryCode: body.address.countryCode, region: body.address.region },
+    lines: body.lines,
+    correlationId,
+  });
+  const shippingOption = shippingOptions.find((option) => option.id === body.shippingOptionId);
+  if (!shippingOption) {
+    throw GatewayError.validation([{ field: 'shippingOptionId', message: 'This shipping option is no longer available for your address. Please choose another.' }]);
+  }
+
   const shippingOptionResponse = await backend.put<BackendEnvelope<BackendCheckoutSession>>({
     module: 'checkout',
     path: `checkout/sessions/${session.id}/shipping-option`,
     correlationId,
-    body: { shipping_option_id: body.shippingOptionId, expected_version: session.version },
+    body: {
+      shipping_method_id: shippingOption.id,
+      shipping_label: shippingOption.label,
+      shipping_amount: shippingOption.amount,
+      currency_code: shippingOption.currencyCode,
+      expected_version: session.version,
+    },
   });
   session = shippingOptionResponse.data;
 

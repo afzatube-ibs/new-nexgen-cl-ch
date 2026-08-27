@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { orchestrateGuestCheckout } from '../../../src/checkout/orchestrator.js';
 import { GatewayError } from '../../../src/lib/errors.js';
+import type { BackendClient } from '../../../src/backend/client.js';
 import type { CheckoutBackendClient } from '../../../src/backend/checkoutClient.js';
 import type { SubmitCheckoutRequestBody } from '../../../src/checkout/types.js';
 
 const PRODUCT_ID = '11111111-1111-1111-1111-111111111111';
 const SESSION_ID = '22222222-2222-2222-2222-222222222222';
 const ORDER_ID = '33333333-3333-3333-3333-333333333333';
+const METHOD_ID = '44444444-4444-4444-4444-444444444444';
 
 function validBody(overrides: Partial<SubmitCheckoutRequestBody> = {}): SubmitCheckoutRequestBody {
   return {
@@ -22,7 +24,7 @@ function validBody(overrides: Partial<SubmitCheckoutRequestBody> = {}): SubmitCh
       postalCode: '1212',
       countryCode: 'BD',
     },
-    shippingOptionId: 'standard',
+    shippingOptionId: METHOD_ID,
     paymentGatewayCode: 'cod',
     lines: [{ productId: PRODUCT_ID, quantity: 1 }],
     idempotencyKey: 'idem-1',
@@ -35,6 +37,16 @@ function session(version: number, extra: Record<string, unknown> = {}) {
   return { id: SESSION_ID, currencyCode: 'BDT', status: 'open', version, ...extra };
 }
 
+/** The one real quote option `resolveShippingOptions` returns for this product/destination in every test below. */
+function quoteOptionsEnvelope() {
+  return { data: [{ shippingMethodId: METHOD_ID, label: 'Standard Delivery', shippingZoneId: 'zone-1', shippingRateId: 'rate-1', weightGrams: 500, amount: '60.0000', currencyCode: 'BDT' }] };
+}
+
+function makeMockCatalogBackend(): BackendClient {
+  const getItem = vi.fn().mockResolvedValue({ data: { id: PRODUCT_ID, weightGrams: 500 } });
+  return { getItem, getList: vi.fn() } as unknown as BackendClient;
+}
+
 function makeMockBackend(): CheckoutBackendClient {
   const post = vi
     .fn()
@@ -42,6 +54,8 @@ function makeMockBackend(): CheckoutBackendClient {
     .mockResolvedValueOnce({ data: session(1) })
     // 2. add item
     .mockResolvedValueOnce({ data: {} })
+    // 3. shipping/quote-options (inside resolveShippingOptions, called before Step 5's PUT)
+    .mockResolvedValueOnce(quoteOptionsEnvelope())
     // 6. review — ReviewCheckoutAction's own save() increments lock_version like every other CheckoutSession update.
     .mockResolvedValueOnce({ data: session(6, { status: 'reviewed', subtotal: '2490.0000', grandTotal: '2495.0000' }) })
     // 7. submit
@@ -56,15 +70,16 @@ function makeMockBackend(): CheckoutBackendClient {
     // 4. shipping address
     .mockResolvedValueOnce({ data: session(4) })
     // 5. shipping option
-    .mockResolvedValueOnce({ data: session(5, { shippingOptionId: 'standard', shippingTotal: '5.0000' }) });
+    .mockResolvedValueOnce({ data: session(5, { shippingOptionId: METHOD_ID, shippingOptionLabel: 'Standard Delivery', shippingTotal: '60.0000' }) });
 
   return { post, put, get: vi.fn() } as unknown as CheckoutBackendClient;
 }
 
 describe('checkout/orchestrator', () => {
-  it('runs the real 8-step saga in order and returns a real order and payment', async () => {
+  it('runs the real saga in order and returns a real order and payment', async () => {
     const backend = makeMockBackend();
-    const result = await orchestrateGuestCheckout(validBody(), { backend, correlationId: 'corr-1' });
+    const catalogBackend = makeMockCatalogBackend();
+    const result = await orchestrateGuestCheckout(validBody(), { backend, catalogBackend, correlationId: 'corr-1' });
 
     expect(result.order.id).toBe(ORDER_ID);
     expect(result.payment?.status).toBe('pending');
@@ -74,33 +89,50 @@ describe('checkout/orchestrator', () => {
     const postCalls = (backend.post as ReturnType<typeof vi.fn>).mock.calls;
     expect(postCalls[0]?.[0]).toMatchObject({ path: 'checkout/sessions', body: { guest_email: 'shopper@example.com', guest_name: 'Test Shopper', currency_code: 'BDT' } });
     expect(postCalls[1]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/items`, body: { product_id: PRODUCT_ID, quantity: 1, expected_version: 1 } });
-    expect(postCalls[2]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/review`, body: { expected_version: 5 } });
-    expect(postCalls[3]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/submit`, body: { idempotency_key: 'idem-1', expected_version: 6 } });
-    expect(postCalls[4]?.[0]).toMatchObject({ path: 'payments', body: { order_id: ORDER_ID, gateway_code: 'cod' } });
+    expect(postCalls[2]?.[0]).toMatchObject({ path: 'shipping/quote-options', body: { country_code: 'BD', region: 'Dhaka', weight_grams: 500 } });
+    expect(postCalls[3]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/review`, body: { expected_version: 5 } });
+    expect(postCalls[4]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/submit`, body: { idempotency_key: 'idem-1', expected_version: 6 } });
+    expect(postCalls[5]?.[0]).toMatchObject({ path: 'payments', body: { order_id: ORDER_ID, gateway_code: 'cod' } });
 
     const putCalls = (backend.put as ReturnType<typeof vi.fn>).mock.calls;
     expect(putCalls[0]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/billing-address`, body: { recipient_name: 'Test Shopper', expected_version: 2 } });
-    expect(putCalls[2]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/shipping-option`, body: { shipping_option_id: 'standard', expected_version: 4 } });
+    expect(putCalls[2]?.[0]).toMatchObject({
+      path: `checkout/sessions/${SESSION_ID}/shipping-option`,
+      body: { shipping_method_id: METHOD_ID, shipping_label: 'Standard Delivery', shipping_amount: '60.0000', currency_code: 'BDT', expected_version: 4 },
+    });
   });
 
   it('never invents a product_id/sku/price for an item — sends only product_id, quantity, and expected_version', async () => {
     const backend = makeMockBackend();
-    await orchestrateGuestCheckout(validBody(), { backend, correlationId: 'corr-2' });
+    const catalogBackend = makeMockCatalogBackend();
+    await orchestrateGuestCheckout(validBody(), { backend, catalogBackend, correlationId: 'corr-2' });
     const itemCall = (backend.post as ReturnType<typeof vi.fn>).mock.calls[1]?.[0] as { body: Record<string, unknown> };
     expect(Object.keys(itemCall.body).sort()).toEqual(['expected_version', 'product_id', 'quantity']);
   });
 
+  it('rejects a shipping option no longer present in a freshly-resolved quote, never trusting the client-supplied id blindly', async () => {
+    const backend = makeMockBackend();
+    const catalogBackend = makeMockCatalogBackend();
+    await expect(
+      orchestrateGuestCheckout(validBody({ shippingOptionId: 'stale-or-tampered-id' }), { backend, catalogBackend, correlationId: 'corr-stale' }),
+    ).rejects.toThrow(GatewayError);
+    // Reaches billing-address and shipping-address (steps 3 and 4), but never the shipping-option PUT itself, let alone review/submit/payment.
+    expect(backend.put).toHaveBeenCalledTimes(2);
+  });
+
   it('returns a real order with payment: null and a real paymentError when payment initiation fails - never rolls back the real order', async () => {
     const backend = makeMockBackend();
+    const catalogBackend = makeMockCatalogBackend();
     (backend.post as ReturnType<typeof vi.fn>).mockReset();
     (backend.post as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce({ data: session(1) })
       .mockResolvedValueOnce({ data: {} })
+      .mockResolvedValueOnce(quoteOptionsEnvelope())
       .mockResolvedValueOnce({ data: session(5, { status: 'reviewed' }) })
       .mockResolvedValueOnce({ data: { id: ORDER_ID, orderNumber: 'ORD-1', grandTotal: '2495.0000', items: [], addresses: [], discounts: [] } })
       .mockRejectedValueOnce(new Error('Backend payments responded 422'));
 
-    const result = await orchestrateGuestCheckout(validBody({ paymentGatewayCode: 'bkash' }), { backend, correlationId: 'corr-3' });
+    const result = await orchestrateGuestCheckout(validBody({ paymentGatewayCode: 'bkash' }), { backend, catalogBackend, correlationId: 'corr-3' });
 
     expect(result.order.id).toBe(ORDER_ID);
     expect(result.payment).toBeNull();
@@ -109,14 +141,16 @@ describe('checkout/orchestrator', () => {
 
   it('rejects an empty cart before calling the backend at all', async () => {
     const backend = makeMockBackend();
-    await expect(orchestrateGuestCheckout(validBody({ lines: [] }), { backend, correlationId: 'corr-4' })).rejects.toThrow(GatewayError);
+    const catalogBackend = makeMockCatalogBackend();
+    await expect(orchestrateGuestCheckout(validBody({ lines: [] }), { backend, catalogBackend, correlationId: 'corr-4' })).rejects.toThrow(GatewayError);
     expect(backend.post).not.toHaveBeenCalled();
   });
 
   it('rejects a missing recipient name before calling the backend at all', async () => {
     const backend = makeMockBackend();
+    const catalogBackend = makeMockCatalogBackend();
     await expect(
-      orchestrateGuestCheckout(validBody({ address: { ...validBody().address, recipientName: '' } }), { backend, correlationId: 'corr-5' }),
+      orchestrateGuestCheckout(validBody({ address: { ...validBody().address, recipientName: '' } }), { backend, catalogBackend, correlationId: 'corr-5' }),
     ).rejects.toThrow(GatewayError);
     expect(backend.post).not.toHaveBeenCalled();
   });

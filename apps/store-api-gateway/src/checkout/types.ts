@@ -45,10 +45,20 @@ export interface BackendCheckoutSession {
   updatedAt: string | null;
 }
 
-export interface BackendShippingOption {
-  id: string;
+/**
+ * Field-for-field matched to the real backend's own
+ * `Operations\Shipping\Http\Resources\ShippingQuoteOptionResource` — the
+ * real, destination- and weight-aware multi-method quote, not the old,
+ * retired flat-rate `ShippingOptionResource`.
+ */
+export interface BackendShippingQuoteOption {
+  shippingMethodId: string;
   label: string;
+  shippingZoneId: string | null;
+  shippingRateId: string | null;
+  weightGrams: number;
   amount: string;
+  currencyCode: string;
 }
 
 export interface BackendOrderItem {
@@ -171,6 +181,7 @@ export interface SubmitCheckoutRequestBody {
     postalCode?: string | null;
     countryCode: string;
   };
+  /** A real Operations\Shipping ShippingMethod id, chosen from a real `POST /v1/checkout/shipping-options` response for this same destination/cart — never a client-supplied amount; the orchestrator re-resolves the real quote itself before submitting (see orchestrator.ts). */
   shippingOptionId: string;
   paymentGatewayCode: string;
   lines: Array<{ productId: string; quantity: number }>;

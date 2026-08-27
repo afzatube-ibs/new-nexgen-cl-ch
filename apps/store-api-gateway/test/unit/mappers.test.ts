@@ -136,6 +136,7 @@ function baseProduct(overrides: Partial<BackendProduct> = {}): BackendProduct {
     description: 'A widget',
     shortDescription: null,
     productType: 'simple',
+    weightGrams: null,
     status: 'active',
     visibility: 'catalog_search',
     metaTitle: null,

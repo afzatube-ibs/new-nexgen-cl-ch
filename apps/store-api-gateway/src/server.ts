@@ -155,7 +155,7 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
     registerEventRoutes(versionedApp, prefix);
     registerRecommendationRoutes(versionedApp, prefix, env);
     registerPreviewRoutes(versionedApp, prefix);
-    registerCheckoutRoutes(versionedApp, services.checkoutBackend, prefix);
+    registerCheckoutRoutes(versionedApp, services.checkoutBackend, services.backend, prefix);
     registerOrderLookupRoutes(versionedApp, services.checkoutBackend, prefix);
   });
 
