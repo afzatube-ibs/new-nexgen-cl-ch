@@ -12,14 +12,16 @@ declare(strict_types=1);
  * to (SECURITY:ROLES_PERMISSIONS), reusing Identity & Access's public
  * `permission:` middleware exactly as every prior module does.
  *
- * `shipping/quote`, `shipping/providers`, and `shipping/audit-logs` are
- * registered before their respective resourceful groups purely for
- * readability, mirroring Pricing's own routes.php ordering rationale.
+ * `shipping/quote`, `shipping/quote-options`, `shipping/providers`, and
+ * `shipping/audit-logs` are registered before their respective resourceful
+ * groups purely for readability, mirroring Pricing's own routes.php
+ * ordering rationale.
  */
 
 use App\Domains\Operations\Shipping\Http\Controllers\AuditLogController;
 use App\Domains\Operations\Shipping\Http\Controllers\ShippingMethodController;
 use App\Domains\Operations\Shipping\Http\Controllers\ShippingProviderController;
+use App\Domains\Operations\Shipping\Http\Controllers\ShippingQuoteOptionsController;
 use App\Domains\Operations\Shipping\Http\Controllers\ShippingRateController;
 use App\Domains\Operations\Shipping\Http\Controllers\ShippingRateQuoteController;
 use App\Domains\Operations\Shipping\Http\Controllers\ShippingZoneController;
@@ -31,6 +33,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function (): void {
     Route::post('shipping/quote', ShippingRateQuoteController::class)
         ->middleware('permission:shipping.rates.view')->name('v1.shipping.quote');
+
+    Route::post('shipping/quote-options', ShippingQuoteOptionsController::class)
+        ->middleware('permission:shipping.rates.view')->name('v1.shipping.quote-options');
 
     Route::get('shipping/providers', [ShippingProviderController::class, 'index'])
         ->middleware('permission:shipping.providers.view')->name('v1.shipping.providers.index');

@@ -27,6 +27,7 @@ final class CheckoutSessionResource extends JsonResource
             'billingAddress' => $this->billing_address,
             'shippingAddress' => $this->shipping_address,
             'shippingOptionId' => $this->shipping_option_id,
+            'shippingOptionLabel' => $this->shipping_option_label,
             'shippingTotal' => $this->shipping_total,
             'couponCode' => $this->coupon_code,
             'subtotal' => $this->subtotal,

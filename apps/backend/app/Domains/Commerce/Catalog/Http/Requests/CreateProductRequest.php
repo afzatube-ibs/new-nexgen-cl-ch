@@ -34,6 +34,7 @@ final class CreateProductRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'short_description' => ['nullable', 'string', 'max:500'],
             'product_type' => ['nullable', 'string', Rule::in(Product::types())],
+            'weight_grams' => ['nullable', 'integer', 'min:1'],
             'visibility' => ['nullable', 'string', Rule::in(Product::visibilities())],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:255'],

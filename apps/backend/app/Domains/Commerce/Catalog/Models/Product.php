@@ -40,6 +40,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property string|null $short_description
  * @property string $product_type
+ * @property int|null $weight_grams
  * @property string $status
  * @property string $visibility
  * @property string|null $meta_title
@@ -104,6 +105,7 @@ final class Product extends Model
         'description',
         'short_description',
         'product_type',
+        'weight_grams',
         'status',
         'visibility',
         'meta_title',
@@ -116,6 +118,7 @@ final class Product extends Model
     protected function casts(): array
     {
         return [
+            'weight_grams' => 'integer',
             'metadata' => 'array',
             'published_at' => 'datetime',
         ];

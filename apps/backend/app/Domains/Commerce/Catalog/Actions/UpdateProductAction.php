@@ -15,7 +15,7 @@ final readonly class UpdateProductAction
 {
     private const array TRACKED_FIELDS = [
         'brand_id', 'sku', 'barcode', 'name', 'slug', 'description', 'short_description',
-        'product_type', 'visibility', 'meta_title', 'meta_description', 'meta_keywords', 'metadata',
+        'product_type', 'weight_grams', 'visibility', 'meta_title', 'meta_description', 'meta_keywords', 'metadata',
     ];
 
     public function __construct(

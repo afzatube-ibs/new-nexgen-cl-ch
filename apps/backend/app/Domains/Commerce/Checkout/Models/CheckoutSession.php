@@ -49,6 +49,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $billing_address
  * @property array<string, mixed>|null $shipping_address
  * @property string|null $shipping_option_id
+ * @property string|null $shipping_option_label
  * @property string|null $shipping_total
  * @property string|null $coupon_code
  * @property string|null $subtotal
@@ -92,6 +93,7 @@ final class CheckoutSession extends Model
         'billing_address',
         'shipping_address',
         'shipping_option_id',
+        'shipping_option_label',
         'shipping_total',
         'coupon_code',
         'subtotal',

@@ -55,6 +55,18 @@ final class ShippingRate extends Model
         return [
             'min_weight_grams' => 'integer',
             'max_weight_grams' => 'integer',
+            // `decimal:4` matches this table's own `decimal(12, 4)` column
+            // and this platform's own established pattern for every other
+            // money column (Payment, Promotion, Shipment) — without it,
+            // Eloquent returns whatever the driver hands back verbatim,
+            // which on SQLite's NUMERIC column affinity silently coerces a
+            // whole-number amount like '60.0000' into a PHP int, crashing
+            // Actions\CalculateShippingRateAction's own `string $amount`
+            // contract (a real, live bug found and fixed this sprint —
+            // MySQL's DECIMAL columns never exhibited this, which is why
+            // it went unnoticed until a real quote was exercised against
+            // this installation's real SQLite dev database).
+            'amount' => 'decimal:4',
         ];
     }
 

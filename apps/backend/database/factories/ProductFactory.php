@@ -27,6 +27,7 @@ class ProductFactory extends Factory
             'description' => fake()->paragraph(),
             'short_description' => fake()->sentence(),
             'product_type' => Product::TYPE_SIMPLE,
+            'weight_grams' => fake()->numberBetween(50, 5000),
             'status' => Product::STATUS_DRAFT,
             'visibility' => Product::VISIBILITY_CATALOG_SEARCH,
         ];

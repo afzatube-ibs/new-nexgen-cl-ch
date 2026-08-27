@@ -7,32 +7,47 @@ namespace App\Domains\Commerce\Checkout\Actions;
 use App\Domains\Commerce\Checkout\Audit\AuditLogger;
 use App\Domains\Commerce\Checkout\Exceptions\CheckoutValidationException;
 use App\Domains\Commerce\Checkout\Models\CheckoutSession;
-use App\Domains\Commerce\Checkout\Support\ShippingOptionCatalog;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * See Http\Requests\SelectShippingOptionRequest's own docblock for why this
+ * stores a caller-resolved quote rather than resolving one itself: this
+ * action has no way to reach Operations\Shipping in-process, and the real
+ * resolution already happened once, correctly, in Shipping's own module —
+ * repeating it here would be exactly the "duplicate shipping logic" this
+ * platform's own architecture forbids.
+ */
 final readonly class SelectShippingOptionAction
 {
     public function __construct(private AuditLogger $auditLogger) {}
 
-    public function execute(CheckoutSession $session, string $shippingOptionId, int $expectedVersion, ?string $actorId): CheckoutSession
-    {
-        return DB::transaction(function () use ($session, $shippingOptionId, $expectedVersion, $actorId) {
+    public function execute(
+        CheckoutSession $session,
+        string $shippingMethodId,
+        string $shippingLabel,
+        string $shippingAmount,
+        string $currencyCode,
+        int $expectedVersion,
+        ?string $actorId,
+    ): CheckoutSession {
+        return DB::transaction(function () use ($session, $shippingMethodId, $shippingLabel, $shippingAmount, $currencyCode, $expectedVersion, $actorId) {
             $session->assertVersionMatches($expectedVersion);
             $session->assertMutable();
 
-            $option = ShippingOptionCatalog::find($shippingOptionId);
+            $currencyCode = strtoupper($currencyCode);
 
-            if ($option === null) {
+            if ($currencyCode !== $session->currency_code) {
                 throw new CheckoutValidationException(
                     $session->id,
-                    'shipping_option_unknown',
-                    "Shipping option [{$shippingOptionId}] does not exist.",
+                    'shipping_currency_mismatch',
+                    "Shipping quote currency [{$currencyCode}] does not match this session's currency [{$session->currency_code}].",
                 );
             }
 
-            $before = $session->only(['shipping_option_id', 'shipping_total']);
-            $session->shipping_option_id = $option->id;
-            $session->shipping_total = $option->amount;
+            $before = $session->only(['shipping_option_id', 'shipping_option_label', 'shipping_total']);
+            $session->shipping_option_id = $shippingMethodId;
+            $session->shipping_option_label = $shippingLabel;
+            $session->shipping_total = $shippingAmount;
             $session->resetReviewIfNeeded();
             $session->touchExpiry();
             $session->save();
@@ -43,7 +58,7 @@ final readonly class SelectShippingOptionAction
                 targetType: CheckoutSession::class,
                 targetId: $session->id,
                 before: $before,
-                after: $session->only(['shipping_option_id', 'shipping_total']),
+                after: $session->only(['shipping_option_id', 'shipping_option_label', 'shipping_total']),
             );
 
             return $session;

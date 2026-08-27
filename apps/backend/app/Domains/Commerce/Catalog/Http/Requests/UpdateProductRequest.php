@@ -30,6 +30,7 @@ final class UpdateProductRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string'],
             'short_description' => ['sometimes', 'nullable', 'string', 'max:500'],
             'product_type' => ['sometimes', 'string', Rule::in(Product::types())],
+            'weight_grams' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'visibility' => ['sometimes', 'string', Rule::in(Product::visibilities())],
             'meta_title' => ['sometimes', 'nullable', 'string', 'max:255'],
             'meta_description' => ['sometimes', 'nullable', 'string', 'max:255'],

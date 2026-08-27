@@ -12,10 +12,12 @@ declare(strict_types=1);
  * corresponds to (SECURITY:ROLES_PERMISSIONS) — see Authorization\
  * PermissionRegistry's docblock for why this stays staff-gated for now.
  *
- * `checkout/audit-logs` and `checkout/shipping-options` are registered
- * before the resourceful `checkout/sessions/{session}` group for the
- * same readability/route-matching reason every prior module's own
- * routes.php already documents.
+ * `checkout/audit-logs` is registered before the resourceful `checkout/
+ * sessions/{session}` group for the same readability/route-matching
+ * reason every prior module's own routes.php already documents. There is
+ * deliberately no `GET checkout/shipping-options` route — see Http\
+ * Controllers\ShippingOptionController's own docblock for why real option
+ * listing now lives entirely on Operations\Shipping's own contract.
  */
 
 use App\Domains\Commerce\Checkout\Http\Controllers\AuditLogController;
@@ -35,9 +37,6 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function (): void {
     Route::get('checkout/audit-logs', [AuditLogController::class, 'index'])
         ->middleware('permission:checkout.audit_log.view')->name('v1.checkout.audit-logs.index');
-
-    Route::get('checkout/shipping-options', [ShippingOptionController::class, 'index'])
-        ->middleware('permission:checkout.sessions.view')->name('v1.checkout.shipping-options.index');
 
     Route::post('checkout/sessions', [CheckoutSessionController::class, 'store'])
         ->middleware('permission:checkout.sessions.manage')->name('v1.checkout.sessions.store');

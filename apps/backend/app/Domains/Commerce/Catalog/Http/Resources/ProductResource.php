@@ -28,6 +28,7 @@ final class ProductResource extends JsonResource
             'description' => $this->description,
             'shortDescription' => $this->short_description,
             'productType' => $this->product_type,
+            'weightGrams' => $this->weight_grams,
             'status' => $this->status,
             'visibility' => $this->visibility,
             'metaTitle' => $this->meta_title,

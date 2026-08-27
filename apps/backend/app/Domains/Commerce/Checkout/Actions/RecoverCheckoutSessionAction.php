@@ -55,6 +55,7 @@ final readonly class RecoverCheckoutSessionAction
                 'billing_address' => $expiredSession->billing_address,
                 'shipping_address' => $expiredSession->shipping_address,
                 'shipping_option_id' => $expiredSession->shipping_option_id,
+                'shipping_option_label' => $expiredSession->shipping_option_label,
                 'shipping_total' => $expiredSession->shipping_total,
             ]);
 

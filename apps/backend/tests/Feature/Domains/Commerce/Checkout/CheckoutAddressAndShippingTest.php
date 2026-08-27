@@ -80,37 +80,48 @@ it('rejects referencing another customer\'s address', function () {
         ->assertStatus(404);
 });
 
-it('lists the shipping option catalog', function () {
-    $caller = userWithPermissions(['checkout.sessions.view']);
-
-    $response = $this->actingAs($caller, 'sanctum')->getJson('/api/v1/checkout/shipping-options');
-
-    $response->assertOk();
-    expect($response->json('data'))->not->toBeEmpty();
-    expect(collect($response->json('data'))->pluck('id'))->toContain('standard');
-});
-
-it('selects a shipping option, storing its amount', function () {
+it('selects a shipping option resolved elsewhere, storing its id, label, and amount as given', function () {
     $caller = userWithPermissions(['checkout.sessions.manage']);
-    $session = CheckoutSession::factory()->create();
+    $session = CheckoutSession::factory()->create(['currency_code' => 'BDT']);
 
     $response = $this->actingAs($caller, 'sanctum')->putJson(
         "/api/v1/checkout/sessions/{$session->id}/shipping-option",
-        ['shipping_option_id' => 'express', 'expected_version' => 1]
+        [
+            'shipping_method_id' => '01a00770-c4f9-730b-8988-b831a1eddce6',
+            'shipping_label' => 'Standard Delivery',
+            'shipping_amount' => '60.0000',
+            'currency_code' => 'BDT',
+            'expected_version' => 1,
+        ]
     );
 
     $response->assertOk()
-        ->assertJsonPath('data.shippingOptionId', 'express')
-        ->assertJsonPath('data.shippingTotal', '15.0000');
+        ->assertJsonPath('data.shippingOptionId', '01a00770-c4f9-730b-8988-b831a1eddce6')
+        ->assertJsonPath('data.shippingOptionLabel', 'Standard Delivery')
+        ->assertJsonPath('data.shippingTotal', '60.0000');
 });
 
-it('rejects an unknown shipping option id', function () {
+it('rejects a shipping quote whose currency does not match the session', function () {
+    $caller = userWithPermissions(['checkout.sessions.manage']);
+    $session = CheckoutSession::factory()->create(['currency_code' => 'BDT']);
+
+    $this->actingAs($caller, 'sanctum')
+        ->putJson("/api/v1/checkout/sessions/{$session->id}/shipping-option", [
+            'shipping_method_id' => '01a00770-c4f9-730b-8988-b831a1eddce6',
+            'shipping_label' => 'Standard Delivery',
+            'shipping_amount' => '60.0000',
+            'currency_code' => 'USD',
+            'expected_version' => 1,
+        ])
+        ->assertStatus(422);
+});
+
+it('rejects an incomplete shipping selection', function () {
     $caller = userWithPermissions(['checkout.sessions.manage']);
     $session = CheckoutSession::factory()->create();
 
     $this->actingAs($caller, 'sanctum')
         ->putJson("/api/v1/checkout/sessions/{$session->id}/shipping-option", [
-            'shipping_option_id' => 'teleportation',
             'expected_version' => 1,
         ])
         ->assertStatus(422);
