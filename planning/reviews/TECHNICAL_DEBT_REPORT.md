@@ -50,7 +50,7 @@ The following are deliberate, documented extension points named in the code they
 
 - `Gateways\Contracts\RefundableGateway` (Payments) — implemented today only by `BkashGateway`, real and functional, awaiting the future Returns module to call it.
 - `config('payments.cod.fee')` and the neighboring COD-by-zone/store/product/customer-group/risk-rule seams (Payments) — named in configuration, not implemented, exactly as the master plan scoped them.
-- `Support\ShippingOptionCatalog` (Checkout) — explicitly documented as "this module's own temporary, fully-functional (not fake) shipping mechanism pending a future Shipping & Logistics module," the exact seam that module replaces.
+- ~~`Support\ShippingOptionCatalog` (Checkout) — explicitly documented as "this module's own temporary, fully-functional (not fake) shipping mechanism pending a future Shipping & Logistics module," the exact seam that module replaces.~~ **[Update 2026-08-28]** That seam has now been replaced, exactly as anticipated: `ShippingOptionCatalog` is removed, and Checkout's shipping-option selection now stores a real quote composed from Operations\Shipping's own new `POST shipping/quote-options` endpoint. See `planning/reports/NEXGEN_OVERNIGHT_SPRINT_MILESTONE_1_REPORT.md`.
 - `MODULE:EXTENSIBILITY_MECHANISM` — correctly not built; Phase 2 scope, and `04_MODULE_ARCHITECTURE.md` itself classifies the `Extensibility` module Experimental for exactly this reason.
 
 None of these require any action. They are named here only so a future reviewer does not mistake "there is an unimplemented interface method" for debt when it is, in every one of these cases, the architecture's own documented design.

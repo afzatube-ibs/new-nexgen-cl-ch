@@ -3,6 +3,8 @@
 **Date:** 2026-08-16
 **Scope:** Research only. No frontend, no backend, no commits, no pushes were made this phase. Every claim below is sourced from a direct reading of the real backend code — models, controllers, actions, requests, resources, routes, permissions, events, listeners, exceptions, console commands, and existing tests — under `apps/backend/app/Domains/Operations/{Shipping,Fulfillment}/`, plus the cross-domain listeners in `apps/backend/app/Listeners/`.
 
+> **Update — 2026-08-28 (neXgen Overnight Sprint, Milestone 1, Objective 1):** the §230 finding below ("Checkout does not yet call this module's real rate-quote endpoint") is resolved. A new `Actions\QuoteShippingOptionsAction` + `POST shipping/quote-options` (multi-method, reusing `CalculateShippingRateAction` unchanged) is composed by the Gateway into a real, destination- and weight-aware Checkout shipping selection — no in-process Checkout→Shipping call was introduced, preserving this document's own confirmed Commerce/Operations boundary. Also fixed in the same sprint: `Models\ShippingRate` had no `decimal:4` cast on `amount`, so a whole-number rate (e.g. `60.0000`) round-tripped through SQLite as a PHP int and crashed `CalculateShippingRateAction` — a real, live bug (MySQL's DECIMAL columns never exhibited it) found while exercising this real quote path for the first time. See `planning/reports/NEXGEN_OVERNIGHT_SPRINT_MILESTONE_1_REPORT.md` for the full change.
+
 ---
 
 ## 0. Two modules, one phase

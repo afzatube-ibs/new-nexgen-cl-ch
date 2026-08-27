@@ -4,6 +4,8 @@
 **Status:** Research only. No frontend or backend code written. No schema/route/permission changes.
 **Scope of this document:** what the real, already-complete Checkout backend (`apps/backend/app/Domains/Commerce/Checkout/`) actually supports, read directly from source — Models, Controllers, Actions, Requests, Resources, Routes, Permissions, Events, Audit, existing tests — plus its confirmed integration with Catalog, Inventory, Pricing, Customers, Orders, Payments, and Fulfillment. No business logic or API contract is invented anywhere in this document.
 
+> **Update — 2026-08-28 (neXgen Overnight Sprint, Milestone 1, Objective 1):** the flat-rate `Support\ShippingOptionCatalog` this document describes below (§ "shipping-option") has been **removed**. Checkout's shipping-option seam now accepts a real, externally-resolved quote (`shipping_method_id`/`shipping_label`/`shipping_amount`/`currency_code`), composed at the Gateway from Operations\Shipping's own real, new `POST shipping/quote-options` endpoint — the Commerce/Operations domain boundary this document's own research never needed to cross is preserved exactly as designed; see `planning/reports/NEXGEN_OVERNIGHT_SPRINT_MILESTONE_1_REPORT.md` for the full change.
+
 ---
 
 ## 1. Backend Readiness
