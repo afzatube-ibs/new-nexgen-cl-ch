@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import pino from 'pino';
 import { BackendClient } from '../../src/backend/client.js';
+import { CheckoutBackendClient } from '../../src/backend/checkoutClient.js';
 import { buildTestServer } from '../../src/server.js';
 import { resetEnvCacheForTests, loadEnv, type Env } from '../../src/config/env.js';
 
@@ -12,6 +13,7 @@ export function testEnv(overrides: Partial<Record<string, string>> = {}): Env {
   return loadEnv({
     BACKEND_BASE_URL: 'http://backend.test/api/v1',
     BACKEND_SERVICE_TOKEN: 'test-service-token',
+    BACKEND_CHECKOUT_SERVICE_TOKEN: 'test-checkout-service-token',
     GUEST_SESSION_SECRET: 'x'.repeat(32),
     PREVIEW_TOKEN_SECRET: 'y'.repeat(32),
     NODE_ENV: 'test',
@@ -46,5 +48,6 @@ export function stubBackendFetch(routes: Array<{ match: string; status: number; 
 
 export async function buildTestApp(env: Env): Promise<FastifyInstance> {
   const backend = new BackendClient({ baseUrl: env.BACKEND_BASE_URL, serviceToken: env.BACKEND_SERVICE_TOKEN, logger: silentLogger });
-  return buildTestServer(env, backend);
+  const checkoutBackend = new CheckoutBackendClient({ baseUrl: env.BACKEND_BASE_URL, serviceToken: env.BACKEND_CHECKOUT_SERVICE_TOKEN, logger: silentLogger });
+  return buildTestServer(env, backend, checkoutBackend);
 }

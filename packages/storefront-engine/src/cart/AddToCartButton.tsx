@@ -35,6 +35,18 @@ export interface AddToCartButtonProps {
   disabledReason?: string;
   /** `full` — labeled button (Product Detail, sticky bar). `icon` — compact square button. `bar` — full-width hover-revealed bar (Product Card Quick Add), unstyled beyond `className` so the caller supplies the exact bar treatment. */
   variant?: 'full' | 'icon' | 'bar';
+  /**
+   * Experience Polish Sprint 1, Pack 5 (item 5.1) — visual weight for the
+   * `full` variant only. Defaults to `primary` (this component's original,
+   * unchanged look everywhere it isn't given this prop). A caller placing
+   * this beside a `BuyNowButton` — the Product Detail Buy Box and
+   * `StickyMobileBuyBar` — passes `secondary`, so exactly one of the two
+   * real purchase actions reads as visually dominant, per
+   * `NEXGEN_STOREFRONT_DESIGN_DNA.md` §15 rule #3 ("exactly one primary
+   * call-to-action visible per viewport"). Ignored by `icon`/`bar`, which
+   * keep their own established, unrelated visual treatment.
+   */
+  emphasis?: 'primary' | 'secondary';
   size?: 'md' | 'lg';
   className?: string;
 }
@@ -51,6 +63,7 @@ export function AddToCartButton({
   disabled = false,
   disabledReason,
   variant = 'full',
+  emphasis = 'primary',
   size = 'md',
   className,
 }: AddToCartButtonProps) {
@@ -104,6 +117,7 @@ export function AddToCartButton({
   return (
     <Button
       type="button"
+      variant={emphasis}
       onClick={handleClick}
       disabled={disabled}
       size={size}

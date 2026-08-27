@@ -40,6 +40,7 @@ use App\Domains\Operations\Returns\Exceptions\ReturnValidationException;
 use App\Domains\Operations\Shipping\Exceptions\ConcurrencyConflictException as ShippingConcurrencyConflictException;
 use App\Domains\Operations\Shipping\Exceptions\DependentRecordsExistException as ShippingDependentRecordsExistException;
 use App\Domains\Operations\Shipping\Exceptions\UnsupportedShippingProviderException;
+use App\Domains\Platform\Appearance\Exceptions\ConcurrencyConflictException as AppearanceConcurrencyConflictException;
 use App\Domains\Platform\Foundation\Http\Middleware\AssignCorrelationId;
 use App\Domains\Platform\Foundation\Http\Middleware\SecurityHeaders;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
@@ -188,6 +189,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // docblock — so it needs its own render mapping to the same
         // platform-wide 409 envelope.
         $exceptions->render(function (StoreConfigurationConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Appearance's own optimistic-locking conflict — same reasoning as
+        // Store Configuration's, one render mapping per module's own copy.
+        $exceptions->render(function (AppearanceConcurrencyConflictException $e) use ($envelope): JsonResponse {
             return $envelope('conflict', $e->getMessage(), status: 409);
         });
 

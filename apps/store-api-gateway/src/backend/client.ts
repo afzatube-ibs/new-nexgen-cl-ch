@@ -22,7 +22,12 @@ import { CircuitBreaker } from '../lib/circuitBreaker.js';
 import { BackendUpstreamError } from '../lib/errors.js';
 import type { BackendItemResponse, BackendListResponse } from './types.js';
 
-export type BackendModule = 'catalog' | 'search';
+// `branding` added Beta Experience Pack 1 — the real `stores`/`appearance`
+// read this Gateway now performs (`routes/branding.ts`), isolated in its
+// own circuit breaker for the same reason every other module already is:
+// a struggling Appearance read should never trip Catalog's own breaker,
+// or vice versa.
+export type BackendModule = 'catalog' | 'search' | 'branding';
 
 export interface BackendClientOptions {
   baseUrl: string;

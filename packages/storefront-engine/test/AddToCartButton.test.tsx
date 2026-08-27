@@ -84,4 +84,19 @@ describe('cart/AddToCartButton', () => {
 
     expect(readCart().lines[0]).toMatchObject({ id: 'p3', quantity: 1 });
   });
+
+  it('defaults to the primary visual treatment when no emphasis is given (Experience Polish Sprint 1, Pack 5)', () => {
+    render(<AddToCartButton productId="p1" name="Widget" href="/products/p1" />);
+    expect(screen.getByRole('button', { name: 'Add to cart' }).className).toContain('bg-brand');
+  });
+
+  it('renders the secondary treatment when emphasis="secondary" is requested, without changing its real behavior', () => {
+    render(<AddToCartButton productId="p1" name="Widget" href="/products/p1" emphasis="secondary" />);
+
+    const button = screen.getByRole('button', { name: 'Add to cart' });
+    expect(button.className).not.toContain('bg-brand');
+
+    fireEvent.click(button);
+    expect(readCart().lines).toHaveLength(1);
+  });
 });

@@ -36,13 +36,13 @@ export function CategoryGrid({ categories, buildHref, columns = 4, heading, desc
   return (
     <div className="flex flex-col gap-4">
       {heading && <SectionHeader heading={heading} description={description} viewAllHref={viewAllHref} />}
-      <div className={`grid gap-4 ${COLUMN_CLASS[columns]}`}>
+      <div className={`grid gap-5 ${COLUMN_CLASS[columns]}`}>
       {categories.map((category) => (
         <Link
           key={category.id}
           href={buildHref(category)}
           className={cn(
-            'group flex flex-col overflow-hidden rounded-lg border border-border bg-surface',
+            'group flex flex-col overflow-hidden rounded-xl border border-border bg-surface',
             'transition-shadow duration-fast hover:shadow-elevation-2',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
           )}

@@ -21,7 +21,7 @@ const DEFAULT_ITEMS: NonNullable<TrustBarProps['items']> = [
 
 export function TrustBar({ items = DEFAULT_ITEMS }: TrustBarProps) {
   return (
-    <div className="grid grid-cols-1 gap-6 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-6 rounded-xl border border-border bg-surface p-8 sm:grid-cols-2 lg:grid-cols-4">
       {items.map((item) => (
         <TrustBadge key={item.label} icon={item.icon} label={item.label} description={item.description} />
       ))}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Drawer,
   DrawerClose,
@@ -16,46 +17,34 @@ import {
   Icon,
   cn,
 } from '@nexgen/ui';
-import { ChevronDown, Menu, Search, ShoppingBag, User } from 'lucide-react';
+import { ChevronDown, Menu, MessageCircle, Search, ShoppingBag, User } from 'lucide-react';
 import { useCartDrawerControls } from '../cart/CartDrawerProvider.js';
 import { useCart } from '../cart/useCart.js';
-import type { CategorySummary } from '../gateway/types.js';
+import type { CategorySummary, StorefrontBranding } from '../gateway/types.js';
 import { SearchOverlay } from './SearchOverlay.js';
 
 /**
- * Store Components library — the site-wide Navigation header, this
- * milestone's own build item 5. A real mega-menu built from the real
- * category hierarchy (`CategorySummary.parentId`/`.position`, added to
- * the Gateway specifically for this — `mappers.ts`'s own docblock): a
- * top-level category (`parentId === null`) with real children renders as
- * a keyboard-navigable Radix dropdown; one with no children is a plain
- * link. Sticky (`position: sticky`, not JS scroll-listening — zero extra
- * runtime cost). Search/Account are real, accessible, keyboard-focusable
- * affordances — Search opens a real overlay, Account remains honestly
- * inert (Category B, no customer-facing auth guard exists yet). **Cart**
- * is real as of Beta Sprint 3's Cart Engine — a live item-count badge
- * (`useCart().activeItemCount`) and a real click handler
- * (`useCartDrawerControls().openDrawer`) opening the site-wide
- * `CartDrawer` mounted once in `app/layout.tsx`.
+ * Store Components library — the site-wide Navigation header.
  *
- * **`categories` carries an already-computed `href`, not a `buildHref`
- * function** — unlike `ProductGrid`/`CategoryGrid` (real Server
- * Components, where a function prop is fine), this is a real Client
- * Component (`'use client'`, needed for the mega-menu/drawer/search
- * open state): a plain function cannot cross the Server→Client boundary
- * as a prop (found live, via a real `next build` prerender failure —
- * "Functions cannot be passed directly to Client Components") — the
- * calling Server Component (`app/layout.tsx`) computes each category's
- * own real href with `categoryHref()` before handing this component
- * plain, serializable data.
+ * **Beta Experience Pack 1 — Header v3**: real merchant branding now
+ * flows all the way through (`APPEARANCE_WORKSPACE_SPECIFICATION.md`
+ * §4) — a real logo image (falls back to the real store name as text,
+ * never a placeholder), a real announcement bar sourced from the
+ * merchant's own published Appearance draft (not a generic hardcoded
+ * string), a real primary-color accent on the cart badge, and a real
+ * WhatsApp/Messenger contact affordance when the merchant has configured
+ * one. **Deliberately not built this pass** (honestly, not silently):
+ * Wishlist, Compare, and Language/Currency selectors — no Wishlist/
+ * Compare backend exists yet (`BETA_EXPERIENCE_MAP.md` §2.2, "Missing
+ * entirely"), and this installation has exactly one supported locale and
+ * one currency today, so a selector with a single, forced option would
+ * be decoration, not a real merchant capability.
  */
 export type NavCategory = CategorySummary & { href: string };
 
 export interface StoreHeaderProps {
   categories: NavCategory[];
-  storeName?: string;
-  /** A real, generic announcement — no per-store promotions backend exists to source real copy from yet (`MISSING_ECOMMERCE_FEATURES_AUDIT.md`). */
-  announcement?: string;
+  branding: StorefrontBranding;
 }
 
 function groupTopLevel(categories: NavCategory[]): { parent: NavCategory; children: NavCategory[] }[] {
@@ -72,17 +61,24 @@ function groupTopLevel(categories: NavCategory[]): { parent: NavCategory; childr
     .map((parent) => ({ parent, children: (byParent.get(parent.id) ?? []).sort((a, b) => a.position - b.position) }));
 }
 
-export function StoreHeader({ categories, storeName = 'neXgen Store', announcement }: StoreHeaderProps) {
+export function StoreHeader({ categories, branding }: StoreHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const menu = groupTopLevel(categories);
   const { activeItemCount } = useCart();
   const { openDrawer } = useCartDrawerControls();
+  const brandColor = branding.primaryColor;
+
+  const whatsappHref = branding.social.whatsappNumber
+    ? `https://wa.me/${branding.social.whatsappNumber.replace(/[^\d]/g, '')}`
+    : null;
 
   return (
     <div className="sticky top-0 z-40 bg-surface">
-      {announcement && (
-        <div className="bg-brand px-4 py-1.5 text-center text-caption text-white">{announcement}</div>
+      {branding.announcement.enabled && branding.announcement.text && (
+        <div className={cn('px-4 py-1.5 text-center text-caption text-white', !brandColor && 'bg-brand')} style={brandColor ? { backgroundColor: brandColor } : undefined}>
+          {branding.announcement.text}
+        </div>
       )}
       <header className="border-b border-border">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
@@ -125,8 +121,12 @@ export function StoreHeader({ categories, storeName = 'neXgen Store', announceme
             </DrawerContent>
           </Drawer>
 
-          <Link href="/" className="shrink-0 text-body-strong text-text-primary">
-            {storeName}
+          <Link href="/" className="flex shrink-0 items-center" aria-label={branding.storeName}>
+            {branding.logo ? (
+              <Image src={branding.logo.url} alt={branding.logo.alt} width={120} height={32} className="h-8 w-auto object-contain" priority />
+            ) : (
+              <span className="text-body-strong text-text-primary">{branding.storeName}</span>
+            )}
           </Link>
 
           <nav aria-label="Primary" className="hidden flex-1 items-center gap-1 lg:flex">
@@ -166,6 +166,18 @@ export function StoreHeader({ categories, storeName = 'neXgen Store', announceme
           </nav>
 
           <div className="ml-auto flex items-center gap-1">
+            {whatsappHref && (
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Chat on WhatsApp"
+                title="Chat on WhatsApp"
+                className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle"
+              >
+                <Icon icon={MessageCircle} size="standalone" />
+              </a>
+            )}
             <button type="button" aria-label="Search" onClick={() => setSearchOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle">
               <Icon icon={Search} size="standalone" />
             </button>
@@ -180,7 +192,10 @@ export function StoreHeader({ categories, storeName = 'neXgen Store', announceme
             >
               <Icon icon={ShoppingBag} size="standalone" />
               {activeItemCount > 0 && (
-                <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold leading-none text-white">
+                <span
+                  className={cn('absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none text-white', !brandColor && 'bg-brand')}
+                  style={brandColor ? { backgroundColor: brandColor } : undefined}
+                >
                   {activeItemCount > 99 ? '99+' : activeItemCount}
                 </span>
               )}

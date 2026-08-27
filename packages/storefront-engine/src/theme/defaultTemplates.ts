@@ -28,10 +28,22 @@ import type { Section, ThemeTemplate } from './types.js';
 // honestly (documented in MISSING_ECOMMERCE_FEATURES_AUDIT.md), and
 // reusing another section's own data under a fabricated "Popular" label
 // would imply a distinct algorithm that doesn't exist.
+//
+// **Experience Polish Sprint 1, Pack 1 (Homepage Hierarchy)** — reordered
+// to the Product Owner's own explicit flow (Hero → Featured → Categories
+// → secondary discovery rails → Trust → Newsletter): Featured Products now
+// leads (the real, merchant-curated "what we sell" answer a first-time
+// visitor needs immediately after the Hero), Categories follows as the
+// primary browse path, and Trending/Recently Added/Brands sit together as
+// secondary discovery rails before the page winds down into Trust and
+// Newsletter. Same eight real sections as before — no section added,
+// removed, or fed a different data source; only the arrangement changed,
+// which is exactly what a Template's own `defaultSections` order exists to
+// let this platform tune (`THEME_ENGINE_ARCHITECTURE.md` §6).
 const homepageSections: Section[] = [
   { type: 'Hero', configuration: {}, key: 'hero' },
-  { type: 'CategoryGrid', configuration: {}, key: 'category-grid' },
   { type: 'ProductGrid', configuration: {}, key: 'featured-products' },
+  { type: 'CategoryGrid', configuration: {}, key: 'category-grid' },
   { type: 'ProductGrid', configuration: {}, key: 'trending-products' },
   { type: 'ProductGrid', configuration: {}, key: 'recently-added' },
   { type: 'BrandSlider', configuration: {}, key: 'brand-slider' },

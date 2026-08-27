@@ -1,4 +1,5 @@
-import { cn } from '@nexgen/ui';
+import { Banknote, Landmark, ShieldCheck, Smartphone, type LucideIcon } from 'lucide-react';
+import { Icon, cn } from '@nexgen/ui';
 
 /**
  * Store Components library — Trust Framework + Bangladesh Commerce Layer
@@ -24,6 +25,15 @@ import { cn } from '@nexgen/ui';
  * "never hardcode providers" instruction), never presented as available
  * on a real Checkout selector (`checkout/PaymentMethodSelector.tsx`
  * lists only the five with a real backend gateway behind them).
+ *
+ * **Experience Polish Sprint 1, Pack 5.5** — each badge now leads with a
+ * small **generic category icon** (cash, mobile financial service, secure
+ * gateway, or bank) — never a brand mark. This is a deliberate, narrow
+ * line: `Smartphone` for bKash/Nagad communicates "this is a mobile
+ * financial service," not "this is bKash's own logo," exactly the same
+ * honesty boundary this file's own docblock already draws around the text
+ * label itself. No icon here implies a level of integration the label
+ * doesn't already honestly claim.
  */
 export type PaymentMethodId = 'cod' | 'visa' | 'mastercard' | 'bkash' | 'nagad' | 'rocket' | 'sslcommerz' | 'portpos' | 'banktransfer';
 
@@ -39,12 +49,31 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethodId, string> = {
   banktransfer: 'Bank Transfer',
 };
 
+/** A generic payment-category icon per method — never a brand mark. Visa/Mastercard/PortPos share the generic `ShieldCheck` (card-network/gateway) treatment, consistent with their own "named, architecture-only future extension point" status. */
+const PAYMENT_METHOD_ICONS: Record<PaymentMethodId, LucideIcon> = {
+  cod: Banknote,
+  visa: ShieldCheck,
+  mastercard: ShieldCheck,
+  bkash: Smartphone,
+  nagad: Smartphone,
+  rocket: Smartphone,
+  sslcommerz: ShieldCheck,
+  portpos: ShieldCheck,
+  banktransfer: Landmark,
+};
+
 /** The `PaymentMethodId`s with a real backend `PaymentGatewayContract` implementation today — see this file's own docblock. */
 export const REAL_BACKEND_PAYMENT_METHODS: PaymentMethodId[] = ['cod', 'bkash', 'nagad', 'sslcommerz', 'banktransfer'];
 
 export function PaymentMethodBadge({ method, className }: { method: PaymentMethodId; className?: string }) {
   return (
-    <span className={cn('rounded-md border border-border bg-surface px-2.5 py-1 text-caption font-medium text-text-primary', className)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-subtle px-2.5 py-1.5 text-caption font-medium text-text-primary',
+        className,
+      )}
+    >
+      <Icon icon={PAYMENT_METHOD_ICONS[method]} size="inline" className="text-text-secondary" />
       {PAYMENT_METHOD_LABELS[method]}
     </span>
   );

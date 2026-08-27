@@ -31,6 +31,7 @@ export * from './cart/useCart.js';
 export * from './cart/CartDrawerProvider.js';
 export * from './cart/CartDrawer.js';
 export * from './cart/AddToCartButton.js';
+export * from './cart/BuyNowButton.js';
 export * from './cart/CartLineItemRow.js';
 export * from './cart/CartSummary.js';
 export * from './cart/PromoCodePlaceholder.js';
@@ -42,8 +43,25 @@ export * from './checkout/types.js';
 export * from './checkout/PaymentMethodSelector.js';
 export * from './checkout/CheckoutForm.js';
 
+// Beta Sprint 5 — the real Guest Checkout network client. Self-contained
+// (see its own docblock for why it never imports `gateway/*.ts`).
+export * from './checkout/checkoutClient.js';
+
 // Beta Sprint 3 — Commerce Engine, Order Success Experience.
 // `order/types.js` itself is exported from the main barrel (`index.ts`)
 // instead — pure interfaces, no client-only code, and `OrderConfirmation
 // Summary` (also main-barrel, a Server Component) needs it too.
 export * from './order/GuestOrderLookupForm.js';
+
+// Beta Sprint 5 — `order/types.js` and `OrderConfirmationSummary.js` are
+// ALSO exported here (in addition to the main barrel above): the real
+// `/checkout/success` page must read `sessionStorage` (browser-only), so
+// the WHOLE page is a Client Component — and a Client Component can never
+// import from the main barrel without pulling in `gateway/client.ts`'s
+// own `import 'server-only'` transitively (the exact `next build` failure
+// this file's own top docblock describes). Re-exporting the same,
+// genuinely server-only-free modules from this client barrel too is safe
+// (no duplicate runtime code — both barrels point at the same file) and
+// is this codebase's own established fix for exactly this situation.
+export * from './order/types.js';
+export * from './order/OrderConfirmationSummary.js';

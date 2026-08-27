@@ -27,7 +27,7 @@ export function Newsletter({ heading = 'Stay in the loop', description = 'Get up
   }
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-surface-subtle px-6 py-10 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface-subtle px-6 py-14 text-center">
       <Text as="h2" variant="heading">
         {heading}
       </Text>

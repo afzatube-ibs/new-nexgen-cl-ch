@@ -4,6 +4,7 @@ import { loadEnv, resetEnvCacheForTests } from '../../src/config/env.js';
 const validEnv = {
   BACKEND_BASE_URL: 'http://127.0.0.1:8080/api/v1',
   BACKEND_SERVICE_TOKEN: 'test-token',
+  BACKEND_CHECKOUT_SERVICE_TOKEN: 'test-checkout-token',
   GUEST_SESSION_SECRET: 'a'.repeat(32),
   PREVIEW_TOKEN_SECRET: 'b'.repeat(32),
 };
@@ -24,8 +25,25 @@ describe('config/env', () => {
   it('rejects a missing BACKEND_SERVICE_TOKEN with a specific, actionable error', () => {
     resetEnvCacheForTests();
     expect(() =>
-      loadEnv({ BACKEND_BASE_URL: validEnv.BACKEND_BASE_URL, GUEST_SESSION_SECRET: validEnv.GUEST_SESSION_SECRET, PREVIEW_TOKEN_SECRET: validEnv.PREVIEW_TOKEN_SECRET }),
+      loadEnv({
+        BACKEND_BASE_URL: validEnv.BACKEND_BASE_URL,
+        BACKEND_CHECKOUT_SERVICE_TOKEN: validEnv.BACKEND_CHECKOUT_SERVICE_TOKEN,
+        GUEST_SESSION_SECRET: validEnv.GUEST_SESSION_SECRET,
+        PREVIEW_TOKEN_SECRET: validEnv.PREVIEW_TOKEN_SECRET,
+      }),
     ).toThrow(/BACKEND_SERVICE_TOKEN/);
+  });
+
+  it('rejects a missing BACKEND_CHECKOUT_SERVICE_TOKEN with a specific, actionable error', () => {
+    resetEnvCacheForTests();
+    expect(() =>
+      loadEnv({
+        BACKEND_BASE_URL: validEnv.BACKEND_BASE_URL,
+        BACKEND_SERVICE_TOKEN: validEnv.BACKEND_SERVICE_TOKEN,
+        GUEST_SESSION_SECRET: validEnv.GUEST_SESSION_SECRET,
+        PREVIEW_TOKEN_SECRET: validEnv.PREVIEW_TOKEN_SECRET,
+      }),
+    ).toThrow(/BACKEND_CHECKOUT_SERVICE_TOKEN/);
   });
 
   it('rejects a GUEST_SESSION_SECRET shorter than 32 characters', () => {

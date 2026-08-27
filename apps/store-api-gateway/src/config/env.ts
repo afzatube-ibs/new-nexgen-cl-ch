@@ -31,6 +31,17 @@ const envSchema = z.object({
   BACKEND_BASE_URL: z.string().url(),
   BACKEND_SERVICE_TOKEN: z.string().min(1, 'BACKEND_SERVICE_TOKEN is required — see .env.example'),
 
+  // Beta Sprint 5 — Category B's own real, narrowly-scoped write
+  // credential: a distinct Sanctum token for a real, dedicated "Checkout
+  // Service Account" (backend), holding only checkout.sessions.view/
+  // .manage, shipping.rates.view, payments.payments.manage, and
+  // orders.orders.view — never the broader BACKEND_SERVICE_TOKEN's own
+  // scope, and never any human staff account's own token. Kept as a
+  // second, separate credential (not an upgrade of BACKEND_SERVICE_TOKEN)
+  // so a leak of either has a materially different blast radius, per
+  // this platform's own SECURITY:DEFENSE_IN_DEPTH.
+  BACKEND_CHECKOUT_SERVICE_TOKEN: z.string().min(1, 'BACKEND_CHECKOUT_SERVICE_TOKEN is required — see .env.example'),
+
   REDIS_URL: z.string().url().default('redis://127.0.0.1:6379'),
   REDIS_KEY_PREFIX: z.string().default('nx_gw_cache:'),
 

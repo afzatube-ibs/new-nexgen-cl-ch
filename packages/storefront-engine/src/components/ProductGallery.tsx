@@ -19,6 +19,16 @@ import type { ResponsiveImage } from '../gateway/types.js';
  * broken `<img>` or a stock photo. **360° view / product video** — no
  * such media field exists on `ProductDetail` yet; not rendered
  * (`MERCHANT_CONVERSION_AUDIT.md` names the real backend gap).
+ *
+ * **Experience Polish Sprint 1, Pack 5.5** — a real, presentation-only
+ * polish pass: a larger corner radius and a resting elevation shadow on
+ * the main image (product photography "on a pedestal," per
+ * `NEXGEN_STOREFRONT_DESIGN_DNA.md` §1.1's Apple/Shopify reference —
+ * whitespace and presentation do the persuading, not new copy), and a
+ * matching radius bump on the thumbnail rail for one consistent corner
+ * language across the whole redesigned PDP (`ProductCard` v4's own
+ * `rounded-xl`, the new Buy Box card). No interaction, data, or zoom
+ * behavior changed.
  */
 export interface ProductGalleryProps {
   images: ResponsiveImage[];
@@ -38,7 +48,7 @@ export function ProductGallery({ images, productName, className }: ProductGaller
 
   return (
     <div className={cn('flex flex-col gap-3 lg:sticky lg:top-6', className)}>
-      <div className="group relative aspect-square w-full overflow-hidden rounded-lg border border-border bg-surface-subtle">
+      <div className="group relative aspect-square w-full overflow-hidden rounded-xl border border-border bg-surface-subtle shadow-elevation-1">
         {active ? (
           <>
             <Image
@@ -79,7 +89,7 @@ export function ProductGallery({ images, productName, className }: ProductGaller
                 if (event.key === 'ArrowLeft') { event.preventDefault(); selectByOffset(-1); }
               }}
               className={cn(
-                'relative h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition-colors',
+                'relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
                 index === activeIndex ? 'border-brand' : 'border-transparent hover:border-border',
               )}

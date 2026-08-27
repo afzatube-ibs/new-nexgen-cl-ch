@@ -100,3 +100,27 @@ export interface HomepageData {
   brands: BrandSummary[];
   products: ProductSummary[];
 }
+
+/** `GET /v1/branding` (`apps/store-api-gateway/src/routes/branding.ts`) — mirrors that route's own real `StorefrontBranding` shape exactly. */
+export interface StorefrontBranding {
+  storeName: string;
+  supportEmail: string | null;
+  supportPhone: string | null;
+  logo: { url: string; alt: string } | null;
+  favicon: { url: string } | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  accentColor: string | null;
+  borderRadius: 'none' | 'sm' | 'md' | 'lg' | 'full';
+  typographyPreset: string;
+  buttonStyle: 'solid' | 'outline' | 'soft';
+  announcement: { enabled: boolean; text: string | null };
+  social: {
+    whatsappNumber: string | null;
+    messengerUrl: string | null;
+    facebookUrl: string | null;
+    instagramUrl: string | null;
+    tiktokUrl: string | null;
+    youtubeUrl: string | null;
+  };
+}

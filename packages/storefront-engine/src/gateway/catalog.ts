@@ -1,6 +1,6 @@
 import 'server-only';
 import { gatewayFetch, gatewayFetchList, type GatewayFetchOptions } from './client.js';
-import type { BrandSummary, CategorySummary, CollectionSummary, HomepageData, PaginationMeta, ProductDetail, ProductSummary } from './types.js';
+import type { BrandSummary, CategorySummary, CollectionSummary, HomepageData, PaginationMeta, ProductDetail, ProductSummary, StorefrontBranding } from './types.js';
 
 /**
  * Typed wrappers over the Gateway's own real `/v1/*` Catalog routes
@@ -23,6 +23,19 @@ export interface ListResult<T> {
 
 export function getHomepage(options: GatewayFetchOptions = {}): Promise<HomepageData> {
   return gatewayFetch<HomepageData>('/v1/homepage', { revalidateSeconds: 120, tags: ['catalog:categories', 'catalog:brands', 'catalog:products'], ...options });
+}
+
+/**
+ * Beta Experience Pack 1 — `GET /v1/branding` (`apps/store-api-gateway/
+ * src/routes/branding.ts`), the real merchant-published brand identity
+ * (store name, logo, favicon, colors, announcement, social links). Short
+ * `revalidateSeconds` relative to Catalog's own — a merchant publishing a
+ * brand change (`APPEARANCE_WORKSPACE_SPECIFICATION.md` §10) should reach
+ * real customers quickly, not wait out a multi-minute ISR window the way
+ * a product listing reasonably can.
+ */
+export function getBranding(options: GatewayFetchOptions = {}): Promise<StorefrontBranding> {
+  return gatewayFetch<StorefrontBranding>('/v1/branding', { revalidateSeconds: 60, tags: ['branding'], ...options });
 }
 
 export function getCategories(options: GatewayFetchOptions = {}): Promise<ListResult<CategorySummary>> {

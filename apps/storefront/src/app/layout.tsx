@@ -1,21 +1,30 @@
 import type { Metadata } from 'next';
-import { BackToTop, getCategories, StoreFooter, StoreHeader } from '@nexgen/storefront-engine';
+import { BackToTop, getBranding, getCategories, StoreFooter, StoreHeader } from '@nexgen/storefront-engine';
 import { CartDrawerProvider } from '@nexgen/storefront-engine/client';
 import { categoryHref } from '@/lib/hrefs';
 import './globals.css';
 
 /**
- * `generateMetadata`/static `metadata` per route composes with this root
- * default (`STORE_FRONTEND_ARCHITECTURE.md` §5) — `title.template` means
- * every page's own title only needs to supply its own segment, never
- * repeat the site name.
+ * Beta Experience Pack 1 — the real, published `storeName`/favicon now
+ * drive this root metadata (`getBranding()`, `APPEARANCE_WORKSPACE_
+ * SPECIFICATION.md` §4) instead of the previous hardcoded `'neXgen
+ * Store'` literal — the single clearest "generic template" fact this
+ * whole Pack exists to fix (`EVIDENCE_BASED_PLATFORM_AUDIT.md` Part 5's
+ * own named finding). `generateMetadata`/static `metadata` per route
+ * still composes with this root default (`STORE_FRONTEND_ARCHITECTURE.md`
+ * §5) — `title.template` means every page's own title only needs to
+ * supply its own segment, never repeat the site name.
  */
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
-  title: { default: 'neXgen Store', template: '%s | neXgen Store' },
-  description: 'A neXgen-powered storefront.',
-  robots: { index: true, follow: true },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const branding = await getBranding({ revalidateSeconds: 60 });
+  return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+    title: { default: branding.storeName, template: `%s | ${branding.storeName}` },
+    description: `${branding.storeName} — an online store.`,
+    robots: { index: true, follow: true },
+    icons: branding.favicon ? { icon: branding.favicon.url } : undefined,
+  };
+}
 
 /**
  * The Core (`THEME_ENGINE_ARCHITECTURE.md` §2.1) — routing, request
@@ -43,7 +52,10 @@ export const metadata: Metadata = {
  * `StoreHeader` too, not only `{children}`.
  */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const categories = await getCategories({ revalidateSeconds: 300 });
+  const [categories, branding] = await Promise.all([
+    getCategories({ revalidateSeconds: 300 }),
+    getBranding({ revalidateSeconds: 60 }),
+  ]);
   // StoreHeader is a real Client Component (mega-menu/drawer/search open
   // state) — a plain function cannot cross the Server→Client boundary as
   // a prop (found live via a real `next build` prerender failure), so its
@@ -61,11 +73,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         <CartDrawerProvider>
-          <StoreHeader categories={navCategories} />
+          <StoreHeader categories={navCategories} branding={branding} />
           <main id="main-content" className="mx-auto max-w-6xl px-4 py-8">
             {children}
           </main>
-          <StoreFooter categories={categories.data} categoryHref={categoryHref} />
+          <StoreFooter categories={categories.data} categoryHref={categoryHref} branding={branding} />
           <BackToTop />
         </CartDrawerProvider>
       </body>

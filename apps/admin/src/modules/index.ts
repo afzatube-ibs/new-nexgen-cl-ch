@@ -5,6 +5,7 @@
 // router, the Sidebar, the Dashboard, or the Settings page.
 import './dashboard/module.js';
 import './settings/module.js';
+import './appearance/module.js';
 import './catalog/module.js';
 import './inventory/module.js';
 import './pricing/module.js';

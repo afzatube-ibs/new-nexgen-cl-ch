@@ -1,6 +1,7 @@
 'use client';
 
-import { cn } from '@nexgen/ui';
+import { Truck } from 'lucide-react';
+import { Icon, cn } from '@nexgen/ui';
 
 /**
  * Store Components library — Trust Framework + Bangladesh Commerce Layer
@@ -9,6 +10,15 @@ import { cn } from '@nexgen/ui';
  * integrated — no Shipping-to-Storefront composition exists yet
  * (`MISSING_ECOMMERCE_FEATURES_AUDIT.md` §4). Plain text labels, never a
  * fabricated brand mark or a real-looking tracking-number format.
+ *
+ * **Experience Polish Sprint 1, Pack 5.5** — `CourierBadge` (the
+ * read-only trust-row badge, used on the PDP and in `StoreFooter`) now
+ * leads with one shared, generic `Truck` icon — every courier is
+ * functionally the same "delivery partner" category, so one honest,
+ * non-brand-specific icon applies to all of them, never a per-courier
+ * mark this platform has no real logo asset for. `CourierSelector` below
+ * (the real, interactive Checkout courier-preference control) is
+ * untouched — this pass only refines the passive badge.
  */
 export type CourierId = 'pathao' | 'steadfast' | 'redx' | 'paperfly' | 'sundarban';
 
@@ -22,7 +32,13 @@ export const COURIER_LABELS: Record<CourierId, string> = {
 
 export function CourierBadge({ courier, className }: { courier: CourierId; className?: string }) {
   return (
-    <span className={cn('rounded-md border border-border bg-surface px-2.5 py-1 text-caption font-medium text-text-primary', className)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-subtle px-2.5 py-1.5 text-caption font-medium text-text-primary',
+        className,
+      )}
+    >
+      <Icon icon={Truck} size="inline" className="text-text-secondary" />
       {COURIER_LABELS[courier]}
     </span>
   );

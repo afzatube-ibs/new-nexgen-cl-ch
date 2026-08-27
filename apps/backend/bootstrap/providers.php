@@ -13,6 +13,7 @@ use App\Domains\Operations\Fulfillment\Providers\FulfillmentServiceProvider;
 use App\Domains\Operations\Notifications\Providers\NotificationsServiceProvider;
 use App\Domains\Operations\Returns\Providers\ReturnsServiceProvider;
 use App\Domains\Operations\Shipping\Providers\ShippingServiceProvider;
+use App\Domains\Platform\Appearance\Providers\AppearanceServiceProvider;
 use App\Domains\Platform\Foundation\Providers\FoundationServiceProvider;
 use App\Domains\Platform\IdentityAccess\Providers\IdentityAccessServiceProvider;
 use App\Domains\Platform\Installer\Providers\InstallerServiceProvider;
@@ -27,6 +28,7 @@ return [
     IdentityAccessServiceProvider::class,
     StoreConfigurationServiceProvider::class,
     MediaServiceProvider::class,
+    AppearanceServiceProvider::class,
     CatalogServiceProvider::class,
     InventoryServiceProvider::class,
     LocalizationServiceProvider::class,

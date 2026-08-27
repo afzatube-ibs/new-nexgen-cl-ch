@@ -10,12 +10,15 @@ import {
   ProductGrid,
   ProductListRow,
   ProductToolbar,
+  PromotionBanner,
+  RecentlyViewedRail,
   buildBreadcrumbSchema,
   extractIdFromSegment,
   getBrands,
   getCategories,
   getCategory,
   getProducts,
+  getRecommendations,
   type CategorySummary,
 } from '@nexgen/storefront-engine';
 import { categoryHref, productHref } from '@/lib/hrefs';
@@ -81,10 +84,11 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const page = Number(first(query.page) ?? '1') || 1;
   const perPage = Number(first(query.per_page) ?? '24') || 24;
 
-  const [productsResult, allCategories, brandsResult] = await Promise.all([
+  const [productsResult, allCategories, brandsResult, trending] = await Promise.all([
     getProducts({ categoryId: category.id, brandId, sort, direction, page, perPage }),
     getCategories(),
     getBrands(),
+    getRecommendations({ slot: 'trending', limit: 8 }, { revalidateSeconds: 180 }),
   ]);
 
   const siblingsAndChildren: CategorySummary[] = allCategories.data.filter(
@@ -151,8 +155,12 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: category.name }]} />
       <CategoryBanner name={category.name} description={category.description} image={category.image} productCount={productsResult.pagination?.total} />
 
+      <PromotionBanner heading={`Shop the full ${category.name} range`} description="New arrivals added every week." tone="subtle" />
+
       <div className="flex flex-col gap-6 lg:flex-row">
-        <aside className="hidden w-56 shrink-0 lg:block">{filterSidebarNode}</aside>
+        <aside className="hidden w-56 shrink-0 lg:block">
+          <div className="lg:sticky lg:top-20">{filterSidebarNode}</div>
+        </aside>
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           <ProductToolbar
@@ -186,6 +194,9 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
           )}
         </div>
       </div>
+
+      {trending.length > 0 && <ProductGrid products={trending} buildHref={productHref} columns={4} heading="Recommended for you" />}
+      <RecentlyViewedRail />
     </div>
   );
 }

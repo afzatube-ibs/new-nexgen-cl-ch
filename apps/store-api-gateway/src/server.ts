@@ -23,6 +23,7 @@ import fastifyCookie from '@fastify/cookie';
 import { randomUUID } from 'node:crypto';
 import type { Env } from './config/env.js';
 import { BackendClient } from './backend/client.js';
+import { CheckoutBackendClient } from './backend/checkoutClient.js';
 import { createInMemoryCacheStore, createRedisCacheStore, type CacheStore } from './lib/cacheStore.js';
 import { registerSecurityPlugins } from './plugins/security.js';
 import { registerGuestSessionHook } from './plugins/context.js';
@@ -35,15 +36,20 @@ import { registerEventsPlugin, registerTestEventsPlugin } from './plugins/events
 import { registerRecommendationsPlugin } from './plugins/recommendations.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerCatalogRoutes } from './routes/catalog.js';
+import { registerBrandingRoutes } from './routes/branding.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerRecommendationRoutes } from './routes/recommendations.js';
 import { registerPreviewRoutes } from './routes/preview.js';
+import { registerCheckoutRoutes } from './routes/checkout.js';
+import { registerOrderLookupRoutes } from './routes/orders.js';
 import { registerVersionedRoutes, CURRENT_VERSION } from './versioning/apiVersion.js';
 import { GatewayError, toGatewayError } from './lib/errors.js';
 
 export interface GatewayServices {
   env: Env;
   backend: BackendClient;
+  /** Beta Sprint 5 — the real, separately-credentialed write path to Checkout/Shipping/Payments/Orders. See backend/checkoutClient.ts's own docblock. */
+  checkoutBackend: CheckoutBackendClient;
   cache: CacheStore;
 }
 
@@ -53,6 +59,8 @@ export interface BuildServerOptions {
   cache?: CacheStore;
   /** Injectable for tests — defaults to a real BackendClient. */
   backend?: BackendClient;
+  /** Injectable for tests — defaults to a real CheckoutBackendClient. */
+  checkoutBackend?: CheckoutBackendClient;
   /** When true, the Event Pipeline uses an in-memory queue and never starts its background worker — set automatically by `buildTestServer`. */
   testMode?: boolean;
 }
@@ -85,6 +93,8 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
     env,
     cache: options.cache ?? createRedisCacheStore(env.REDIS_URL, env.REDIS_KEY_PREFIX, app.log),
     backend: options.backend ?? new BackendClient({ baseUrl: env.BACKEND_BASE_URL, serviceToken: env.BACKEND_SERVICE_TOKEN, logger: app.log }),
+    checkoutBackend:
+      options.checkoutBackend ?? new CheckoutBackendClient({ baseUrl: env.BACKEND_BASE_URL, serviceToken: env.BACKEND_CHECKOUT_SERVICE_TOKEN, logger: app.log }),
   };
 
   // --- Pipeline stages, in order ---
@@ -141,9 +151,12 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
 
   registerVersionedRoutes(app, CURRENT_VERSION, (versionedApp, prefix) => {
     registerCatalogRoutes(versionedApp, services, prefix);
+    registerBrandingRoutes(versionedApp, services, prefix);
     registerEventRoutes(versionedApp, prefix);
     registerRecommendationRoutes(versionedApp, prefix, env);
     registerPreviewRoutes(versionedApp, prefix);
+    registerCheckoutRoutes(versionedApp, services.checkoutBackend, prefix);
+    registerOrderLookupRoutes(versionedApp, services.checkoutBackend, prefix);
   });
 
   app.addHook('onClose', async () => {
@@ -154,6 +167,6 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
 }
 
 /** Test-only convenience: an app wired to fully in-memory dependencies, no real Redis/backend required. */
-export async function buildTestServer(env: Env, backend: BackendClient): Promise<FastifyInstance> {
-  return buildServer({ env, backend, cache: createInMemoryCacheStore(), testMode: true });
+export async function buildTestServer(env: Env, backend: BackendClient, checkoutBackend: CheckoutBackendClient): Promise<FastifyInstance> {
+  return buildServer({ env, backend, checkoutBackend, cache: createInMemoryCacheStore(), testMode: true });
 }

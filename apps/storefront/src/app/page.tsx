@@ -37,6 +37,25 @@ export const metadata: Metadata = {
  * (Category B — cart/account, a later milestone) should call
  * `getRequestCookie()` and accept the resulting SSR trade-off, per
  * `STORE_FRONTEND_ARCHITECTURE.md` §2's own rendering-mode table.
+ *
+ * **Experience Polish Sprint 1, Pack 1 — Homepage Hierarchy** (presentation
+ * and section-order only; zero new Gateway call, zero new client JS, same
+ * three `Promise.all` fetches this route already made):
+ * - The Hero now renders first, alone, followed by the (now quieter,
+ *   `tone="subtle"`) `PromotionBanner` — previously the banner rendered
+ *   above the Hero, undermining the Hero's own claim to being the page's
+ *   strongest visual anchor.
+ * - The Hero's own real `cta` now points at `#featured-products`, a real
+ *   in-page anchor on the Featured Products section below — not a new
+ *   route, not a fabricated destination.
+ * - Section order (`theme/defaultTemplates.ts`'s own `homepageSections`)
+ *   now follows Hero → Featured → Categories → Trending/Recently Added →
+ *   Brands → Trust → Newsletter, the Product Owner's own specified flow —
+ *   same eight real sections, same real data, only the arrangement changed.
+ * - Inter-section spacing increased (`gap-12` → `gap-16`) so each section
+ *   reads as its own destination, per `NEXGEN_STOREFRONT_DESIGN_DNA.md`'s
+ *   "whitespace does the persuading" principle — no new dividers or
+ *   background treatments, restraint over decoration.
  */
 export default async function HomePage() {
   const [homepage, recentlyAdded, trending] = await Promise.all([
@@ -49,7 +68,11 @@ export default async function HomePage() {
   const resolved = resolveSections({
     sections: template.defaultSections,
     data: {
-      hero: { heading: 'Welcome to the store', subheading: 'Real products, real prices, one system — never two that can drift apart.' },
+      hero: {
+        heading: 'Welcome to the store',
+        subheading: 'Real products, real prices, one system — never two that can drift apart.',
+        cta: { label: 'Shop now', href: '#featured-products' },
+      },
       'category-grid': {
         categories: homepage.categories.filter((category) => category.parentId === null),
         buildHref: categoryHref,
@@ -88,15 +111,30 @@ export default async function HomePage() {
   const organizationSchema = buildOrganizationSchema({ name: 'neXgen Store', url: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000' });
   const websiteSchema = buildWebsiteSchema({ name: 'neXgen Store', url: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000' });
 
+  // Experience Polish Sprint 1, Pack 1 (Homepage Hierarchy) — the Hero is
+  // rendered on its own, first, so it is unambiguously the first thing a
+  // visitor sees (previously the generic PromotionBanner rendered ABOVE
+  // it). `defaultTemplates.ts`'s own `homepageSections` always places
+  // `hero` first, so this destructure is safe, not an assumption about
+  // section order made twice in two places.
+  const [heroSection, ...restSections] = resolved;
+
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
-      {/* Beta Milestone 2.5 — real, generic campaign-strip copy only; no Marketing-module Promotion is composed through the Gateway yet (`PromotionBanner.tsx`'s own docblock) — never a fabricated discount or invented sale name. */}
-      <PromotionBanner heading="New arrivals every week" description="Fresh stock, added regularly." tone="brand" />
-      {resolved.map(({ key, Component, props }) => (
-        <Component key={key} {...props} />
-      ))}
+      {heroSection && <heroSection.Component {...heroSection.props} />}
+      {/* Beta Milestone 2.5 — real, generic campaign-strip copy only; no Marketing-module Promotion is composed through the Gateway yet (`PromotionBanner.tsx`'s own docblock) — never a fabricated discount or invented sale name. Pack 1: moved below the Hero and given the quieter `subtle` tone so the Hero itself stays the page's single strongest visual anchor. */}
+      <PromotionBanner heading="New arrivals every week" description="Fresh stock, added regularly." tone="subtle" />
+      {restSections.map(({ key, Component, props }) =>
+        key === 'featured-products' ? (
+          <div key={key} id="featured-products" className="scroll-mt-24">
+            <Component {...props} />
+          </div>
+        ) : (
+          <Component key={key} {...props} />
+        ),
+      )}
       <RecentlyViewedRail />
     </div>
   );

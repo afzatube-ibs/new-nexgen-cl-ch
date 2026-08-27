@@ -10,10 +10,20 @@ import type { HeroProps } from './types.js';
  * so this default deliberately omits an `image` prop entirely rather than
  * rendering a placeholder graphic — a plain, honest, token-styled banner,
  * not a fake-designed one.
+ *
+ * **Experience Polish Sprint 1, Pack 1** — a presentation-only pass making
+ * this the page's own strongest visual anchor, per
+ * `NEXGEN_STOREFRONT_DESIGN_DNA.md` §4: a larger corner radius
+ * (`rounded-xl`, matching Product Card v4/the PDP Buy Box/Checkout's own
+ * corner language), more generous vertical breathing room
+ * (`py-14 sm:py-24`, up from a flat `py-12`), and a touch more internal
+ * rhythm between heading/subheading/CTA (`gap-4`, up from `gap-3`). Same
+ * `heading`/`subheading`/`cta` contract, same real, honest content — no
+ * new copy, no image, no gradient.
  */
 export function Hero({ heading, subheading, cta }: HeroProps) {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-lg border border-border bg-surface-subtle px-6 py-12 sm:px-12">
+    <div className="flex flex-col items-start gap-4 rounded-xl border border-border bg-surface-subtle px-6 py-14 sm:px-12 sm:py-24">
       <Text as="h1" variant="display" className="max-w-2xl">
         {heading}
       </Text>

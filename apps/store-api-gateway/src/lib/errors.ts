@@ -95,11 +95,84 @@ export class BackendUpstreamError extends Error {
 }
 
 /**
+ * The real backend's own standard Laravel validation-error shape
+ * (`ValidationException::render()`) — `errors` is a field-keyed map of
+ * one-or-more human-readable messages per field. Confirmed live (this
+ * sprint's own end-to-end verification) to be what Checkout's own
+ * field-level validation (e.g. `SetCheckoutAddressRequest`) returns.
+ *
+ * **Real, live-found correction to this docblock's own earlier claim**:
+ * this is NOT universal across every module, as first assumed — Payments'
+ * own domain exceptions (e.g. `PaymentGatewayNotAvailable`, thrown when a
+ * real `bkash`/`nagad`/`sslcommerz` gateway has no real credentials
+ * configured) render through a DIFFERENT real shape entirely:
+ * `{"error": {"type", "message"}}`, a single message, never a field map.
+ * Confirmed live: `POST payments` with `gateway_code: 'bkash'` in this
+ * installation returns exactly `{"error":{"type":"validation_failed",
+ * "message":"Payment gateway [bkash] is not available."}}` — no `errors`
+ * key at all. See `extractBackendErrorMessage` below for the function
+ * that also recognizes this second, real shape.
+ */
+export function extractBackendValidationDetails(body: unknown): Array<{ field: string; message: string }> | null {
+  if (typeof body !== 'string' || body.length === 0) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== 'object' || parsed === null || !('errors' in parsed)) return null;
+  const { errors } = parsed;
+  if (typeof errors !== 'object' || errors === null) return null;
+
+  const details: Array<{ field: string; message: string }> = [];
+  for (const [field, messages] of Object.entries(errors)) {
+    const first: unknown = Array.isArray(messages) ? (messages as unknown[])[0] : messages;
+    if (typeof first === 'string') details.push({ field, message: first });
+  }
+  return details.length > 0 ? details : null;
+}
+
+/**
+ * A single, human-readable message from EITHER real backend error shape
+ * this Gateway has actually observed (see `extractBackendValidationDetails`'s
+ * own docblock for how these were found to differ): the field-keyed
+ * `{"errors": {...}}` Laravel `ValidationException` shape (joined into one
+ * string), or the single-message `{"error": {"message": "..."}}` shape a
+ * real domain exception (e.g. `PaymentGatewayNotAvailable`) renders
+ * through. Returns `null` only if `body` matches neither real shape —
+ * callers fall back to their own generic message in that case, never to
+ * an empty string.
+ */
+export function extractBackendErrorMessage(body: unknown): string | null {
+  const details = extractBackendValidationDetails(body);
+  if (details) return details.map((detail) => detail.message).join(' ');
+
+  if (typeof body !== 'string' || body.length === 0) return null;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (typeof parsed !== 'object' || parsed === null || !('error' in parsed)) return null;
+    const { error } = parsed;
+    if (typeof error !== 'object' || error === null || !('message' in error)) return null;
+    const { message } = error;
+    return typeof message === 'string' && message.length > 0 ? message : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Route handlers never inspect BackendUpstreamError directly — they call
  * this once, in a shared catch block, so every route reports upstream
  * failures identically (§7.1's "one error pattern" requirement).
+ *
+ * `serviceName` lets a Beta Sprint 5 checkout/payments/shipping call site
+ * report an accurate dependency name ("checkout"/"payments"/"shipping")
+ * instead of the original Catalog-only call sites' implicit "catalog" —
+ * every existing call site is unaffected (defaults to 'catalog', the
+ * same wording this function always used before this parameter existed).
  */
-export function toGatewayError(error: unknown): GatewayError {
+export function toGatewayError(error: unknown, serviceName = 'catalog'): GatewayError {
   if (error instanceof GatewayError) return error;
   if (error instanceof ZodError) {
     // Route handlers validate params/query with a direct Zod `.parse()`
@@ -115,10 +188,14 @@ export function toGatewayError(error: unknown): GatewayError {
       return GatewayError.circuitOpen(error.message.split(':')[1] ?? 'backend');
     }
     if (error.upstreamStatus === 404) return GatewayError.notFound();
-    if (error.upstreamStatus === null) {
-      return new GatewayError(503, 'upstream_unavailable', 'The catalog service is temporarily unavailable.');
+    if (error.upstreamStatus === 422) {
+      const details = extractBackendValidationDetails(error.upstreamBody);
+      if (details) return GatewayError.validation(details);
     }
-    return new GatewayError(502, 'upstream_error', 'The catalog service returned an unexpected response.');
+    if (error.upstreamStatus === null) {
+      return new GatewayError(503, 'upstream_unavailable', `The ${serviceName} service is temporarily unavailable.`);
+    }
+    return new GatewayError(502, 'upstream_error', `The ${serviceName} service returned an unexpected response.`);
   }
   // A plugin-thrown error (e.g. @fastify/rate-limit's own error, which
   // already carries a real statusCode of 429 and a body already shaped by

@@ -35,7 +35,7 @@ export function ProductGrid({ products, buildHref, columns = 4, emptyTitle = 'No
   return (
     <div className="flex flex-col gap-4">
       {heading && <SectionHeader heading={heading} description={description} viewAllHref={viewAllHref} />}
-      <div className={`grid gap-4 ${COLUMN_CLASS[columns]}`}>
+      <div className={`grid gap-5 ${COLUMN_CLASS[columns]}`}>
         {products.map((product) => (
           <ProductCard key={product.id} product={product} href={buildHref(product)} />
         ))}

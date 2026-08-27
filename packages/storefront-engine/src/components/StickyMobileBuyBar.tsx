@@ -1,4 +1,5 @@
 import { AddToCartButton } from '../cart/AddToCartButton.js';
+import { BuyNowButton } from '../cart/BuyNowButton.js';
 import { PriceBlock, type Money } from './PriceBlock.js';
 import { StockBadge } from './StockBadge.js';
 
@@ -16,6 +17,17 @@ import { StockBadge } from './StockBadge.js';
  * (`AddToCartButton`, itself a Client Component — the one interactive
  * leaf in this otherwise-Server component, same Server/Client split
  * reasoning as `ProductCard`'s own `ProductQuickActions`).
+ *
+ * **Experience Polish Sprint 1, Pack 5 (item 5.5)**: `BuyNowButton` (also
+ * a Client Component, imported and rendered here the same way
+ * `AddToCartButton` already is — a Server Component may render a Client
+ * Component as a child with no boundary issue) now sits alongside it —
+ * the audit's own highest-priority mobile gap, since mobile is where
+ * shoppers spend the most PDP time and Buy Now previously existed only on
+ * desktop. `AddToCartButton` renders `variant="icon"` here (a compact,
+ * secondary affordance) so the labeled, primary `BuyNowButton` has room
+ * to be the one dominant action in this space-constrained bar, per
+ * `NEXGEN_STOREFRONT_DESIGN_DNA.md` §15 rule #3.
  */
 export interface StickyMobileBuyBarProps {
   productId: string;
@@ -43,7 +55,16 @@ export function StickyMobileBuyBar({ productId, name, href, imageSrc, status, pr
         currencyCode={price?.currencyCode ?? null}
         disabled={status !== 'active'}
         disabledReason="Unavailable"
-        size="lg"
+        variant="icon"
+        className="shrink-0"
+      />
+      <BuyNowButton
+        productId={productId}
+        name={name}
+        href={href}
+        imageSrc={imageSrc}
+        disabled={status !== 'active'}
+        disabledReason="Unavailable"
         className="shrink-0"
       />
     </div>

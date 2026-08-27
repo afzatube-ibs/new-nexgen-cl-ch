@@ -7,11 +7,14 @@ export * from './types.js';
 export { login, logout, me } from './auth.js';
 export type { LoginResult } from './auth.js';
 
-export { listStores } from './stores.js';
+export { listStores, updateStore } from './stores.js';
+export type { UpdateStoreInput } from './stores.js';
 
 export { listUsers } from './users.js';
 
 export * from './media.js';
+
+export * from './appearance.js';
 
 export * from './catalog/index.js';
 

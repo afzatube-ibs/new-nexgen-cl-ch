@@ -38,9 +38,18 @@ function formatMoney(money: Money, locale: string): string {
 
 export function PriceBlock({ price, compareAtPrice, locale = 'en', size = 'sm', showSavingsAmount, className }: PriceBlockProps) {
   if (!price) {
+    // Experience Polish Sprint 1, Pack 2 (item 2.3) — "Price unavailable"
+    // read as a fault, not a deliberate state, and ignored `size` entirely
+    // (always rendering `caption`, even at the PDP's own `lg` size). "Price
+    // coming soon" is the same honest fact — no price is fabricated or
+    // implied to exist elsewhere — stated the way this platform's every
+    // other real "coming soon" affordance already is
+    // (`NEXGEN_STOREFRONT_DESIGN_DNA.md` §11's "honest failure, always" and
+    // "transparency about limits"), and now scales with `size` like every
+    // other branch of this component already does.
     return (
-      <Text as="p" variant="caption" className={cn('text-text-secondary', className)}>
-        Price unavailable
+      <Text as="p" variant={size === 'lg' ? 'body' : 'caption'} className={cn('text-text-secondary', className)}>
+        Price coming soon
       </Text>
     );
   }

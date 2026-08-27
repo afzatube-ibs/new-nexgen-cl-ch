@@ -5,7 +5,8 @@
       "name": "admin-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "apps/admin"],
-      "port": 5173
+      "port": 5173,
+      "autoPort": false
     },
     {
       "name": "storefront-dev",
