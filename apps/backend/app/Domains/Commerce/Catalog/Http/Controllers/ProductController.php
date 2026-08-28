@@ -56,6 +56,17 @@ final class ProductController
             $query->whereHas('categories', fn ($q) => $q->where('categories.id', $categoryId));
         }
 
+        // neXgen Production Sprint — Milestone 2 completion: the exact
+        // same shape as the `category_id` filter directly above — a real,
+        // additive completion of this module's own existing, real
+        // Product<->Collection BelongsToMany (already eager-loaded via
+        // self::EAGER_LOAD), never a new capability invented for this
+        // filter's sake.
+        if ($request->filled('collection_id')) {
+            $collectionId = $request->string('collection_id')->toString();
+            $query->whereHas('collections', fn ($q) => $q->where('collections.id', $collectionId));
+        }
+
         if ($request->filled('search')) {
             $term = '%'.$request->string('search')->toString().'%';
             $query->where(fn ($q) => $q->where('name', 'like', $term)->orWhere('sku', 'like', $term));
