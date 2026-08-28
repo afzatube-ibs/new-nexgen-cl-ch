@@ -27,6 +27,7 @@ import {
   getBrand,
   getProduct,
   getRecommendations,
+  toMoney,
   type CourierId,
 } from '@nexgen/storefront-engine';
 import { AddToCartButton, BuyNowButton } from '@nexgen/storefront-engine/client';
@@ -231,6 +232,7 @@ export default async function ProductPage({ params }: PageProps) {
   const productSchema = buildProductSchema(product, productUrl);
 
   const galleryImages = product.images.length > 0 ? product.images : product.image ? [product.image] : [];
+  const { price, compareAtPrice } = toMoney(product.price);
 
   return (
     <div className="flex flex-col gap-10 pb-20 lg:pb-0">
@@ -260,7 +262,7 @@ export default async function ProductPage({ params }: PageProps) {
               </Text>
             </div>
 
-            <PriceBlock size="lg" />
+            <PriceBlock size="lg" price={price} compareAtPrice={compareAtPrice} />
 
             {product.shortDescription && <Text variant="body-strong">{product.shortDescription}</Text>}
 
@@ -275,6 +277,8 @@ export default async function ProductPage({ params }: PageProps) {
                 name={product.name}
                 href={productUrl.replace(siteUrl, '')}
                 imageSrc={product.image?.src ?? null}
+                unitPrice={price ? price.amountMinor / 100 : null}
+                currencyCode={price?.currencyCode ?? null}
                 disabled={product.status !== 'active'}
                 disabledReason="Unavailable"
                 size="lg"
@@ -286,8 +290,8 @@ export default async function ProductPage({ params }: PageProps) {
                 name={product.name}
                 href={productUrl.replace(siteUrl, '')}
                 imageSrc={product.image?.src ?? null}
-                unitPrice={null}
-                currencyCode={null}
+                unitPrice={price ? price.amountMinor / 100 : null}
+                currencyCode={price?.currencyCode ?? null}
                 disabled={product.status !== 'active'}
                 disabledReason="Unavailable"
                 emphasis="secondary"
@@ -423,6 +427,8 @@ export default async function ProductPage({ params }: PageProps) {
         href={productUrl.replace(siteUrl, '')}
         imageSrc={product.image?.src ?? null}
         status={product.status}
+        price={price}
+        compareAtPrice={compareAtPrice}
       />
     </div>
   );

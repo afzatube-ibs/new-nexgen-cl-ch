@@ -41,20 +41,23 @@ export interface BuyNowButtonProps {
   name: string;
   href: string;
   imageSrc?: string | null;
+  /** Milestone 2 — real major-unit price (e.g. `2490`), matching `AddToCartButton`'s own `unitPrice` convention exactly (never minor units) — `undefined`/`null` renders the identical honest "priceless" cart line this component always has when no real price is composed yet. */
+  unitPrice?: number | null;
+  currencyCode?: string | null;
   disabled?: boolean;
   disabledReason?: string;
   size?: 'md' | 'lg';
   className?: string;
 }
 
-export function BuyNowButton({ productId, sku, name, href, imageSrc, disabled = false, disabledReason, size = 'md', className }: BuyNowButtonProps) {
+export function BuyNowButton({ productId, sku, name, href, imageSrc, unitPrice, currencyCode, disabled = false, disabledReason, size = 'md', className }: BuyNowButtonProps) {
   const { addItem } = useCart();
   const router = useRouter();
   const [navigating, setNavigating] = useState(false);
 
   function handleClick() {
     if (disabled) return;
-    addItem({ productId, sku, name, href, imageSrc, unitPrice: null, currencyCode: null, quantity: 1 });
+    addItem({ productId, sku, name, href, imageSrc, unitPrice: unitPrice ?? null, currencyCode: currencyCode ?? null, quantity: 1 });
     setNavigating(true);
     router.push('/checkout');
   }

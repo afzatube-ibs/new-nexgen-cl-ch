@@ -37,6 +37,7 @@ export * from './components/Breadcrumb.js';
 export * from './components/TrustBadge.js';
 export * from './components/StockBadge.js';
 export * from './components/PriceBlock.js';
+export * from './pricing/toMoney.js';
 export * from './components/ProductBadgeSlot.js';
 export * from './components/Pagination.js';
 export * from './components/CategoryBanner.js';

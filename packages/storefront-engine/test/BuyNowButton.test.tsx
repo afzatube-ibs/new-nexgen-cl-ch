@@ -50,6 +50,14 @@ describe('cart/BuyNowButton', () => {
     expect(push).toHaveBeenCalledWith('/checkout');
   });
 
+  it('adds the real unitPrice/currencyCode passed in — Milestone 2, no longer hardcoded null', () => {
+    render(<BuyNowButton productId="p1" name="Widget" href="/products/p1" unitPrice={2490} currencyCode="BDT" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buy now' }));
+
+    expect(readCart().lines[0]).toMatchObject({ unitPrice: 2490, currencyCode: 'BDT' });
+  });
+
   it('does not add anything or navigate when disabled', () => {
     render(<BuyNowButton productId="p1" name="Widget" href="/products/p1" disabled disabledReason="Unavailable" />);
 

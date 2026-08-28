@@ -73,6 +73,24 @@ export interface CollectionSummary {
   description: string | null;
 }
 
+/**
+ * Milestone 2 — field-for-field matched to the real Gateway's own
+ * `composition/pricing.ts` `ComposedPrice` — a direct, uncomputed
+ * pass-through of the real backend's own resolved `PriceListEntry`.
+ * Amounts are real decimal strings (e.g. `"2490.0000"`), never a JSON
+ * number, converted to the `Money` (minor-unit) shape `PriceBlock`
+ * expects only at the point of rendering (`pricing/toMoney.ts`) — never
+ * earlier, and never recomputed.
+ */
+export interface ComposedPrice {
+  currencyCode: string;
+  basePrice: string;
+  compareAtPrice: string | null;
+  salePrice: string | null;
+  effectivePrice: string;
+  isSaleActive: boolean;
+}
+
 export interface ProductSummary {
   id: string;
   name: string;
@@ -83,6 +101,8 @@ export interface ProductSummary {
   visibility: string;
   brandId: string | null;
   image: ResponsiveImage | null;
+  /** Real, composed from Pricing — `null` when no price is configured for this SKU yet (never a fabricated figure). */
+  price: ComposedPrice | null;
 }
 
 export interface ProductDetail extends ProductSummary {

@@ -1,5 +1,6 @@
 import { EmptyState } from '@nexgen/ui';
 import { SectionHeader } from '../components/SectionHeader.js';
+import { toMoney } from '../pricing/toMoney.js';
 import { ProductCard } from './ProductCard.js';
 import type { ProductGridProps } from './types.js';
 
@@ -36,9 +37,10 @@ export function ProductGrid({ products, buildHref, columns = 4, emptyTitle = 'No
     <div className="flex flex-col gap-4">
       {heading && <SectionHeader heading={heading} description={description} viewAllHref={viewAllHref} />}
       <div className={`grid gap-5 ${COLUMN_CLASS[columns]}`}>
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} href={buildHref(product)} />
-        ))}
+        {products.map((product) => {
+          const { price, compareAtPrice } = toMoney(product.price);
+          return <ProductCard key={product.id} product={product} href={buildHref(product)} price={price} compareAtPrice={compareAtPrice} />;
+        })}
       </div>
     </div>
   );

@@ -63,6 +63,8 @@ export function StickyMobileBuyBar({ productId, name, href, imageSrc, status, pr
         name={name}
         href={href}
         imageSrc={imageSrc}
+        unitPrice={price ? price.amountMinor / 100 : null}
+        currencyCode={price?.currencyCode ?? null}
         disabled={status !== 'active'}
         disabledReason="Unavailable"
         className="shrink-0"
