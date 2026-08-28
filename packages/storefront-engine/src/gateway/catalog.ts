@@ -1,6 +1,6 @@
 import 'server-only';
 import { gatewayFetch, gatewayFetchList, type GatewayFetchOptions } from './client.js';
-import type { BrandSummary, CategorySummary, CollectionSummary, HomepageData, PaginationMeta, ProductDetail, ProductSummary, StorefrontBranding } from './types.js';
+import type { BrandSummary, CategorySummary, CollectionSummary, HomepageData, PaginationMeta, ProductDetail, ProductSummary, SearchResultSummary, StorefrontBranding } from './types.js';
 
 /**
  * Typed wrappers over the Gateway's own real `/v1/*` Catalog routes
@@ -65,6 +65,8 @@ export function getCollection(id: string, options: GatewayFetchOptions = {}): Pr
 export interface GetProductsFilters {
   categoryId?: string;
   brandId?: string;
+  /** Milestone 2 completion — real member-product listing for a real Collection page (`ProductController::index()`'s own new `collection_id` filter, mirroring `category_id` exactly). */
+  collectionId?: string;
   page?: number;
   perPage?: number;
   sort?: 'name' | 'sku' | 'created_at' | 'published_at';
@@ -75,10 +77,12 @@ export function getProducts(filters: GetProductsFilters = {}, options: GatewayFe
   const tags = ['catalog:products'];
   if (filters.categoryId) tags.push(`catalog:category:${filters.categoryId}`);
   if (filters.brandId) tags.push(`catalog:brand:${filters.brandId}`);
+  if (filters.collectionId) tags.push(`catalog:collection:${filters.collectionId}`);
   return gatewayFetchList<ProductSummary>('/v1/products', {
     query: {
       category_id: filters.categoryId,
       brand_id: filters.brandId,
+      collection_id: filters.collectionId,
       page: filters.page,
       per_page: filters.perPage,
       sort: filters.sort,
@@ -92,4 +96,22 @@ export function getProducts(filters: GetProductsFilters = {}, options: GatewayFe
 
 export function getProduct(id: string, options: GatewayFetchOptions = {}): Promise<ProductDetail> {
   return gatewayFetch<ProductDetail>(`/v1/products/${id}`, { revalidateSeconds: 180, tags: ['catalog:products', `catalog:product:${id}`], ...options });
+}
+
+/**
+ * Milestone 2 completion — the real `/search` results page's own server-
+ * side fetch (short `revalidateSeconds`, matching the Gateway's own real
+ * `search` cache TTL of 60s — search results should feel current, unlike
+ * a category listing). `SearchOverlay`'s own live-typing preview uses the
+ * separate, genuinely client-safe `search/searchClient.ts` instead — see
+ * that module's own docblock for why a Client Component cannot use this
+ * `server-only` one.
+ */
+export function searchProducts(query: string, options: GatewayFetchOptions & { brandId?: string; page?: number } = {}): Promise<ListResult<SearchResultSummary>> {
+  return gatewayFetchList<SearchResultSummary>('/v1/search', {
+    query: { q: query, brand_id: options.brandId, page: options.page },
+    revalidateSeconds: 60,
+    tags: ['catalog:products', 'search'],
+    ...options,
+  });
 }

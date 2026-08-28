@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { GatewayRequestError, buildBreadcrumbSchema, extractIdFromSegment, getCollection } from '@nexgen/storefront-engine';
-import { EmptyState, Text } from '@nexgen/ui';
+import { GatewayRequestError, ProductGrid, buildBreadcrumbSchema, extractIdFromSegment, getCollection, getProducts } from '@nexgen/storefront-engine';
+import { Text } from '@nexgen/ui';
+import { productHref } from '@/lib/hrefs';
 
 interface PageProps {
   params: Promise<{ idSlug: string }>;
@@ -28,22 +29,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 /**
- * Collection listing archetype. The Gateway can only return this
- * Collection's own real metadata today — its MEMBER PRODUCTS cannot be
- * listed through the Gateway yet, because the real backend's
- * `ProductController::index()` has no `collection_id` filter (unlike its
- * own `category_id` filter, which is real) — a genuine, additive backend
- * gap found during this milestone, documented in
- * `BETA_MILESTONE_1_STOREFRONT_FOUNDATION_REPORT.md`, not fabricated
- * around here. This page therefore renders a real, honest empty state for
- * its product grid — never a silently-wrong "0 products" that looks like
- * a merchandising decision rather than a known capability gap.
- * Deliberately does not forward the request's Cookie header — see
- * `app/page.tsx`'s own docblock for why.
+ * Collection listing archetype — real member products, real pricing.
+ *
+ * neXgen Production Sprint — Milestone 2 completion: the real backend gap
+ * this page's own prior version named ("`ProductController::index()` has
+ * no `collection_id` filter") is closed — that filter now exists,
+ * mirroring the real `category_id` filter exactly, and this page lists
+ * real member products through it, identically to `brands/[idSlug]/page.
+ * tsx` (same `getProducts`/`ProductGrid` call shape, same real pricing —
+ * `ProductGrid` composes it internally, no page-level change needed for
+ * that part). Deliberately does not forward the request's Cookie header
+ * — see `app/page.tsx`'s own docblock for why.
  */
 export default async function CollectionPage({ params }: PageProps) {
   const { idSlug } = await params;
   const collection = await loadCollection(idSlug);
+  const products = await getProducts({ collectionId: collection.id });
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
   const breadcrumbSchema = buildBreadcrumbSchema([
@@ -65,7 +66,7 @@ export default async function CollectionPage({ params }: PageProps) {
           </Text>
         )}
       </div>
-      <EmptyState title="Collection browsing is coming soon" description="This collection's products aren't listable yet — a small, real backend addition is needed first (see the Beta Milestone 1 report)." />
+      <ProductGrid products={products.data} buildHref={productHref} columns={4} emptyTitle="No products in this collection yet" emptyDescription="Check back soon." />
     </div>
   );
 }

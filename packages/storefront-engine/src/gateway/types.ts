@@ -115,6 +115,53 @@ export interface ProductDetail extends ProductSummary {
   publishedAt: string | null;
 }
 
+/**
+ * Milestone 2 completion — field-for-field matched to the real Gateway's
+ * own `composition/mappers.ts` `SearchResultSummary` (itself a direct
+ * mirror of the real backend's own `ProductSearchResultResource`, which
+ * has no `slug`/`status`/`visibility`/`image`/`shortDescription` field at
+ * all — a genuinely narrower shape than `ProductSummary`, not a
+ * short-cut). `toProductSummaryFromSearchResult` (below) is the one place
+ * this narrower shape becomes a full `ProductSummary` for reuse with the
+ * real `ProductGrid`/`ProductCard` primitives, using only real,
+ * backend-guaranteed defaults — never a fabricated field.
+ */
+export interface SearchResultSummary {
+  id: string;
+  name: string;
+  sku: string;
+  brandId: string | null;
+  publishedAt: string | null;
+  relevanceScore: number | null;
+  price: ComposedPrice | null;
+}
+
+/**
+ * `status`/`visibility` are not invented here: the real backend's own
+ * `Commerce\Search\Actions\SearchProductsAction` hardcodes its index
+ * query to `status: [active]` and `visibility: [search, catalog_search]`
+ * (confirmed by direct source read) — every real search result is
+ * therefore guaranteed to already satisfy both, and asserting that here
+ * is a correct inference from a real backend invariant, not a guess.
+ * `image`/`shortDescription` are honestly `null` — the real search index
+ * genuinely carries neither field yet, and `ProductCard`'s own "No image"
+ * state already renders that honestly.
+ */
+export function toProductSummaryFromSearchResult(result: SearchResultSummary): ProductSummary {
+  return {
+    id: result.id,
+    name: result.name,
+    slug: '',
+    sku: result.sku,
+    shortDescription: null,
+    status: 'active',
+    visibility: 'catalog_search',
+    brandId: result.brandId,
+    image: null,
+    price: result.price,
+  };
+}
+
 export interface HomepageData {
   categories: CategorySummary[];
   brands: BrandSummary[];
