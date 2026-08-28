@@ -160,6 +160,26 @@ describe('routes/catalog (integration — Category A, real backend response shap
     await app.close();
   });
 
+  it('GET /v1/products forwards collection_id to the real backend (Milestone 2 completion — real Collection product listing)', async () => {
+    stubBackendFetch([
+      {
+        match: '/products',
+        status: 200,
+        body: { data: [baseProduct({ name: 'Widget' })], meta: { current_page: 1, last_page: 1, per_page: 15, total: 1 } },
+      },
+      { match: 'pricing/lookup-many', status: 200, body: { data: [priceListEntry({ sku: 'SKU-1' })] } },
+    ]);
+    const app = await buildTestApp(testEnv());
+    const response = await app.inject({ method: 'GET', url: `/v1/products?collection_id=${UUID}` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data[0].price.effectivePrice).toBe('25.0000');
+
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+    const calledUrl = String(fetchMock.mock.calls[0]?.[0]);
+    expect(calledUrl).toContain(`collection_id=${UUID}`);
+    await app.close();
+  });
+
   it('GET /v1/search maps the real ProductSearchResultResource shape (productId -> id, no slug/status field) and composes a real price', async () => {
     stubBackendFetch([
       {

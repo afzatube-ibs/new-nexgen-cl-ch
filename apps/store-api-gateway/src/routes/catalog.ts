@@ -47,6 +47,11 @@ const searchQuerySchema = localeQuerySchema.extend({
 const productListQuerySchema = listQuerySchema.extend({
   category_id: z.string().uuid().optional(),
   brand_id: z.string().uuid().optional(),
+  // Milestone 2 completion — the real backend's own `ProductController::
+  // index()` gained a `collection_id` filter (mirroring its own
+  // pre-existing `category_id` filter exactly) so a real Collection page
+  // can finally list its own real member products.
+  collection_id: z.string().uuid().optional(),
   sort: z.enum(['name', 'sku', 'created_at', 'published_at']).optional(),
   direction: z.enum(['asc', 'desc']).optional(),
 });
@@ -294,6 +299,7 @@ export function registerCatalogRoutes(app: FastifyInstance, services: GatewaySer
     const tags = ['catalog:products'];
     if (query.category_id) tags.push(`catalog:category:${query.category_id}`);
     if (query.brand_id) tags.push(`catalog:brand:${query.brand_id}`);
+    if (query.collection_id) tags.push(`catalog:collection:${query.collection_id}`);
 
     await serveCacheable(request, reply, cache, { key: cacheKey, ttlSeconds: 180, staleWhileRevalidateSeconds: 420, browserMaxAgeSeconds: 60, tags }, async () => {
       try {
@@ -305,6 +311,7 @@ export function registerCatalogRoutes(app: FastifyInstance, services: GatewaySer
             visibility: 'catalog_search',
             category_id: query.category_id,
             brand_id: query.brand_id,
+            collection_id: query.collection_id,
             sort: query.sort ?? 'published_at',
             direction: query.direction ?? 'desc',
             page: query.page,
