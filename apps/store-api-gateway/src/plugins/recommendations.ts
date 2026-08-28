@@ -10,6 +10,7 @@ import type { FastifyInstance } from 'fastify';
 import { RecommendationEngineRegistry } from '../recommendations/registry.js';
 import { createTrendingFallbackEngine } from '../recommendations/engines/trendingFallbackEngine.js';
 import type { BackendClient } from '../backend/client.js';
+import type { Env } from '../config/env.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -17,8 +18,8 @@ declare module 'fastify' {
   }
 }
 
-export function registerRecommendationsPlugin(app: FastifyInstance, backend: BackendClient): void {
+export function registerRecommendationsPlugin(app: FastifyInstance, backend: BackendClient, env: Env): void {
   const registry = new RecommendationEngineRegistry();
-  registry.register(createTrendingFallbackEngine(backend));
+  registry.register(createTrendingFallbackEngine(backend, env, app.log));
   app.decorate('recommendations', registry);
 }

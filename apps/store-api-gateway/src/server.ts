@@ -112,7 +112,7 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
   } else {
     registerEventsPlugin(app, { env });
   }
-  registerRecommendationsPlugin(app, services.backend);
+  registerRecommendationsPlugin(app, services.backend, env);
 
   await registerOpenApi(app);
 

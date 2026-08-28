@@ -19,6 +19,7 @@ import { serveCacheable, buildCacheKey } from '../lib/cacheHelper.js';
 import { resolveLocale, resolveCurrency, resolveStore } from '../context/localization.js';
 import { toGatewayError, GatewayError } from '../lib/errors.js';
 import { resolveIdentifierKind } from '../backend/identifier.js';
+import { fetchComposedPrices } from '../composition/pricing.js';
 import {
   toBrandSummary,
   toCategorySummary,
@@ -97,11 +98,12 @@ export function registerCatalogRoutes(app: FastifyInstance, services: GatewaySer
             backend.getList<BackendBrand>({ module: 'catalog', path: 'brands', query: { status: 'active', per_page: 8 }, correlationId: request.id }),
             backend.getList<BackendProduct>({ module: 'catalog', path: 'products', query: { status: 'active', visibility: 'catalog_search', sort: 'published_at', direction: 'desc', per_page: 12 }, correlationId: request.id }),
           ]);
+          const prices = await fetchComposedPrices(backend, products.data.map((product) => product.sku), ctx.currency, request.id, request.log);
           return {
             data: {
               categories: categories.data.map(toCategorySummary),
               brands: brands.data.map(toBrandSummary),
-              products: products.data.map(toProductSummary),
+              products: products.data.map((product) => toProductSummary(product, prices.get(product.sku.toUpperCase()) ?? null)),
             },
           };
         } catch (error) {
@@ -310,8 +312,9 @@ export function registerCatalogRoutes(app: FastifyInstance, services: GatewaySer
           },
           correlationId: request.id,
         });
+        const prices = await fetchComposedPrices(backend, response.data.map((product) => product.sku), ctx.currency, request.id, request.log);
         return {
-          data: response.data.map(toProductSummary),
+          data: response.data.map((product) => toProductSummary(product, prices.get(product.sku.toUpperCase()) ?? null)),
           pagination: response.meta
             ? {
                 currentPage: response.meta.current_page ?? response.meta.currentPage ?? 1,
@@ -335,7 +338,9 @@ export function registerCatalogRoutes(app: FastifyInstance, services: GatewaySer
   app.get(`${prefix}/products/:id`, async (request, reply) => {
     const params = identifierParamSchema.parse(request.params);
     assertUuidSupported(params.id, 'product');
-    const cacheKey = buildCacheKey(`products/${params.id}`, {});
+    const query = localeQuerySchema.parse(request.query);
+    const ctx = context({ query }, request.headers.host, request.headers['accept-language']);
+    const cacheKey = buildCacheKey(`products/${params.id}`, { currency: ctx.currency });
 
     await serveCacheable(
       request,
@@ -353,7 +358,8 @@ export function registerCatalogRoutes(app: FastifyInstance, services: GatewaySer
             // applied here at the Gateway layer for direct product reads.
             throw GatewayError.notFound();
           }
-          return { data: toProductDetail(response.data) };
+          const prices = await fetchComposedPrices(backend, [response.data.sku], ctx.currency, request.id, request.log);
+          return { data: toProductDetail(response.data, prices.get(response.data.sku.toUpperCase()) ?? null) };
         } catch (error) {
           throw toGatewayError(error);
         }
@@ -364,7 +370,8 @@ export function registerCatalogRoutes(app: FastifyInstance, services: GatewaySer
   // --- GET /search ---
   app.get(`${prefix}/search`, async (request, reply) => {
     const query = searchQuerySchema.parse(request.query);
-    const cacheKey = buildCacheKey('search', { q: query.q, brand_id: query.brand_id, page: query.page });
+    const ctx = context({ query }, request.headers.host, request.headers['accept-language']);
+    const cacheKey = buildCacheKey('search', { q: query.q, brand_id: query.brand_id, page: query.page, currency: ctx.currency });
 
     await serveCacheable(request, reply, cache, { key: cacheKey, ttlSeconds: 60, staleWhileRevalidateSeconds: 120, browserMaxAgeSeconds: 30, tags: ['catalog:products', 'search'] }, async () => {
       try {
@@ -374,8 +381,9 @@ export function registerCatalogRoutes(app: FastifyInstance, services: GatewaySer
           query: { q: query.q, brand_id: query.brand_id, page: query.page },
           correlationId: request.id,
         });
+        const prices = await fetchComposedPrices(backend, response.data.map((result) => result.sku), ctx.currency, request.id, request.log);
         return {
-          data: response.data.map(toSearchResultSummary),
+          data: response.data.map((result) => toSearchResultSummary(result, prices.get(result.sku.toUpperCase()) ?? null)),
           pagination: response.meta
             ? {
                 currentPage: response.meta.current_page ?? response.meta.currentPage ?? 1,

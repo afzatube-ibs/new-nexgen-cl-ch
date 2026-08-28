@@ -110,6 +110,29 @@ export interface BackendSearchResult {
 }
 
 /**
+ * Milestone 2 — field-for-field matched to the real backend's own
+ * `Commerce\Pricing\Http\Resources\PriceListEntryResource`, returned by
+ * `GET pricing/lookup-many` (`composition/pricing.ts`). `basePrice`/
+ * `compareAtPrice`/`salePrice` are real decimal strings (e.g. `"2490.0000"`)
+ * — never a JSON number — per that Resource's own `decimal:4`-cast fields.
+ */
+export interface BackendPriceListEntry {
+  id: string;
+  priceListId: string;
+  sku: string;
+  basePrice: string;
+  compareAtPrice: string | null;
+  salePrice: string | null;
+  saleStartsAt: string | null;
+  saleEndsAt: string | null;
+  isSaleActive: boolean;
+  effectivePrice: string;
+  version: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/**
  * Laravel's default paginator meta shape — confirmed empirically against
  * the real backend during this slice's own live verification (§ Slice 1
  * report). Read defensively (both possible casings) since this Gateway

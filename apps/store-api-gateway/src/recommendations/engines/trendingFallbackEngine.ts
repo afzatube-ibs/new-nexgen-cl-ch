@@ -9,14 +9,26 @@
  * designs — a genuine, functional fallback, not a placeholder that lies
  * about being more sophisticated than it is.
  */
+import type { FastifyBaseLogger } from 'fastify';
 import type { BackendClient } from '../../backend/client.js';
 import type { BackendProduct } from '../../backend/types.js';
+import type { Env } from '../../config/env.js';
+import { fetchComposedPrices } from '../../composition/pricing.js';
 import { toProductSummary, type ProductSummary } from '../../composition/mappers.js';
 import type { RecommendationEngineContract, RecommendationRequest, RecommendationSlot } from '../contract.js';
 
 const SUPPORTED: RecommendationSlot[] = ['trending', 'related', 'frequently-bought-together', 'recommended', 'recently-viewed'];
 
-export function createTrendingFallbackEngine(backend: BackendClient): RecommendationEngineContract {
+/**
+ * Milestone 2 — a recommendation result renders as a real `ProductCard`
+ * on the Storefront (the Homepage's Trending rail, the PDP's Related/You
+ * may also like rails), so it needs the identical real pricing composition
+ * every other product card gets. No per-request currency override exists
+ * for this route (`routes/recommendations.ts`'s own query schema has
+ * none) — `env.DEFAULT_CURRENCY` is the same real, Localization-respecting
+ * default `context/localization.ts`'s own `resolveCurrency` falls back to.
+ */
+export function createTrendingFallbackEngine(backend: BackendClient, env: Env, logger?: FastifyBaseLogger): RecommendationEngineContract {
   return {
     id: 'trending-fallback',
     supportedSlots: SUPPORTED,
@@ -31,18 +43,18 @@ export function createTrendingFallbackEngine(backend: BackendClient): Recommenda
         return [];
       }
 
+      const correlationId = request.deviceId ?? 'recommendation-fallback';
       const response = await backend.getList<BackendProduct>({
         module: 'catalog',
         path: 'products',
         query: { status: 'active', visibility: 'catalog_search', sort: 'published_at', direction: 'desc', per_page: Math.min(request.limit * 2, 50) },
-        correlationId: request.deviceId ?? 'recommendation-fallback',
+        correlationId,
       });
 
       const excluded = request.productId;
-      return response.data
-        .filter((product) => product.id !== excluded)
-        .slice(0, request.limit)
-        .map(toProductSummary);
+      const products = response.data.filter((product) => product.id !== excluded).slice(0, request.limit);
+      const prices = await fetchComposedPrices(backend, products.map((product) => product.sku), env.DEFAULT_CURRENCY, correlationId, logger);
+      return products.map((product) => toProductSummary(product, prices.get(product.sku.toUpperCase()) ?? null));
     },
   };
 }

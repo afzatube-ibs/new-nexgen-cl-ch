@@ -64,15 +64,25 @@ describe('Platform Services routes (Slice 1.5)', () => {
       await app.close();
     });
 
-    it('trending returns real Catalog products via the fallback engine, honestly labeled by engine id', async () => {
+    it('trending returns real Catalog products via the fallback engine, honestly labeled by engine id, with a real composed price', async () => {
       stubBackendFetch([
         { match: '/products', status: 200, body: { data: [{ id: UUID, brandId: null, sku: 'SKU-1', barcode: null, name: 'Widget', slug: 'widget', description: null, shortDescription: null, productType: 'simple', status: 'active', visibility: 'catalog_search', metaTitle: null, metaDescription: null, metaKeywords: null, metadata: null, publishedAt: null, images: [], version: 1, createdAt: null, updatedAt: null }] } },
+        {
+          match: 'pricing/lookup-many',
+          status: 200,
+          body: {
+            data: [
+              { id: '22222222-2222-2222-2222-222222222222', priceListId: '33333333-3333-3333-3333-333333333333', sku: 'SKU-1', basePrice: '25.0000', compareAtPrice: null, salePrice: null, saleStartsAt: null, saleEndsAt: null, isSaleActive: false, effectivePrice: '25.0000', version: 1, createdAt: null, updatedAt: null },
+            ],
+          },
+        },
       ]);
       const app = await buildTestApp(testEnv());
       const response = await app.inject({ method: 'GET', url: '/v1/recommendations/trending' });
       expect(response.statusCode).toBe(200);
       const body = response.json();
       expect(body.data[0].name).toBe('Widget');
+      expect(body.data[0].price.effectivePrice).toBe('25.0000');
       expect(body.meta.engine).toBe('trending-fallback');
       await app.close();
     });

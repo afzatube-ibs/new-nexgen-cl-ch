@@ -88,12 +88,28 @@ describe('routes/catalog (integration — Category A, real backend response shap
     await app.close();
   });
 
-  it('GET /v1/products/:id returns a fully composed ProductDetail for a real active product', async () => {
-    stubBackendFetch([{ match: `/products/${UUID}`, status: 200, body: { data: baseProduct({ status: 'active' }) } }]);
+  it('GET /v1/products/:id returns a fully composed ProductDetail for a real active product, including a real composed price', async () => {
+    stubBackendFetch([
+      { match: `/products/${UUID}`, status: 200, body: { data: baseProduct({ status: 'active' }) } },
+      { match: 'pricing/lookup-many', status: 200, body: { data: [priceListEntry({ sku: 'SKU-1' })] } },
+    ]);
     const app = await buildTestApp(testEnv());
     const response = await app.inject({ method: 'GET', url: `/v1/products/${UUID}` });
     expect(response.statusCode).toBe(200);
     expect(response.json().data.name).toBe('Widget');
+    expect(response.json().data.price).toEqual({ currencyCode: 'USD', basePrice: '25.0000', compareAtPrice: null, salePrice: null, effectivePrice: '25.0000', isSaleActive: false });
+    await app.close();
+  });
+
+  it('GET /v1/products/:id returns an honest null price when Pricing has no configured entry for this SKU', async () => {
+    stubBackendFetch([
+      { match: `/products/${UUID}`, status: 200, body: { data: baseProduct({ status: 'active' }) } },
+      { match: 'pricing/lookup-many', status: 200, body: { data: [] } },
+    ]);
+    const app = await buildTestApp(testEnv());
+    const response = await app.inject({ method: 'GET', url: `/v1/products/${UUID}` });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.price).toBeNull();
     await app.close();
   });
 
@@ -126,11 +142,13 @@ describe('routes/catalog (integration — Category A, real backend response shap
         status: 200,
         body: { data: [baseProduct({ name: 'Widget' })], meta: { current_page: 1, last_page: 1, per_page: 15, total: 1 } },
       },
+      { match: 'pricing/lookup-many', status: 200, body: { data: [priceListEntry({ sku: 'SKU-1' })] } },
     ]);
     const app = await buildTestApp(testEnv());
     const response = await app.inject({ method: 'GET', url: `/v1/products?category_id=${UUID}&brand_id=${UUID}&sort=name&direction=asc` });
     expect(response.statusCode).toBe(200);
     expect(response.json().data[0].name).toBe('Widget');
+    expect(response.json().data[0].price.effectivePrice).toBe('25.0000');
     expect(response.json().meta.pagination.total).toBe(1);
 
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
@@ -142,18 +160,20 @@ describe('routes/catalog (integration — Category A, real backend response shap
     await app.close();
   });
 
-  it('GET /v1/search maps the real ProductSearchResultResource shape (productId -> id, no slug/status field)', async () => {
+  it('GET /v1/search maps the real ProductSearchResultResource shape (productId -> id, no slug/status field) and composes a real price', async () => {
     stubBackendFetch([
       {
         match: 'search/products',
         status: 200,
         body: { data: [{ productId: UUID, sku: 'SKU-1', name: 'Widget', brandId: null, publishedAt: null, relevanceScore: 3.1 }] },
       },
+      { match: 'pricing/lookup-many', status: 200, body: { data: [priceListEntry({ sku: 'SKU-1' })] } },
     ]);
     const app = await buildTestApp(testEnv());
     const response = await app.inject({ method: 'GET', url: '/v1/search?q=widget' });
     expect(response.statusCode).toBe(200);
-    expect(response.json().data[0]).toEqual({ id: UUID, name: 'Widget', sku: 'SKU-1', brandId: null, publishedAt: null, relevanceScore: 3.1 });
+    expect(response.json().data[0]).toMatchObject({ id: UUID, name: 'Widget', sku: 'SKU-1', brandId: null, publishedAt: null, relevanceScore: 3.1 });
+    expect(response.json().data[0].price.effectivePrice).toBe('25.0000');
     await app.close();
   });
 
@@ -185,6 +205,25 @@ describe('routes/catalog (integration — Category A, real backend response shap
     await app.close();
   });
 });
+
+function priceListEntry(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '22222222-2222-2222-2222-222222222222',
+    priceListId: '33333333-3333-3333-3333-333333333333',
+    sku: 'SKU-1',
+    basePrice: '25.0000',
+    compareAtPrice: null,
+    salePrice: null,
+    saleStartsAt: null,
+    saleEndsAt: null,
+    isSaleActive: false,
+    effectivePrice: '25.0000',
+    version: 1,
+    createdAt: null,
+    updatedAt: null,
+    ...overrides,
+  };
+}
 
 function baseProduct(overrides: Record<string, unknown> = {}) {
   return {

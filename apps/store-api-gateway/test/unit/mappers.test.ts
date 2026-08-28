@@ -121,7 +121,16 @@ describe('composition/mappers', () => {
       brandId: 'brand-1',
       publishedAt: null,
       relevanceScore: 4.2,
+      price: null,
     });
+  });
+
+  it('maps a real product with a real composed price, and defaults to null when no price is passed', () => {
+    const product = baseProduct();
+    const price = { currencyCode: 'BDT', basePrice: '2490.0000', compareAtPrice: null, salePrice: null, effectivePrice: '2490.0000', isSaleActive: false };
+
+    expect(toProductSummary(product).price).toBeNull();
+    expect(toProductSummary(product, price).price).toEqual(price);
   });
 });
 

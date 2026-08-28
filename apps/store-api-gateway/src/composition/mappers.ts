@@ -14,6 +14,7 @@
  * today; documented in the Slice 1 report, not silently hidden.
  */
 import { buildResponsiveImageOrNull, type ResponsiveImage } from '../lib/imageUrl.js';
+import type { ComposedPrice } from './pricing.js';
 import type { BackendBrand, BackendCategory, BackendCollection, BackendProduct, BackendProductImage, BackendSearchResult } from '../backend/types.js';
 
 export interface CategorySummary {
@@ -73,6 +74,16 @@ export interface ProductSummary {
   visibility: string;
   brandId: string | null;
   image: ResponsiveImage | null;
+  /**
+   * Milestone 2 — real, composed from Pricing (`composition/pricing.ts`),
+   * `null` when no real price is configured for this SKU yet (never a
+   * fabricated figure — `PriceBlock`'s own honest "Price coming soon"
+   * state on the Storefront). Every caller of `toProductSummary` below
+   * that has not been updated to pass a real price still compiles —
+   * `price` defaults to `null`, the same honest "not composed here"
+   * signal, never silently omitted from the type.
+   */
+  price: ComposedPrice | null;
 }
 
 export interface ProductDetail extends ProductSummary {
@@ -122,7 +133,7 @@ export function toBrandSummary(brand: BackendBrand): BrandSummary {
   };
 }
 
-export function toProductSummary(product: BackendProduct): ProductSummary {
+export function toProductSummary(product: BackendProduct, price: ComposedPrice | null = null): ProductSummary {
   return {
     id: product.id,
     name: product.name,
@@ -133,12 +144,13 @@ export function toProductSummary(product: BackendProduct): ProductSummary {
     visibility: product.visibility,
     brandId: product.brandId,
     image: primaryImage(product.images),
+    price,
   };
 }
 
-export function toProductDetail(product: BackendProduct): ProductDetail {
+export function toProductDetail(product: BackendProduct, price: ComposedPrice | null = null): ProductDetail {
   return {
-    ...toProductSummary(product),
+    ...toProductSummary(product, price),
     description: product.description,
     productType: product.productType,
     metaTitle: product.metaTitle,
@@ -163,9 +175,11 @@ export interface SearchResultSummary {
   brandId: string | null;
   publishedAt: string | null;
   relevanceScore: number | null;
+  /** Milestone 2 — see `ProductSummary.price`'s own docblock; identical honest-null default. */
+  price: ComposedPrice | null;
 }
 
-export function toSearchResultSummary(result: BackendSearchResult): SearchResultSummary {
+export function toSearchResultSummary(result: BackendSearchResult, price: ComposedPrice | null = null): SearchResultSummary {
   return {
     id: result.productId,
     name: result.name,
@@ -173,5 +187,6 @@ export function toSearchResultSummary(result: BackendSearchResult): SearchResult
     brandId: result.brandId,
     publishedAt: result.publishedAt,
     relevanceScore: result.relevanceScore ?? null,
+    price,
   };
 }

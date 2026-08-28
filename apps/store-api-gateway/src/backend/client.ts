@@ -26,8 +26,11 @@ import type { BackendItemResponse, BackendListResponse } from './types.js';
 // read this Gateway now performs (`routes/branding.ts`), isolated in its
 // own circuit breaker for the same reason every other module already is:
 // a struggling Appearance read should never trip Catalog's own breaker,
-// or vice versa.
-export type BackendModule = 'catalog' | 'search' | 'branding';
+// or vice versa. `pricing` added Milestone 2 — the real, batched
+// `pricing/lookup-many` composition (`composition/pricing.ts`), on its
+// own breaker for the identical reason: a struggling Pricing read should
+// never trip Catalog's.
+export type BackendModule = 'catalog' | 'search' | 'branding' | 'pricing';
 
 export interface BackendClientOptions {
   baseUrl: string;
