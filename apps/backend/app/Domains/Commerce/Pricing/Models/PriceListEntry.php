@@ -48,6 +48,21 @@ final class PriceListEntry extends Model
     protected function casts(): array
     {
         return [
+            // `decimal:4` matches this table's own `decimal(14, 4)` columns
+            // and this platform's own established pattern for every other
+            // money column (Payment, Promotion, Shipment, Operations\
+            // Shipping's own ShippingRate) — without it, a whole-number
+            // amount round-trips through SQLite's own NUMERIC column
+            // affinity as a PHP int, which `effectivePrice()`'s own manual
+            // `(string)` cast already worked around for that one method,
+            // but `Http\Resources\PriceListEntryResource` reads
+            // `base_price`/`compare_at_price` directly and had no such
+            // guard — confirmed live: `basePrice` serialized as the bare
+            // JSON number `2490` instead of `"2490.0000"`. MySQL's DECIMAL
+            // columns never exhibited this.
+            'base_price' => 'decimal:4',
+            'compare_at_price' => 'decimal:4',
+            'sale_price' => 'decimal:4',
             'sale_starts_at' => 'datetime',
             'sale_ends_at' => 'datetime',
         ];

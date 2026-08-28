@@ -25,7 +25,7 @@ it('is on sale when a sale_price is set with no schedule window', function () {
     ]);
 
     expect($entry->isSaleActive())->toBeTrue();
-    expect($entry->effectivePrice())->toBe('80.00');
+    expect($entry->effectivePrice())->toBe('80.0000');
 });
 
 it('is not on sale before the sale_starts_at moment', function () {
@@ -37,7 +37,7 @@ it('is not on sale before the sale_starts_at moment', function () {
     ]);
 
     expect($entry->isSaleActive())->toBeFalse();
-    expect($entry->effectivePrice())->toBe('100.00');
+    expect($entry->effectivePrice())->toBe('100.0000');
 });
 
 it('is on sale between sale_starts_at and sale_ends_at', function () {
@@ -49,7 +49,7 @@ it('is on sale between sale_starts_at and sale_ends_at', function () {
     ]);
 
     expect($entry->isSaleActive())->toBeTrue();
-    expect($entry->effectivePrice())->toBe('80.00');
+    expect($entry->effectivePrice())->toBe('80.0000');
 });
 
 it('is not on sale after the sale_ends_at moment', function () {
@@ -61,5 +61,5 @@ it('is not on sale after the sale_ends_at moment', function () {
     ]);
 
     expect($entry->isSaleActive())->toBeFalse();
-    expect($entry->effectivePrice())->toBe('100.00');
+    expect($entry->effectivePrice())->toBe('100.0000');
 });

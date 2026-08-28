@@ -32,9 +32,9 @@ it('creates a priced entry given the manage permission, auditing it and publishi
 
     $response->assertCreated()
         ->assertJsonPath('data.sku', 'SKU-12345')
-        ->assertJsonPath('data.basePrice', '49.99')
+        ->assertJsonPath('data.basePrice', '49.9900')
         ->assertJsonPath('data.isSaleActive', false)
-        ->assertJsonPath('data.effectivePrice', '49.99')
+        ->assertJsonPath('data.effectivePrice', '49.9900')
         ->assertJsonPath('data.version', 1);
 
     expect(PriceListEntry::query()->where('sku', 'SKU-12345')->exists())->toBeTrue();
@@ -113,7 +113,7 @@ it('updates a priced entry when the expected version matches', function () {
             'expected_version' => 1,
         ]);
 
-    $response->assertOk()->assertJsonPath('data.salePrice', '30.00')->assertJsonPath('data.version', 2);
+    $response->assertOk()->assertJsonPath('data.salePrice', '30.0000')->assertJsonPath('data.version', 2);
     expect(AuditLog::query()->where('action', 'price_list_entry.updated')->count())->toBe(1);
 });
 

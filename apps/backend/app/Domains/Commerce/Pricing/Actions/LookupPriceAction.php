@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domains\Commerce\Pricing\Actions;
 
-use App\Domains\Commerce\Pricing\Models\PriceList;
 use App\Domains\Commerce\Pricing\Models\PriceListEntry;
 
 /**
@@ -15,21 +14,21 @@ use App\Domains\Commerce\Pricing\Models\PriceListEntry;
  * module depending on Store Configuration at all (see the price_lists
  * migration's docblock): the caller resolves a store's own currency_code
  * and passes it here as a plain parameter.
+ *
+ * neXgen Production Sprint — Milestone 2: delegates to the real, single
+ * "resolve the default active price list for a currency" query
+ * Actions\LookupPricesAction now owns, so a caller resolving many SKUs
+ * (a storefront product grid) and a caller resolving one (this class's
+ * own real caller, Checkout's ReviewCheckoutAction) share the identical
+ * resolution path — never two independent implementations of the same
+ * rule.
  */
 final readonly class LookupPriceAction
 {
+    public function __construct(private LookupPricesAction $lookupPricesAction) {}
+
     public function execute(string $sku, string $currencyCode): ?PriceListEntry
     {
-        $priceList = PriceList::query()
-            ->where('currency_code', strtoupper($currencyCode))
-            ->where('is_default', true)
-            ->where('status', PriceList::STATUS_ACTIVE)
-            ->first();
-
-        if ($priceList === null) {
-            return null;
-        }
-
-        return $priceList->entries()->where('sku', strtoupper($sku))->first();
+        return $this->lookupPricesAction->execute([$sku], $currencyCode)[strtoupper($sku)] ?? null;
     }
 }

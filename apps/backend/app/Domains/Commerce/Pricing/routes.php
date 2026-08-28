@@ -12,17 +12,18 @@ declare(strict_types=1);
  * to (SECURITY:ROLES_PERMISSIONS), reusing Identity & Access's public
  * `permission:` middleware exactly as every prior module does.
  *
- * `pricing/lookup`, `tax/calculate`, and `pricing/audit-logs` are
- * registered before their respective resourceful groups purely for
- * readability — none of them share a URI prefix with a {parameter}
- * segment that could otherwise swallow them, unlike Customers' own
- * audit-logs-before-{customer} ordering requirement.
+ * `pricing/lookup`, `pricing/lookup-many`, `tax/calculate`, and
+ * `pricing/audit-logs` are registered before their respective resourceful
+ * groups purely for readability — none of them share a URI prefix with a
+ * {parameter} segment that could otherwise swallow them, unlike Customers'
+ * own audit-logs-before-{customer} ordering requirement.
  */
 
 use App\Domains\Commerce\Pricing\Http\Controllers\AuditLogController;
 use App\Domains\Commerce\Pricing\Http\Controllers\PriceListController;
 use App\Domains\Commerce\Pricing\Http\Controllers\PriceListEntryController;
 use App\Domains\Commerce\Pricing\Http\Controllers\PriceLookupController;
+use App\Domains\Commerce\Pricing\Http\Controllers\PricesLookupController;
 use App\Domains\Commerce\Pricing\Http\Controllers\TaxCalculationController;
 use App\Domains\Commerce\Pricing\Http\Controllers\TaxClassController;
 use App\Domains\Commerce\Pricing\Http\Controllers\TaxRateController;
@@ -35,6 +36,14 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function (): void {
     Route::get('pricing/lookup', PriceLookupController::class)
         ->middleware('permission:pricing.price_lists.view')->name('v1.pricing.lookup');
+
+    // GET, not POST — this stays a pure read like `pricing/lookup` above,
+    // consistent with the Gateway's own Category-A (read-only, GET-only)
+    // client contract this route is built for (`store-api-gateway/src/
+    // backend/client.ts`'s own docblock) — a `skus[]=`-repeated query
+    // param, not a POST body, is the correct shape for a batched read.
+    Route::get('pricing/lookup-many', PricesLookupController::class)
+        ->middleware('permission:pricing.lookup.view')->name('v1.pricing.lookup-many');
 
     Route::post('tax/calculate', TaxCalculationController::class)
         ->middleware('permission:pricing.tax.view')->name('v1.tax.calculate');

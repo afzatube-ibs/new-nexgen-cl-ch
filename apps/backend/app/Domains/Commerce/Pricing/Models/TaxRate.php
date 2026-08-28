@@ -43,6 +43,25 @@ final class TaxRate extends Model
         'status',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            // `decimal:4` matches this table's own `decimal(8, 4)` column —
+            // the identical fix this sprint already applied to Pricing's
+            // own PriceListEntry (base_price/compare_at_price/sale_price)
+            // and, in an earlier sprint, Operations\Shipping's ShippingRate.
+            // Without it, `Actions\CalculateTaxAction` reads a whole-number
+            // rate back from SQLite as a PHP float, which PHP 8.4's own
+            // strictly-typed bcmath functions (`bcmul(): Argument #2 must
+            // be of type string, float given`) then reject — a real,
+            // live-reproduced crash the moment this platform's own real
+            // tax-calculation path is exercised against this installation's
+            // real SQLite dev database. MySQL's DECIMAL columns never
+            // exhibited this.
+            'rate' => 'decimal:4',
+        ];
+    }
+
     protected static function booted(): void
     {
         self::creating(function (self $rate): void {
