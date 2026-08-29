@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Domains\Commerce\Checkout\Events\CheckoutAbandoned;
+use App\Domains\Commerce\Checkout\Models\CheckoutSession;
 use App\Domains\Commerce\Customers\Events\CustomerRegistered;
 use App\Domains\Commerce\Orders\Events\OrderPlaced;
+use App\Domains\Commerce\Orders\Events\OrderStatusChanged;
 use App\Domains\Commerce\Orders\Models\Order;
 use App\Domains\Commerce\Payments\Events\PaymentCaptured;
+use App\Domains\Commerce\Payments\Events\PaymentFailed;
 use App\Domains\Commerce\Payments\Events\PaymentRefunded;
 use App\Domains\Operations\Fulfillment\Events\FulfillmentCompleted;
 use App\Domains\Operations\Fulfillment\Events\ShipmentDispatched;
@@ -14,13 +18,14 @@ use App\Domains\Operations\Returns\Events\RefundIssued;
 use App\Domains\Operations\Returns\Events\ReturnRequested;
 use App\Domains\Operations\Returns\Models\ReturnRequest;
 use App\Domains\Platform\Foundation\EventBus\Contracts\DomainEventBus;
+use Database\Factories\CheckoutItemFactory;
 use Database\Seeders\NotificationTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
-// Each test here exercises one of the eight app/Listeners/Send*On*.php
+// Each test here exercises one of the eleven app/Listeners/Send*On*.php
 // cross-domain integration listeners on the real, application-wired
 // event bus — mirroring tests/Unit/Listeners/
 // CreateShipmentOnOrderPlacedTest.php's own "publish on the real bus, not
@@ -182,6 +187,82 @@ it('queues a welcome email when CustomerRegistered is published, using the email
 
     expect($notification)->not->toBeNull();
     expect($notification->recipient)->toBe('newcustomer@example.test');
+});
+
+it('queues a payment-failure notice when PaymentFailed is published (Milestone 3)', function () {
+    $this->seed(NotificationTemplateSeeder::class);
+    $order = Order::factory()->create();
+    $paymentId = (string) Str::uuid();
+
+    app(DomainEventBus::class)->publish(new PaymentFailed(
+        paymentId: $paymentId,
+        orderId: $order->id,
+        gatewayCode: 'bkash',
+        reason: 'The gateway declined this transaction.',
+    ));
+
+    $notification = Notification::query()->where('related_type', 'payment')->where('related_id', $paymentId)->first();
+
+    expect($notification)->not->toBeNull();
+    expect($notification->recipient)->toBe($order->customer_email);
+    expect($notification->body)->toContain('The gateway declined this transaction.');
+});
+
+it('queues an abandoned-cart reminder when CheckoutAbandoned is published for a guest session with an email (Milestone 3)', function () {
+    $this->seed(NotificationTemplateSeeder::class);
+    $session = CheckoutSession::factory()->create(['guest_email' => 'shopper@example.test', 'guest_name' => 'Jane']);
+    CheckoutItemFactory::new()->create(['checkout_session_id' => $session->id]);
+
+    app(DomainEventBus::class)->publish(new CheckoutAbandoned(
+        sessionId: $session->id,
+        customerId: null,
+        guestEmail: $session->guest_email,
+    ));
+
+    $notification = Notification::query()->where('related_type', 'checkout_session')->where('related_id', $session->id)->first();
+
+    expect($notification)->not->toBeNull();
+    expect($notification->recipient)->toBe('shopper@example.test');
+    expect($notification->body)->toContain('Jane');
+    expect($notification->body)->toContain('1 item');
+});
+
+it('never fabricates a recipient for an abandoned session with no guest email (Milestone 3)', function () {
+    $this->seed(NotificationTemplateSeeder::class);
+    $session = CheckoutSession::factory()->create(['guest_email' => null]);
+
+    app(DomainEventBus::class)->publish(new CheckoutAbandoned(
+        sessionId: $session->id,
+        customerId: null,
+        guestEmail: null,
+    ));
+
+    expect(Notification::query()->where('related_type', 'checkout_session')->count())->toBe(0);
+});
+
+it('queues an order-cancellation notice only when OrderStatusChanged transitions to cancelled (Milestone 3)', function () {
+    $this->seed(NotificationTemplateSeeder::class);
+    $order = Order::factory()->create();
+
+    app(DomainEventBus::class)->publish(new OrderStatusChanged(
+        orderId: $order->id,
+        fromStatus: Order::STATUS_PENDING,
+        toStatus: Order::STATUS_CONFIRMED,
+    ));
+
+    expect(Notification::query()->where('related_type', 'order')->where('related_id', $order->id)->count())->toBe(0);
+
+    app(DomainEventBus::class)->publish(new OrderStatusChanged(
+        orderId: $order->id,
+        fromStatus: Order::STATUS_CONFIRMED,
+        toStatus: Order::STATUS_CANCELLED,
+    ));
+
+    $notification = Notification::query()->where('related_type', 'order')->where('related_id', $order->id)->first();
+
+    expect($notification)->not->toBeNull();
+    expect($notification->recipient)->toBe($order->customer_email);
+    expect($notification->subject)->toContain($order->order_number);
 });
 
 it('is a no-op when the referenced order no longer exists', function () {

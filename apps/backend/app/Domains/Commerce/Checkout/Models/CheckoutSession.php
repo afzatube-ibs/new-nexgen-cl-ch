@@ -112,6 +112,16 @@ final class CheckoutSession extends Model
             'billing_address' => 'array',
             'shipping_address' => 'array',
             'expires_at' => 'datetime',
+            // Matches the migration's own decimal(14,4) precision — without
+            // this, SQLite's NUMERIC column affinity returns a plain
+            // PHP int/float for a value like "5.0000" (round-tripping as
+            // "5"), the same bug class Milestone 2 found and fixed on
+            // PriceListEntry/TaxRate (see that milestone's own report).
+            'shipping_total' => 'decimal:4',
+            'subtotal' => 'decimal:4',
+            'discount_total' => 'decimal:4',
+            'tax_total' => 'decimal:4',
+            'grand_total' => 'decimal:4',
         ];
     }
 

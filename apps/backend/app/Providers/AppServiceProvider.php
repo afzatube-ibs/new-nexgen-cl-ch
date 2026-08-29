@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\Domains\Commerce\Checkout\Events\CheckoutAbandoned;
 use App\Domains\Commerce\Customers\Events\CustomerRegistered;
 use App\Domains\Commerce\Orders\Events\OrderPlaced;
+use App\Domains\Commerce\Orders\Events\OrderStatusChanged;
 use App\Domains\Commerce\Payments\Events\PaymentCaptured;
+use App\Domains\Commerce\Payments\Events\PaymentFailed;
 use App\Domains\Commerce\Payments\Events\PaymentRefunded;
 use App\Domains\Operations\Fulfillment\Events\FulfillmentCompleted;
 use App\Domains\Operations\Fulfillment\Events\ShipmentDispatched;
@@ -15,8 +18,11 @@ use App\Domains\Platform\Foundation\EventBus\Contracts\DomainEventBus;
 use App\Listeners\CompleteRefundOnPaymentRefunded;
 use App\Listeners\CreateShipmentOnOrderPlaced;
 use App\Listeners\ProcessRefundOnReturnResolved;
+use App\Listeners\SendAbandonedCartReminderOnCheckoutAbandoned;
 use App\Listeners\SendDeliveryConfirmationOnFulfillmentCompleted;
+use App\Listeners\SendOrderCancellationNoticeOnOrderStatusChanged;
 use App\Listeners\SendOrderConfirmationOnOrderPlaced;
+use App\Listeners\SendPaymentFailureNoticeOnPaymentFailed;
 use App\Listeners\SendPaymentReceiptOnPaymentCaptured;
 use App\Listeners\SendRefundConfirmationOnPaymentRefunded;
 use App\Listeners\SendRefundIssuedOnRefundIssued;
@@ -44,7 +50,7 @@ class AppServiceProvider extends ServiceProvider
      * this platform has ever wired — ARCHITECTURE_REVIEW.md A-4 anticipated
      * exactly this) is registered here rather than inside either Orders or
      * Fulfillment's own ServiceProvider. Every subscription below follows
-     * the identical pattern. The eight Send*On*.php subscriptions are
+     * the identical pattern. The eleven Send*On*.php subscriptions are
      * Notifications' own event-consumption surface (`MODULE:NOTIFICATIONS`
      * "MUST subscribe to domain events") — see App\Listeners\
      * SendOrderConfirmationOnOrderPlaced's own docblock for the shared
@@ -107,6 +113,27 @@ class AppServiceProvider extends ServiceProvider
         $bus->subscribe(
             CustomerRegistered::class,
             [SendWelcomeEmailOnCustomerRegistered::class, 'handle'],
+        );
+
+        // Production Completion Plan v2, Milestone 3 — closes the three
+        // confirmed gaps: PaymentFailed and CheckoutAbandoned were
+        // previously published with no subscriber at all, and no listener
+        // reacted to an order's transition to cancelled (the backend
+        // cancellation capability itself — CancelOrderAction — was already
+        // real; only its own customer notification was missing).
+        $bus->subscribe(
+            PaymentFailed::class,
+            [SendPaymentFailureNoticeOnPaymentFailed::class, 'handle'],
+        );
+
+        $bus->subscribe(
+            CheckoutAbandoned::class,
+            [SendAbandonedCartReminderOnCheckoutAbandoned::class, 'handle'],
+        );
+
+        $bus->subscribe(
+            OrderStatusChanged::class,
+            [SendOrderCancellationNoticeOnOrderStatusChanged::class, 'handle'],
         );
     }
 }

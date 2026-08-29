@@ -39,7 +39,7 @@ use Throwable;
  * notification failure must never be able to break the workflow that
  * triggered it — so any failure here is reported (surfaced to the
  * application log, per PRINCIPLES:EXPLICIT_FAILURE) and swallowed, never
- * rethrown. Every one of this module's other seven listeners follows the
+ * rethrown. Every one of this module's other ten listeners follows the
  * identical pattern.
  */
 final readonly class SendOrderConfirmationOnOrderPlaced

@@ -89,6 +89,27 @@ class NotificationTemplateSeeder extends Seeder
                 'subject' => 'Welcome!',
                 'body' => "Hi there,\n\nThanks for creating an account with us. We're glad to have you!",
             ],
+            [
+                'code' => 'payment.failed',
+                'channel' => NotificationTemplate::CHANNEL_EMAIL,
+                'locale' => 'en',
+                'subject' => 'We couldn\'t process your payment for order {{order_number}}',
+                'body' => "Hi {{customer_name}},\n\nWe were unable to process your payment for order {{order_number}}: {{reason}}. Please try again or use a different payment method.",
+            ],
+            [
+                'code' => 'checkout.abandoned',
+                'channel' => NotificationTemplate::CHANNEL_EMAIL,
+                'locale' => 'en',
+                'subject' => 'You left something in your cart',
+                'body' => "Hi {{customer_name}},\n\nYou still have {{item_count}} item(s) totalling {{grand_total}} {{currency_code}} waiting in your cart. Come back whenever you're ready to complete your order.",
+            ],
+            [
+                'code' => 'order.cancelled',
+                'channel' => NotificationTemplate::CHANNEL_EMAIL,
+                'locale' => 'en',
+                'subject' => 'Your order {{order_number}} has been cancelled',
+                'body' => "Hi {{customer_name}},\n\nYour order {{order_number}} has been cancelled. If you believe this is a mistake or have any questions, please contact customer support.",
+            ],
         ];
     }
 }

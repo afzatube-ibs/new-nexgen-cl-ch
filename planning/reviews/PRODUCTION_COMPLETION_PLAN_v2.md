@@ -99,14 +99,14 @@ There is no single formula that would not be spuriously precise. Each module's %
 | **Production readiness** | High. |
 | Backend structure | 7 Actions, 4 Controllers, 4 Resources, 6 Models, 2 Events, 1 Console Command, 4 permissions. Deliberately thin by design (records figures Checkout already resolved, per its own arch-test-documented boundary). |
 | Missing Integrations | None found. |
-| Missing APIs | **`OrderCancelled` does not exist as an event or an action** — there is no real "cancel an order" capability in the backend at all today, staff or customer. This is a genuine, load-bearing gap: `MERCHANT_PRODUCTION_READINESS_AUDIT.md`-era assumptions that cancellation exists are not supported by this session's own code read. |
-| Missing UI | No Admin "Cancel order" action (consistent with the missing backend capability). No customer-facing order-cancellation request. |
-| Missing Admin | 14 files — order list/detail/timeline present; no cancel/refund-initiation action found in that surface. |
-| Missing Tests | 7 backend test files. |
-| Missing Documentation | The cancellation gap above is not flagged as a known gap in any current document. |
+| Missing APIs | **Corrected by Milestone 3's own direct code read — the original claim below was wrong.** ~~`OrderCancelled` does not exist as an event or an action — there is no real "cancel an order" capability in the backend at all today, staff or customer.~~ `Actions\CancelOrderAction` is real and complete: version-checked, audit-logged, publishes `OrderStatusChanged` (this module's one shared status-transition event, reused across every transition rather than one event class per transition — see that event's own docblock), wired to `OrderStatusController::cancel()` at `POST orders/{order}/cancel` behind `orders.orders.manage`, validated by `CancelOrderRequest`, and already has a real Admin UI (`OrderCancelDialog.tsx`) and test coverage (`OrderStatusTest.php`). The only real gap this milestone found was that nothing *notified the customer* of a cancellation — closed by `SendOrderCancellationNoticeOnOrderStatusChanged` (see Milestone 3 report). |
+| Missing UI | None — see correction above. |
+| Missing Admin | None — see correction above. |
+| Missing Tests | 7 backend test files (`OrderStatusTest.php` covers cancellation). |
+| Missing Documentation | None — corrected above. |
 | Missing Seeders | No demo-order seeder (expected — orders are transactional, not demo content). |
-| Missing Permissions | None found for what exists; a future `orders.orders.cancel` permission does not exist. |
-| Missing Events | `OrderCancelled` (see above) — this is the single most consequential missing event in the platform, since Notifications, Inventory (stock release), and Payments (refund trigger) would all need to react to it. |
+| Missing Permissions | None found — cancellation reuses the existing `orders.orders.manage` permission. |
+| Missing Events | None — `OrderStatusChanged` already covers this transition (see correction above). |
 | Missing Background Jobs | None. |
 | Missing Config | No `config/orders.php`. |
 | Missing Validation | None found for existing surface. |
@@ -417,7 +417,7 @@ These apply across most or all modules, not to any one of them:
 
 ## Part 3 — Production Milestones
 
-Each milestone is scoped to be independently shippable: it does not require any other milestone below to be started first (dependencies are called out explicitly where a soft benefit, not a hard requirement, exists). Ordered by production value first, effort-to-value ratio second. Milestone 1 (Checkout → Shipping Integration) is already shipped — see `NEXGEN_OVERNIGHT_SPRINT_MILESTONE_1_REPORT.md`.
+Each milestone is scoped to be independently shippable: it does not require any other milestone below to be started first (dependencies are called out explicitly where a soft benefit, not a hard requirement, exists). Ordered by production value first, effort-to-value ratio second. Milestone 1 (Checkout → Shipping Integration) is already shipped — see `NEXGEN_OVERNIGHT_SPRINT_MILESTONE_1_REPORT.md`. Milestone 2 (Product Pricing → Storefront) is shipped — see `MILESTONE_2_PRICING_STOREFRONT_COMPLETION_REPORT.md` (includes the Gateway service-account provisioning production-configuration fix). Milestone 3 (Notifications Completion) is shipped — see `MILESTONE_3_NOTIFICATIONS_COMPLETION_REPORT.md`.
 
 ### Milestone 2 — Product Pricing → Storefront
 - **Objective**: Compose real Pricing (+ tax, + active Promotions) into the Gateway and display it on every product card, product detail page, and cart/checkout summary — closing the platform's single most damaging gap ("Price coming soon" on every product, everywhere).
@@ -427,13 +427,13 @@ Each milestone is scoped to be independently shippable: it does not require any 
 - **Production value**: **Highest of any remaining item.** A store where no product ever shows a price is not a store a merchant can demo, let alone launch.
 - **Expected completion after**: Pricing 65% → ~90%.
 
-### Milestone 3 — Notifications Completion
-- **Objective**: Close the three confirmed gaps — a `PaymentFailed` listener + template, a `CheckoutAbandoned` listener + template, and a new `OrderCancelled` event in Orders (plus its own listener + template) — and add a minimal Admin UI for viewing notification logs and editing templates.
-- **Estimated files**: ~10–12 (2 new listeners, 1 new event + the Orders-side cancel Action that should emit it, 3 seeded templates, ~4–6 Admin files for a real template/log view).
-- **Estimated complexity**: Low. The pattern (a thin cross-domain listener calling `QueueNotificationAction`) is already established and proven 8 times over.
-- **Dependencies**: None. The `OrderCancelled` event is new work inside Orders but does not require any other milestone.
-- **Production value**: High, for low effort — closes real, customer-visible communication gaps (a shopper whose payment fails or who abandons a cart hears nothing today).
-- **Expected completion after**: Notifications 65% → ~90%; Orders gains real cancellation capability as a side effect.
+### Milestone 3 — Notifications Completion — ✅ Shipped
+- **Objective (corrected against code before implementation)**: Close the two real, confirmed gaps — `PaymentFailed` and `CheckoutAbandoned` were both published with zero subscribers. **Correction to this plan's original text**: order cancellation itself was never missing — `Actions\CancelOrderAction` already existed, complete, tested, and wired to a real Admin UI; the only real gap was that its `OrderStatusChanged` transition to `cancelled` had no notification listener either. No new event was needed.
+- **Files actually changed**: 3 new listeners (`SendPaymentFailureNoticeOnPaymentFailed`, `SendAbandonedCartReminderOnCheckoutAbandoned`, `SendOrderCancellationNoticeOnOrderStatusChanged`), `AppServiceProvider` (registrations), `NotificationTemplateSeeder` (+3 templates), `NotificationListenersTest` (+4 tests). Also fixed two newly-discovered decimal-cast bugs (`CheckoutSession`/`CheckoutItem`, same bug class Milestone 2 found on Pricing) hit while testing this change.
+- **Complexity**: Low, as predicted — the established pattern (a thin cross-domain listener calling `QueueNotificationAction`) needed no new framework code.
+- **Admin UI for notification logs/templates**: Not built this pass — descoped as a separate, larger Admin-surface gap (tracked under Milestone 6/7's own "Admin UI" pattern), not blocking the actual notification-delivery gap this milestone targeted.
+- **Production value**: High, for low effort — closes real, customer-visible communication gaps (a shopper whose payment fails or who abandons a cart now receives a real, template-driven email; a cancelled order now notifies its customer).
+- **Completion after**: Notifications ~65% → ~85% (delivery gaps closed; Admin UI for templates/logs remains a real, separate gap). See `MILESTONE_3_NOTIFICATIONS_COMPLETION_REPORT.md`.
 
 ### Milestone 4 — Storefront Search Wiring
 - **Objective**: Connect the already-real, already-working Gateway `/v1/search` route to `SearchOverlay`, and build a real `/search` results page with keyboard support, debounce, loading/empty states, and mobile support.

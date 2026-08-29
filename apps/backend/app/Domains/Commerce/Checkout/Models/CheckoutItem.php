@@ -48,6 +48,12 @@ final class CheckoutItem extends Model
     {
         return [
             'category_ids' => 'array',
+            // Matches the migration's own decimal(14,4) precision — see
+            // CheckoutSession::casts()'s own docblock for the bug class
+            // this closes (SQLite NUMERIC affinity round-tripping a
+            // decimal string as a plain int/float without it).
+            'unit_price' => 'decimal:4',
+            'tax_amount' => 'decimal:4',
         ];
     }
 
