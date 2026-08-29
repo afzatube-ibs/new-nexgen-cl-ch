@@ -114,23 +114,31 @@ export class BackendUpstreamError extends Error {
 }
 
 /**
- * The real backend's own standard Laravel validation-error shape
- * (`ValidationException::render()`) — `errors` is a field-keyed map of
- * one-or-more human-readable messages per field. Confirmed live (this
- * sprint's own end-to-end verification) to be what Checkout's own
- * field-level validation (e.g. `SetCheckoutAddressRequest`) returns.
+ * The real backend's own ONE, single, platform-wide error envelope for
+ * every exception it ever renders (`bootstrap/app.php`'s own `$envelope`
+ * closure, confirmed by direct source read — not inferred from response
+ * shapes alone, which is exactly how this function's own two prior,
+ * INCORRECT docblocks each got this wrong): `{"error": {"type",
+ * "message", "details"?}}`. `details` — present only for a real
+ * `ValidationException` — is Laravel's own `$e->errors()`: a field-keyed
+ * map of one-or-more messages per field (`{"email": ["..."]}`), never a
+ * top-level `errors` key with no `error` wrapper (Laravel's own
+ * out-of-the-box default shape, which this backend's own global handler
+ * always reshapes before it ever reaches a caller).
  *
- * **Real, live-found correction to this docblock's own earlier claim**:
- * this is NOT universal across every module, as first assumed — Payments'
- * own domain exceptions (e.g. `PaymentGatewayNotAvailable`, thrown when a
- * real `bkash`/`nagad`/`sslcommerz` gateway has no real credentials
- * configured) render through a DIFFERENT real shape entirely:
- * `{"error": {"type", "message"}}`, a single message, never a field map.
- * Confirmed live: `POST payments` with `gateway_code: 'bkash'` in this
- * installation returns exactly `{"error":{"type":"validation_failed",
- * "message":"Payment gateway [bkash] is not available."}}` — no `errors`
- * key at all. See `extractBackendErrorMessage` below for the function
- * that also recognizes this second, real shape.
+ * **Real, live-found correction to this function's own prior claims**:
+ * both a previous version of this docblock (which assumed a bare
+ * `{"errors": {...}}` with no wrapper) and the one before that (which
+ * additionally assumed Payments' own domain exceptions used a
+ * genuinely different second shape) were wrong — confirmed live via
+ * `POST /customers/login` with a wrong password returning exactly
+ * `{"error":{"type":"validation_failed","message":"The given data was
+ * invalid.","details":{"email":["The provided credentials are
+ * incorrect."]}}}`, and by reading `bootstrap/app.php`'s own `$envelope`
+ * closure directly: `details` is simply omitted (via `array_filter`)
+ * when an exception carries none — Payments' own domain exceptions were
+ * never a different shape, only this one shape's own optional field
+ * being absent.
  */
 export function extractBackendValidationDetails(body: unknown): Array<{ field: string; message: string }> | null {
   if (typeof body !== 'string' || body.length === 0) return null;
@@ -140,16 +148,18 @@ export function extractBackendValidationDetails(body: unknown): Array<{ field: s
   } catch {
     return null;
   }
-  if (typeof parsed !== 'object' || parsed === null || !('errors' in parsed)) return null;
-  const { errors } = parsed;
-  if (typeof errors !== 'object' || errors === null) return null;
+  if (typeof parsed !== 'object' || parsed === null || !('error' in parsed)) return null;
+  const { error } = parsed;
+  if (typeof error !== 'object' || error === null || !('details' in error)) return null;
+  const { details } = error as { details: unknown };
+  if (typeof details !== 'object' || details === null) return null;
 
-  const details: Array<{ field: string; message: string }> = [];
-  for (const [field, messages] of Object.entries(errors)) {
+  const result: Array<{ field: string; message: string }> = [];
+  for (const [field, messages] of Object.entries(details)) {
     const first: unknown = Array.isArray(messages) ? (messages as unknown[])[0] : messages;
-    if (typeof first === 'string') details.push({ field, message: first });
+    if (typeof first === 'string') result.push({ field, message: first });
   }
-  return details.length > 0 ? details : null;
+  return result.length > 0 ? result : null;
 }
 
 /**

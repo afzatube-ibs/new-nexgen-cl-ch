@@ -88,6 +88,18 @@ export async function logoutCustomer(token: string): Promise<void> {
   await gatewayRequest('v1/customers/logout', { method: 'POST', token });
 }
 
+/** Production Completion Plan v2, Milestone 5b (Password Reset). Always resolves — the real backend's own anti-enumeration response is identical whether or not the email matches a real account (see `RequestPasswordResetAction`'s own docblock). */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await gatewayRequest('v1/customers/password/forgot', { method: 'POST', body: { email } });
+}
+
+export async function resetPassword(email: string, token: string, password: string): Promise<void> {
+  await gatewayRequest('v1/customers/password/reset', {
+    method: 'POST',
+    body: { email, token, password, password_confirmation: password },
+  });
+}
+
 export async function getMyProfile(token: string): Promise<CustomerProfile> {
   const envelope = await gatewayRequest<{ data: CustomerProfile }>('v1/customers/me', { method: 'GET', token });
   return envelope.data;

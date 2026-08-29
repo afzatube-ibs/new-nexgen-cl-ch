@@ -65,6 +65,8 @@ export * from './auth/RegisterForm.js';
 export * from './auth/SignOutButton.js';
 export * from './auth/ProfileEditForm.js';
 export * from './auth/AddressBookManager.js';
+export * from './auth/ForgotPasswordForm.js';
+export * from './auth/ResetPasswordForm.js';
 
 // Beta Sprint 5 — `order/types.js` and `OrderConfirmationSummary.js` are
 // ALSO exported here (in addition to the main barrel above): the real

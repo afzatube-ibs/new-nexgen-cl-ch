@@ -39,6 +39,17 @@ const loginBodySchema = z.object({
   device_name: z.string().min(1).default('storefront'),
 });
 
+const forgotPasswordBodySchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordBodySchema = z.object({
+  email: z.string().email(),
+  token: z.string().min(1),
+  password: z.string().min(1),
+  password_confirmation: z.string().min(1),
+});
+
 const updateProfileBodySchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
@@ -86,6 +97,32 @@ export function registerCustomerRoutes(app: FastifyInstance, customerBackend: Cu
         correlationId: request.id,
       });
       return { data: result.data, meta: { requestId: request.id, token: result.meta.token } };
+    } catch (error) {
+      throw toGatewayError(error, 'customers');
+    }
+  });
+
+  // Production Completion Plan v2, Milestone 5b (Password Reset) — both
+  // genuinely public, pre-authentication, no token to forward. The real
+  // backend's own anti-enumeration discipline (identical response whether
+  // or not the email matches a real account) is preserved end to end —
+  // this Gateway relays the real backend's response body unchanged,
+  // never reshapes it into something that could leak more.
+  app.post(`${prefix}/customers/password/forgot`, async (request) => {
+    const body = forgotPasswordBodySchema.parse(request.body);
+    try {
+      const result = await customerBackend.post({ module: 'customers', path: 'customers/password/forgot', body, correlationId: request.id });
+      return { data: (result as { data: unknown }).data, meta: { requestId: request.id } };
+    } catch (error) {
+      throw toGatewayError(error, 'customers');
+    }
+  });
+
+  app.post(`${prefix}/customers/password/reset`, async (request) => {
+    const body = resetPasswordBodySchema.parse(request.body);
+    try {
+      const result = await customerBackend.post({ module: 'customers', path: 'customers/password/reset', body, correlationId: request.id });
+      return { data: (result as { data: unknown }).data, meta: { requestId: request.id } };
     } catch (error) {
       throw toGatewayError(error, 'customers');
     }

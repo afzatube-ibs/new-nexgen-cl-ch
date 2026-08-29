@@ -110,6 +110,13 @@ class NotificationTemplateSeeder extends Seeder
                 'subject' => 'Your order {{order_number}} has been cancelled',
                 'body' => "Hi {{customer_name}},\n\nYour order {{order_number}} has been cancelled. If you believe this is a mistake or have any questions, please contact customer support.",
             ],
+            [
+                'code' => 'customer.password_reset',
+                'channel' => NotificationTemplate::CHANNEL_EMAIL,
+                'locale' => 'en',
+                'subject' => 'Reset your password',
+                'body' => "Hi there,\n\nWe received a request to reset your password. Click the link below to choose a new one — this link expires in 60 minutes:\n\n{{reset_url}}\n\nIf you didn't request this, you can safely ignore this email.",
+            ],
         ];
     }
 }

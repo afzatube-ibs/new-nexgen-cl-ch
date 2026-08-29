@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Domains\Commerce\Checkout\Events\CheckoutAbandoned;
+use App\Domains\Commerce\Customers\Events\CustomerPasswordResetRequested;
 use App\Domains\Commerce\Customers\Events\CustomerRegistered;
 use App\Domains\Commerce\Orders\Events\OrderPlaced;
 use App\Domains\Commerce\Orders\Events\OrderStatusChanged;
@@ -22,6 +23,7 @@ use App\Listeners\SendAbandonedCartReminderOnCheckoutAbandoned;
 use App\Listeners\SendDeliveryConfirmationOnFulfillmentCompleted;
 use App\Listeners\SendOrderCancellationNoticeOnOrderStatusChanged;
 use App\Listeners\SendOrderConfirmationOnOrderPlaced;
+use App\Listeners\SendPasswordResetEmailOnCustomerPasswordResetRequested;
 use App\Listeners\SendPaymentFailureNoticeOnPaymentFailed;
 use App\Listeners\SendPaymentReceiptOnPaymentCaptured;
 use App\Listeners\SendRefundConfirmationOnPaymentRefunded;
@@ -50,7 +52,7 @@ class AppServiceProvider extends ServiceProvider
      * this platform has ever wired — ARCHITECTURE_REVIEW.md A-4 anticipated
      * exactly this) is registered here rather than inside either Orders or
      * Fulfillment's own ServiceProvider. Every subscription below follows
-     * the identical pattern. The eleven Send*On*.php subscriptions are
+     * the identical pattern. The twelve Send*On*.php subscriptions are
      * Notifications' own event-consumption surface (`MODULE:NOTIFICATIONS`
      * "MUST subscribe to domain events") — see App\Listeners\
      * SendOrderConfirmationOnOrderPlaced's own docblock for the shared
@@ -134,6 +136,13 @@ class AppServiceProvider extends ServiceProvider
         $bus->subscribe(
             OrderStatusChanged::class,
             [SendOrderCancellationNoticeOnOrderStatusChanged::class, 'handle'],
+        );
+
+        // Production Completion Plan v2, Milestone 5b — real password
+        // reset, its own real email.
+        $bus->subscribe(
+            CustomerPasswordResetRequested::class,
+            [SendPasswordResetEmailOnCustomerPasswordResetRequested::class, 'handle'],
         );
     }
 }

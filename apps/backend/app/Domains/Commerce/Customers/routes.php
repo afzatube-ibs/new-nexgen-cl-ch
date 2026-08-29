@@ -31,6 +31,7 @@ use App\Domains\Commerce\Customers\Http\Controllers\AuditLogController;
 use App\Domains\Commerce\Customers\Http\Controllers\CustomerAddressController;
 use App\Domains\Commerce\Customers\Http\Controllers\CustomerAuthController;
 use App\Domains\Commerce\Customers\Http\Controllers\CustomerController;
+use App\Domains\Commerce\Customers\Http\Controllers\CustomerPasswordResetController;
 use App\Domains\Commerce\Customers\Http\Controllers\CustomerSelfAddressController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,18 @@ Route::prefix('api/v1')->middleware('api')->group(function (): void {
         ->withoutMiddleware('throttle:api')
         ->middleware('throttle:login')
         ->name('v1.customers.login');
+
+    // Production Completion Plan v2, Milestone 5b (Password Reset) —
+    // genuinely public, pre-authentication, real anti-enumeration
+    // discipline (see CustomerPasswordResetController's own docblock).
+    Route::post('customers/password/forgot', [CustomerPasswordResetController::class, 'forgot'])
+        ->withoutMiddleware('throttle:api')
+        ->middleware('throttle:password-reset')
+        ->name('v1.customers.password.forgot');
+    Route::post('customers/password/reset', [CustomerPasswordResetController::class, 'reset'])
+        ->withoutMiddleware('throttle:api')
+        ->middleware('throttle:password-reset')
+        ->name('v1.customers.password.reset');
 
     Route::middleware(['auth:sanctum', 'customer.guard'])->group(function (): void {
         Route::post('customers/logout', [CustomerAuthController::class, 'logout'])->name('v1.customers.logout');

@@ -25,6 +25,42 @@ describe('routes/customers (integration — Category C, real per-request custome
     await app.close();
   });
 
+  it('POST /v1/customers/password/forgot forwards to the real backend with no Authorization header', async () => {
+    stubBackendFetch([{ match: 'customers/password/forgot', status: 200, body: { data: { message: 'If that email has an account, a password reset link was sent.' } } }]);
+    const app = await buildTestApp(testEnv());
+
+    const response = await app.inject({ method: 'POST', url: '/v1/customers/password/forgot', payload: { email: 'jane@example.test' } });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.message).toContain('password reset link was sent');
+    await app.close();
+  });
+
+  it('POST /v1/customers/password/reset relays a real validation failure (e.g. an invalid token) as a clean 422', async () => {
+    // The real backend's own ONE, confirmed, platform-wide error envelope
+    // (`bootstrap/app.php`'s own `$envelope` closure) — see
+    // extractBackendValidationDetails's own docblock for the two prior,
+    // incorrect assumptions this stub deliberately does NOT repeat.
+    stubBackendFetch([
+      {
+        match: 'customers/password/reset',
+        status: 422,
+        body: { error: { type: 'validation_failed', message: 'The given data was invalid.', details: { token: ['This password reset link is invalid or has expired.'] } } },
+      },
+    ]);
+    const app = await buildTestApp(testEnv());
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/customers/password/reset',
+      payload: { email: 'jane@example.test', token: 'wrong', password: 'Str0ng!Passw0rd#123', password_confirmation: 'Str0ng!Passw0rd#123' },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.details[0].message).toBe('This password reset link is invalid or has expired.');
+    await app.close();
+  });
+
   it('POST /v1/customers/login relays the real backend-issued token in meta.token', async () => {
     stubBackendFetch([
       { match: 'customers/login', status: 200, body: { data: { id: CUSTOMER_ID, email: 'jane@example.test' }, meta: { token: 'real-plaintext-token' } } },

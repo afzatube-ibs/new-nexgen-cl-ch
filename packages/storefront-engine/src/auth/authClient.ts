@@ -63,3 +63,11 @@ export function loginAccount(email: string, password: string): Promise<{ email: 
 export function logoutAccount(): Promise<void> {
   return authRequest('/api/auth/logout');
 }
+
+export function requestPasswordReset(email: string): Promise<{ message: string }> {
+  return authRequest('/api/auth/forgot-password', { email });
+}
+
+export function resetPassword(email: string, token: string, password: string): Promise<{ ok: true }> {
+  return authRequest('/api/auth/reset-password', { email, token, password });
+}

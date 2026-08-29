@@ -50,7 +50,12 @@ export function LoginForm({ redirectTo = '/account' }: LoginFormProps) {
       <CardContent className="pt-4">
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <Input label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Input label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <div className="flex flex-col gap-1.5">
+            <Input label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Link href="/forgot-password" className="self-end text-caption text-brand hover:underline">
+              Forgot password?
+            </Link>
+          </div>
           {error && (
             <Alert variant="danger" role="alert">
               {error}

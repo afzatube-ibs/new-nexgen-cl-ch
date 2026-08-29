@@ -123,4 +123,21 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Storefront URL
+    |--------------------------------------------------------------------------
+    |
+    | Production Completion Plan v2, Milestone 5b (Password Reset). The
+    | real, public origin of the Storefront app (`apps/storefront`,
+    | matching that app's own `NEXT_PUBLIC_SITE_URL`) — the one place a
+    | backend-issued email (a password reset link, today; a future order-
+    | status link) needs to build a real, absolute Storefront URL rather
+    | than a relative path meaningless outside the browser session that
+    | generated it.
+    |
+    */
+
+    'storefront_url' => env('STOREFRONT_URL', 'http://localhost:3000'),
+
 ];
