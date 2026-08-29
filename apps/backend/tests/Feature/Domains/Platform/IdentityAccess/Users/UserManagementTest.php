@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Domains\Platform\IdentityAccess\Audit\AuditLog;
+use App\Domains\Platform\IdentityAccess\Models\Permission;
+use App\Domains\Platform\IdentityAccess\Models\Role;
 use App\Domains\Platform\IdentityAccess\Models\User;
 use Illuminate\Support\Str;
 
@@ -24,6 +26,31 @@ it('lists users, paginated, for a caller with the view permission', function () 
     $response->assertOk()->assertJsonStructure(['data', 'links', 'meta']);
     // The caller itself + the 3 created = 4.
     expect($response->json('meta.total'))->toBe(4);
+});
+
+/**
+ * Production Completion Plan v2, Milestone 6 (Identity & Access Admin
+ * UI) — real, live-found regression: without eager-loading `roles` in
+ * `UserController::index()`, `UserResource`'s own `whenLoaded('roles')`
+ * omits the key entirely from every list-mode response (not `[]` —
+ * absent), confirmed live via a direct API call against the real
+ * backend, breaking the new Admin Staff list (`row.roles.length` on
+ * `undefined`). `show()` already loaded it; this is the identical fix
+ * applied to `index()`.
+ */
+it('includes each user\'s real roles in the list response, not just on show()', function () {
+    $caller = userWithPermissions(['identity_access.users.view']);
+    $role = Role::query()->create(['name' => 'list_regression_role', 'label' => 'List Regression Role']);
+    $staffMember = User::factory()->create();
+    $staffMember->roles()->attach($role);
+
+    $response = $this->actingAs($caller, 'sanctum')->getJson('/api/v1/users');
+
+    $response->assertOk();
+    $entry = collect($response->json('data'))->firstWhere('id', $staffMember->id);
+    expect($entry)->not->toBeNull();
+    expect($entry['roles'])->toBeArray();
+    expect(collect($entry['roles'])->pluck('id'))->toContain($role->id);
 });
 
 it('filters the user list by status', function () {
@@ -139,4 +166,28 @@ it('returns 404, not a stack trace, for a nonexistent user', function () {
         ->getJson('/api/v1/users/'.Str::uuid())
         ->assertStatus(404)
         ->assertJsonPath('error.type', 'not_found');
+});
+
+/**
+ * Production Completion Plan v2, Milestone 6 (Identity & Access Admin
+ * UI) — real, live-found regression: `UserController::show()`'s own
+ * `$user->load('roles')` left each role's own `permissions` key entirely
+ * absent (not `[]`) in the response, crashing the Admin's own
+ * `UserDetailPage` (`role.permissions.length` on `undefined`) for any
+ * real user holding a role with real permissions — including the very
+ * first Administrator account every fresh install creates.
+ */
+it('includes each role\'s own real permissions on show(), not just its id/label', function () {
+    $caller = userWithPermissions(['identity_access.users.view']);
+    $role = Role::query()->create(['name' => 'show_regression_role', 'label' => 'Show Regression Role']);
+    $permission = Permission::query()->create(['key' => 'orders.orders.view', 'label' => 'View Orders', 'module' => 'orders']);
+    $role->permissions()->attach($permission->id);
+    $target = User::factory()->create();
+    $target->roles()->attach($role->id);
+
+    $response = $this->actingAs($caller, 'sanctum')->getJson("/api/v1/users/{$target->id}");
+
+    $response->assertOk();
+    expect($response->json('data.roles.0.permissions'))->toBeArray();
+    expect(collect($response->json('data.roles.0.permissions'))->pluck('key'))->toContain($permission->key);
 });

@@ -10,7 +10,15 @@ export type { LoginResult } from './auth.js';
 export { listStores, updateStore } from './stores.js';
 export type { UpdateStoreInput } from './stores.js';
 
-export { listUsers } from './users.js';
+export { listUsers, listUsersPaginated, getUser, createUser, updateUser, archiveUser, deleteUser } from './users.js';
+export type { ListUsersQuery, CreateUserInput, UpdateUserInput } from './users.js';
+
+export { listRoles, getRole, createRole, updateRole, deleteRole } from './roles.js';
+export type { CreateRoleInput, UpdateRoleInput } from './roles.js';
+
+export { listPermissions } from './permissions.js';
+
+export { assignRole, revokeRole } from './userRoles.js';
 
 export * from './media.js';
 

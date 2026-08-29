@@ -41,7 +41,16 @@ final class UserController
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = User::query();
+        // Production Completion Plan v2, Milestone 6 (Identity & Access
+        // Admin UI) — real, live-found gap: without eager-loading `roles`
+        // here, `UserResource`'s own `$this->whenLoaded('roles')` omits
+        // the key entirely from every list-mode response (not `[]` —
+        // absent), confirmed live via a direct API call before this fix.
+        // `show()` already loads it (`$user->load('roles')`); the real
+        // Admin Staff list needs the identical data to display each
+        // user's role without an N+1 per row, mirroring
+        // `RoleController::index()`'s own `->with('permissions')`.
+        $query = User::query()->with('roles');
 
         // API:FILTERING: only fields explicitly published as filterable.
         if ($request->filled('status')) {
@@ -70,7 +79,16 @@ final class UserController
             targetId: $user->id,
         );
 
-        return new UserResource($user->load('roles'));
+        // Production Completion Plan v2, Milestone 6 (Identity & Access
+        // Admin UI) — real, live-found gap: `RoleResource`'s own
+        // `permissions` field is itself `whenLoaded('permissions')` — a
+        // bare `load('roles')` here leaves each role's own `permissions`
+        // key entirely absent (not `[]`), crashing the Admin's own
+        // `UserDetailPage` on `role.permissions.length`. `auth/me`
+        // already gets this right (`AuthController::me()`'s own
+        // `$user->load('roles.permissions')`) — this is the identical
+        // fix applied here.
+        return new UserResource($user->load('roles.permissions'));
     }
 
     public function store(RegisterUserRequest $request): JsonResponse

@@ -34,7 +34,10 @@ final class UserRoleController
 
         $this->assignRoleAction->execute($user, $role, $request->user()?->id);
 
-        return new UserResource($user->load('roles'));
+        // See UserController::show()'s own docblock for why this must be
+        // `roles.permissions`, not a bare `roles` — the identical
+        // real, live-found gap, in this endpoint's own response.
+        return new UserResource($user->load('roles.permissions'));
     }
 
     public function destroy(Request $request, User $user, Role $role): Response

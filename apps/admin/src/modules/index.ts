@@ -14,3 +14,4 @@ import './orders/module.js';
 import './shipping/module.js';
 import './payments/module.js';
 import './marketing/module.js';
+import './identity-access/module.js';
