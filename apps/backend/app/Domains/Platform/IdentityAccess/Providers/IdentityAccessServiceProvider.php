@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domains\Platform\IdentityAccess\Providers;
 
 use App\Domains\Platform\IdentityAccess\Console\Commands\CreateAdminCommand;
+use App\Domains\Platform\IdentityAccess\Console\Commands\CreateServiceAccountCommand;
 use App\Domains\Platform\IdentityAccess\Console\Commands\SyncPermissionsCommand;
 use App\Domains\Platform\IdentityAccess\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -41,6 +42,7 @@ final class IdentityAccessServiceProvider extends ServiceProvider
             $this->commands([
                 SyncPermissionsCommand::class,
                 CreateAdminCommand::class,
+                CreateServiceAccountCommand::class,
             ]);
         }
     }

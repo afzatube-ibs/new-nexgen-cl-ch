@@ -5,14 +5,19 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds only safe, credential-free catalog data — the permission registry
- * and the default Administrator role. Deliberately does NOT create any
- * User: seeding a default account with a known password would violate
- * SECURITY:SECURE_CONFIGURATION if this ever ran against a real
- * installation. The first real admin account is created explicitly via
- * `php artisan identity-access:create-admin`, which requires an
- * interactively-supplied (or explicitly-flagged) password — see that
- * command's docblock.
+ * Seeds only safe, credential-free catalog data — the permission registry,
+ * the default Administrator role, and (Milestone 2's own real production-
+ * configuration fix) the Store API Gateway's two real service-account
+ * roles (`ServiceAccountRoleSeeder`) — a role and its permission set are
+ * catalog data, not a credential. Deliberately does NOT create any User
+ * for any of these roles: seeding a default account with a known
+ * password (or a default Sanctum token) would violate SECURITY:SECURE_
+ * CONFIGURATION if this ever ran against a real installation. The first
+ * real admin account is created explicitly via `php artisan identity-
+ * access:create-admin`; a real Gateway service account (a real user plus
+ * a real, freshly-generated token) via `php artisan identity-access:
+ * create-service-account` — both require operator-driven input precisely
+ * because a seeder cannot safely generate either.
  */
 class DatabaseSeeder extends Seeder
 {
@@ -38,6 +43,7 @@ class DatabaseSeeder extends Seeder
             NotificationsPermissionSeeder::class,
             SearchPermissionSeeder::class,
             RoleSeeder::class,
+            ServiceAccountRoleSeeder::class,
             NotificationTemplateSeeder::class,
         ]);
     }
