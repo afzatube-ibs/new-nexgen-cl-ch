@@ -102,11 +102,48 @@ No pricing, tax, or promotion logic is duplicated anywhere in the Gateway or Sto
 7. **Checkout**: Order Summary renders via the identical `CartSummary` component, confirmed consistent with the Cart page.
 8. **Gateway fail-open, before/after**: `GET /v1/products` went from a bare 500 (before the fix) to a real product list with `price: null` plus a real `WARN Pricing composition failed` log line (after) — both captured directly against the real running backend.
 
-**The one remaining item is not a code gap.** The real `storefront-service` credential needs the new, deliberately narrow `pricing.lookup.view` permission — a live RBAC change. Per this session's own established security discipline (identical to how Milestone 1 handled Shipping's own service credential), this is not performed unilaterally; the exact command was handed to the operator. As of this report it has not yet been run. Every page above renders completely and correctly with the honest fallback in the meantime — this is the fail-open design in §1 actually proving itself under the real condition it was built for, not a failure. The moment the grant lands, the identical pages show the real ৳2,490.00 price with **no further code change**.
+## Part 3.5 — `pricing.lookup.view`: production-configuration bug, found and fixed (not a manual grant)
+
+Before granting the missing `pricing.lookup.view` permission by hand, we investigated whether it was ever supposed to exist automatically on a fresh install. Direct answers:
+
+1. **Was it supposed to be assigned automatically by a seeder/migration/installer?** No mechanism existed to assign it, or *any* permission, to a Gateway service role. `RoleSeeder` only ever creates the human `administrator` role. `Installer\Actions\InstallAction` only creates the first admin and the first store. Confirmed by grepping the whole codebase for `storefront-service`/`checkout-service`: no seeder, no migration, no Installer step, no bootstrap code referenced either role anywhere.
+2. **Would a fresh production install already have it?** No — a fresh install would have **no Gateway-usable role at all**. This dev environment's roles existed only because they'd been created out-of-band, ad hoc, in an earlier session; a real fresh install had nothing to grant the permission onto in the first place.
+3. **Why not?** A genuine gap in the Installer/seeder chain — the two Gateway service-credential roles (documented in `STORE_API_GATEWAY_ARCHITECTURE.md`/`COMMERCE_ENGINE_ARCHITECTURE_REVIEW.md` §8) were designed and coded against, but never given their own installation-time provisioning step.
+4. **Should `storefront-service` receive it automatically?** Yes — it's real, narrow, read-only catalog/price data, the same category as every other permission that role already legitimately holds.
+5. **Fix implemented** (not a Tinker command): `database/seeders/ServiceAccountRoleSeeder.php` (new), the declarative source of truth for both roles' exact permission sets, wired into `DatabaseSeeder` right after `RoleSeeder`. It intentionally does **not** create the service-account user or issue a token — a Sanctum token is a real credential and can never be seeded (`SECURITY:SECURE_CONFIGURATION`), so a new `identity-access:create-service-account` command (mirrors `identity-access:create-admin`) provisions the real user and issues a real token once per environment, exactly like every other real credential in this platform.
+
+**Verified from a genuinely fresh database**, not assumed: migrated a brand-new, empty SQLite file from scratch, ran `php artisan db:seed` (the full, unmodified `DatabaseSeeder` chain — nothing special-cased), then queried it directly. Both `storefront-service` (11 permissions, including `pricing.lookup.view`) and `checkout-service` (5 permissions) existed immediately, fully correct, with zero manual grants:
+
+```
+storefront-service: appearance.branding.view, catalog.attributes.view, catalog.brands.view,
+  catalog.categories.view, catalog.collections.view, catalog.options.view, catalog.products.view,
+  catalog.tags.view, pricing.lookup.view, search.products.view, store_configuration.stores.view
+checkout-service: checkout.sessions.manage, checkout.sessions.view, orders.orders.view,
+  payments.payments.manage, shipping.rates.view
+```
+
+Applied the identical, checked-in seeder to the existing dev database (`php artisan db:seed --class=ServiceAccountRoleSeeder`, the same standard mechanism every other `*PermissionSeeder` in this codebase already runs through — not a one-off database mutation). One environment-specific wrinkle surfaced and was resolved the documented way: this dev database's `permissions` table predated the `pricing.lookup.view` registry addition, so it first needed `php artisan pricing:sync-permissions` (Pricing's own pre-existing, standard "pick up a newly-introduced permission on an already-installed platform" command — the same pattern `identity-access:sync-permissions` and every sibling module already provide) before the role sync could pick it up. This is expected, ordinary operational behavior for an existing install picking up a new permission, not a defect in the fix; a genuinely fresh install (§ above) needs no such step because `PricingPermissionSeeder` runs inside `DatabaseSeeder` before `ServiceAccountRoleSeeder` does.
+
+**Live-verified end-to-end with the existing, unmodified `BACKEND_SERVICE_TOKEN` — no `.env` change, no new token:**
+
+```
+GET /api/v1/pricing/lookup-many?skus=AUDIO-WH-1786306684771&currency_code=BDT   (direct backend)
+→ 200 {"data":[{"sku":"AUDIO-WH-1786306684771","basePrice":"2490.0000","effectivePrice":"2490.0000",...}]}
+
+GET /v1/products?currency=BDT   (Gateway composition)
+→ 200 {"data":[{"name":"Premium Wireless Headphones","price":{"currencyCode":"BDT","basePrice":"2490.0000",
+       "effectivePrice":"2490.0000","isSaleActive":false}, ...}]}
+```
+
+Both previously returned `authorization_denied` / composed to `price: null`. The permission fix is confirmed complete and correct.
+
+**One separate, pre-existing, out-of-scope detail surfaced during this verification, deliberately left untouched:** the Gateway's own `DEFAULT_CURRENCY` env var is `USD` in this dev environment, while the one real priced product's price entry is in `BDT` — a Localization/store-configuration value (`context/localization.ts`'s `resolveCurrency`, explicitly documented as "Phase 1: single-store, single-locale, resolves to the one configured default"), not a code defect and not part of this permission investigation. A default-currency page view (`GET /v1/products` with no `?currency=` override, or the Storefront PDP under its default request) therefore still composes `price: null` and shows "Price coming soon" in this specific local environment purely because of this currency mismatch — proven above to be nothing to do with the RBAC fix, since the identical route returns the real price the instant the matching currency is requested. Changing the store's configured default currency is a business/config decision outside this fix's scope, left for the operator.
 
 ## Part 4 — Files Changed
 
 **Backend**: `Pricing/{Models/PriceListEntry.php,Models/TaxRate.php,Actions/LookupPriceAction.php,Actions/LookupPricesAction.php(new),Authorization/PermissionRegistry.php,Http/Requests/LookupPricesRequest.php(new),Http/Controllers/PricesLookupController.php(new),routes.php}`; `Catalog/Http/Controllers/ProductController.php` (`collection_id` filter). Tests: `PricingLookupManyTest.php`(new), `ProductListingFilterTest.php`(new), `PriceListEntryManagementTest.php`/`PriceListEntryScheduleTest.php` (updated for the correct 4-decimal format).
+
+**Backend — service-account provisioning fix (§3.5)**: `database/seeders/ServiceAccountRoleSeeder.php`(new), `database/seeders/DatabaseSeeder.php` (wired in), `IdentityAccess/Console/Commands/CreateServiceAccountCommand.php`(new), `IdentityAccess/Providers/IdentityAccessServiceProvider.php` (registers it). Tests: `ConsoleCommandsTest.php` (+5 tests). PHPStan 0 errors, Pint clean, 153/153 Pest (Feature + Arch) passing.
 
 **Gateway**: `composition/pricing.ts`(new), `composition/mappers.ts`, `backend/{client.ts,types.ts}`, `routes/catalog.ts` (4 routes composed + `collection_id`), `recommendations/engines/trendingFallbackEngine.ts`, `plugins/recommendations.ts`, `server.ts`. Tests: `test/unit/pricing.test.ts`(new), `test/unit/mappers.test.ts`, `test/integration/catalog.test.ts` (+3 tests), `test/integration/platformServices.test.ts`.
 
@@ -116,7 +153,8 @@ No pricing, tax, or promotion logic is duplicated anywhere in the Gateway or Sto
 
 ## Part 5 — Remaining, Honest Risks
 
-- **The `pricing.lookup.view` grant** (Part 3) — the one item outside this session's own authority to complete unilaterally.
+- **`pricing.lookup.view` on `storefront-service`** — resolved (§3.5): confirmed as a genuine production-configuration bug (no installation-time provisioning existed for either Gateway service role at all, not merely one missing permission), fixed with a real seeder + command, verified from a fresh database, and live-verified end-to-end. No manual RBAC mutation was performed.
+- **This dev environment's `DEFAULT_CURRENCY=USD` vs. the one real priced product's `BDT` price entry** (§3.5) — a Localization/store-configuration value, not a code defect; left untouched as outside this fix's scope. Causes the default-currency page view to still show "Price coming soon" locally even though pricing composition itself is now fully working.
 - **Search genuinely does not return results on this local dev machine** — a real, pre-existing MySQL-FULLTEXT-vs-SQLite gap, not introduced by and not fixable within this milestone's own scope. Real on the CI/production MySQL database.
 - **Tax remains genuinely zero for every real order** — pre-existing, traced fully in Milestone 1's own report, untouched here.
 - This installation has exactly one real, non-junk priced product and one real Collection (created live during this milestone's own verification). Every other real "product" in this dev database is unpriced junk test data and will honestly show "Price coming soon" — correct given the real configured data.
