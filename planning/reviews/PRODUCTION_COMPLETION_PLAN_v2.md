@@ -435,13 +435,11 @@ Each milestone is scoped to be independently shippable: it does not require any 
 - **Production value**: High, for low effort — closes real, customer-visible communication gaps (a shopper whose payment fails or who abandons a cart now receives a real, template-driven email; a cancelled order now notifies its customer).
 - **Completion after**: Notifications ~65% → ~85% (delivery gaps closed; Admin UI for templates/logs remains a real, separate gap). See `MILESTONE_3_NOTIFICATIONS_COMPLETION_REPORT.md`.
 
-### Milestone 4 — Storefront Search Wiring
-- **Objective**: Connect the already-real, already-working Gateway `/v1/search` route to `SearchOverlay`, and build a real `/search` results page with keyboard support, debounce, loading/empty states, and mobile support.
-- **Estimated files**: ~8–10 (Storefront: `SearchOverlay` real fetch + new `search/page.tsx` + results components, ~6–8 files; minor Gateway response-shape adjustments if needed, ~0–2 files).
-- **Estimated complexity**: Low-Medium — the backend and Gateway route are both already real; this is frontend wiring only.
-- **Dependencies**: None hard. Soft benefit from Milestone 2 (results would ideally show real prices).
-- **Production value**: High — search is a top-3 expected feature on any real storefront and currently shows "not available yet" on every query.
-- **Expected completion after**: Search 55% → ~85%.
+### Milestone 4 — Storefront Search Wiring — ✅ Already shipped (verified, not re-implemented)
+- **Found already complete** when re-verified against the repository before starting: this milestone's entire scope was delivered as a side effect of Milestone 2's own escalation round in this session (`SearchOverlay.tsx` real debounced fetch + `search/searchClient.ts` + `apps/storefront/src/app/search/page.tsx`, all already committed under the Milestone 2 commits). Re-confirmed by direct read: real 300ms debounce with `AbortController` request-superseding, real loading/error/honest-empty states, Enter/"see all results" navigates to a real paginated `/search` page reusing `ProductGrid` (so mobile responsiveness and real pricing come for free, the same shared path every other listing page uses), recent-search history preserved. `test/SearchOverlay.test.tsx` (5 tests) passing; full `storefront-engine` suite 113/113 passing.
+- **No new code required.** Nothing to implement, so nothing new to commit for this milestone beyond this correction.
+- **Genuinely remaining, not part of this milestone's original scope**: custom arrow-key result navigation within the overlay (Tab/Enter already work via native focusable `<a>` elements — this is a nice-to-have, not a functional gap); the real MySQL-FULLTEXT-vs-SQLite limitation (pre-existing, environment-specific, documented in Milestone 2's own report) still means this can't be demonstrated end-to-end on this local dev machine, but is real and correct against the CI/production MySQL database.
+- **Completion**: Search ~55% → ~85% (already reflected by Milestone 2's own report; no further change here).
 
 ### Milestone 5 — Customer Accounts (Storefront Authentication)
 - **Objective**: Real customer register/login/logout, a real `/account` area (profile, address book, order history), issued via a real, scoped customer session — the foundational gap that also unblocks verified-purchase Reviews later.
