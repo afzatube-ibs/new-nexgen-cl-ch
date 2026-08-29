@@ -17,6 +17,7 @@ export type GatewayErrorCode =
   | 'circuit_open'
   | 'upstream_error'
   | 'upstream_unavailable'
+  | 'unauthenticated'
   | 'internal_error';
 
 export interface GatewayErrorBody {
@@ -58,6 +59,24 @@ export class GatewayError extends Error {
 
   static rateLimited(message = 'Too many requests. Please try again shortly.'): GatewayError {
     return new GatewayError(429, 'rate_limited', message);
+  }
+
+  /**
+   * Production Completion Plan v2, Milestone 5 (Customer Accounts) — the
+   * first Gateway credential path (Category C, `CustomerBackendClient`)
+   * where a 401 from the real backend is an expected, routine outcome
+   * (the shopper isn't logged in, or their token expired/was revoked),
+   * never a Gateway misconfiguration. Every Category A/B call before this
+   * milestone used the Gateway's own always-valid fixed service
+   * credential, so a 401 there would have meant something was genuinely
+   * broken — correctly generic `upstream_error`/`upstream_unavailable`.
+   * This is deliberately its own code, not reused from `not_found` or
+   * `validation_failed`, so a Storefront caller can react to it
+   * specifically (e.g. redirect to `/login`) rather than pattern-match a
+   * message string.
+   */
+  static unauthenticated(message = 'You must be signed in to do that.'): GatewayError {
+    return new GatewayError(401, 'unauthenticated', message);
   }
 
   static circuitOpen(dependency: string): GatewayError {
@@ -187,6 +206,7 @@ export function toGatewayError(error: unknown, serviceName = 'catalog'): Gateway
     if (error.message.startsWith('circuit_open:')) {
       return GatewayError.circuitOpen(error.message.split(':')[1] ?? 'backend');
     }
+    if (error.upstreamStatus === 401) return GatewayError.unauthenticated();
     if (error.upstreamStatus === 404) return GatewayError.notFound();
     if (error.upstreamStatus === 422) {
       const details = extractBackendValidationDetails(error.upstreamBody);

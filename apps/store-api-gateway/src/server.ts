@@ -24,6 +24,7 @@ import { randomUUID } from 'node:crypto';
 import type { Env } from './config/env.js';
 import { BackendClient } from './backend/client.js';
 import { CheckoutBackendClient } from './backend/checkoutClient.js';
+import { CustomerBackendClient } from './backend/customerBackendClient.js';
 import { createInMemoryCacheStore, createRedisCacheStore, type CacheStore } from './lib/cacheStore.js';
 import { registerSecurityPlugins } from './plugins/security.js';
 import { registerGuestSessionHook } from './plugins/context.js';
@@ -41,7 +42,8 @@ import { registerEventRoutes } from './routes/events.js';
 import { registerRecommendationRoutes } from './routes/recommendations.js';
 import { registerPreviewRoutes } from './routes/preview.js';
 import { registerCheckoutRoutes } from './routes/checkout.js';
-import { registerOrderLookupRoutes } from './routes/orders.js';
+import { registerOrderLookupRoutes, registerCustomerOrderRoutes } from './routes/orders.js';
+import { registerCustomerRoutes } from './routes/customers.js';
 import { registerVersionedRoutes, CURRENT_VERSION } from './versioning/apiVersion.js';
 import { GatewayError, toGatewayError } from './lib/errors.js';
 
@@ -50,6 +52,8 @@ export interface GatewayServices {
   backend: BackendClient;
   /** Beta Sprint 5 — the real, separately-credentialed write path to Checkout/Shipping/Payments/Orders. See backend/checkoutClient.ts's own docblock. */
   checkoutBackend: CheckoutBackendClient;
+  /** Production Completion Plan v2, Milestone 5 — the real, per-request customer-credentialed path (Category C). See backend/customerBackendClient.ts's own docblock. */
+  customerBackend: CustomerBackendClient;
   cache: CacheStore;
 }
 
@@ -61,6 +65,8 @@ export interface BuildServerOptions {
   backend?: BackendClient;
   /** Injectable for tests — defaults to a real CheckoutBackendClient. */
   checkoutBackend?: CheckoutBackendClient;
+  /** Injectable for tests — defaults to a real CustomerBackendClient. */
+  customerBackend?: CustomerBackendClient;
   /** When true, the Event Pipeline uses an in-memory queue and never starts its background worker — set automatically by `buildTestServer`. */
   testMode?: boolean;
 }
@@ -95,6 +101,7 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
     backend: options.backend ?? new BackendClient({ baseUrl: env.BACKEND_BASE_URL, serviceToken: env.BACKEND_SERVICE_TOKEN, logger: app.log }),
     checkoutBackend:
       options.checkoutBackend ?? new CheckoutBackendClient({ baseUrl: env.BACKEND_BASE_URL, serviceToken: env.BACKEND_CHECKOUT_SERVICE_TOKEN, logger: app.log }),
+    customerBackend: options.customerBackend ?? new CustomerBackendClient({ baseUrl: env.BACKEND_BASE_URL, logger: app.log }),
   };
 
   // --- Pipeline stages, in order ---
@@ -157,6 +164,8 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
     registerPreviewRoutes(versionedApp, prefix);
     registerCheckoutRoutes(versionedApp, services.checkoutBackend, services.backend, prefix);
     registerOrderLookupRoutes(versionedApp, services.checkoutBackend, prefix);
+    registerCustomerRoutes(versionedApp, services.customerBackend, prefix);
+    registerCustomerOrderRoutes(versionedApp, services.customerBackend, prefix);
   });
 
   app.addHook('onClose', async () => {
@@ -166,7 +175,17 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
   return app;
 }
 
-/** Test-only convenience: an app wired to fully in-memory dependencies, no real Redis/backend required. */
+/**
+ * Test-only convenience: an app wired to fully in-memory dependencies, no
+ * real Redis/backend required. `customerBackend` is deliberately not a
+ * parameter here (unlike `backend`/`checkoutBackend`) — it carries no
+ * fixed credential of its own to inject (Category C forwards each
+ * caller's own token per-request), so a real instance pointed at the
+ * same stubbed `env.BACKEND_BASE_URL` the other two clients already use
+ * is equally "fully in-memory" for test purposes; a caller that needs to
+ * assert on it directly can still override it via `buildServer`'s own
+ * `customerBackend` option.
+ */
 export async function buildTestServer(env: Env, backend: BackendClient, checkoutBackend: CheckoutBackendClient): Promise<FastifyInstance> {
   return buildServer({ env, backend, checkoutBackend, cache: createInMemoryCacheStore(), testMode: true });
 }

@@ -48,7 +48,17 @@ Route::prefix('api/v1')->middleware('api')->group(function (): void {
         ->middleware('throttle:login')
         ->name('v1.auth.login');
 
-    Route::middleware('auth:sanctum')->group(function (): void {
+    // `staff.guard` (Http\Middleware\EnsureStaffPrincipal) closes the gap
+    // named in that middleware's own docblock: now that a real Customer
+    // Sanctum principal exists (Production Completion Plan v2, Milestone
+    // 5), `auth:sanctum` alone is no longer sufficient here — most routes
+    // below are already protected by their own `permission:` middleware
+    // (which a Customer's missing `can()` would fail-safe on anyway), but
+    // `auth/logout`/`auth/me` are not, and `users/{user}/sessions/*` are
+    // deliberately unguarded by `permission:` too (see SessionController's
+    // own docblock) — `staff.guard` on the whole group closes all of them
+    // at once, explicitly, rather than three separate special cases.
+    Route::middleware(['auth:sanctum', 'staff.guard'])->group(function (): void {
         Route::post('auth/logout', [AuthController::class, 'logout'])->name('v1.auth.logout');
         Route::get('auth/me', [AuthController::class, 'me'])->name('v1.auth.me');
 

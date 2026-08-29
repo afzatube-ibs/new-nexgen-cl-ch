@@ -53,6 +53,19 @@ export * from './checkout/checkoutClient.js';
 // Summary` (also main-barrel, a Server Component) needs it too.
 export * from './order/GuestOrderLookupForm.js';
 
+// Production Completion Plan v2, Milestone 5 (Customer Accounts) — same
+// reasoning as every export above: `authClient.ts` only ever calls this
+// app's own same-origin `/api/auth/*` Route Handlers, never `gateway/
+// *.ts` or `customerAuth.ts` (the real, server-only module those Route
+// Handlers themselves call) — genuinely client-only, by the identical
+// rule this file's own docblock established.
+export * from './auth/authClient.js';
+export * from './auth/LoginForm.js';
+export * from './auth/RegisterForm.js';
+export * from './auth/SignOutButton.js';
+export * from './auth/ProfileEditForm.js';
+export * from './auth/AddressBookManager.js';
+
 // Beta Sprint 5 — `order/types.js` and `OrderConfirmationSummary.js` are
 // ALSO exported here (in addition to the main barrel above): the real
 // `/checkout/success` page must read `sessionStorage` (browser-only), so

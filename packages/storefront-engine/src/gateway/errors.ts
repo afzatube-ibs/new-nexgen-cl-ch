@@ -5,6 +5,8 @@ export class GatewayRequestError extends Error {
   readonly status: number;
   readonly code: string;
   readonly requestId: string | undefined;
+  /** Present only for a `validation_failed` error — which field, and why. Added Production Completion Plan v2, Milestone 5, for real per-field form errors (register/login/profile/address forms). */
+  readonly details: Array<{ field?: string; message: string }> | undefined;
 
   constructor(status: number, body: GatewayErrorBody | undefined) {
     super(body?.error.message ?? `Gateway request failed with status ${status}`);
@@ -12,11 +14,26 @@ export class GatewayRequestError extends Error {
     this.status = status;
     this.code = body?.error.code ?? 'unknown_error';
     this.requestId = body?.meta.requestId;
+    this.details = body?.error.details;
   }
 
   /** True for a 404 from the Gateway — the one status every page-level `notFound()` boundary specifically checks for, per Next.js App Router's own convention. */
   get isNotFound(): boolean {
     return this.status === 404;
+  }
+
+  /**
+   * Production Completion Plan v2, Milestone 5 (Customer Accounts) — true
+   * for the Gateway's own `unauthenticated` code (see `apps/store-api-
+   * gateway/src/lib/errors.ts`'s own docblock for why this is a distinct
+   * code, not a generic `upstream_error`): the caller's session cookie is
+   * missing, expired, or was revoked. Every protected account page
+   * checks this specifically to redirect to `/login`, rather than
+   * rendering the generic error boundary for what is really just "please
+   * sign in."
+   */
+  get isUnauthenticated(): boolean {
+    return this.status === 401;
   }
 
   /**

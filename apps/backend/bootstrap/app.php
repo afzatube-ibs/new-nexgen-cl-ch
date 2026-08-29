@@ -10,6 +10,7 @@ use App\Domains\Commerce\Checkout\Exceptions\CheckoutSubmissionInProgressExcepti
 use App\Domains\Commerce\Checkout\Exceptions\CheckoutValidationException;
 use App\Domains\Commerce\Checkout\Exceptions\ConcurrencyConflictException as CheckoutConcurrencyConflictException;
 use App\Domains\Commerce\Customers\Exceptions\ConcurrencyConflictException as CustomersConcurrencyConflictException;
+use App\Domains\Commerce\Customers\Http\Middleware\EnsureCustomerPrincipal;
 use App\Domains\Commerce\Inventory\Exceptions\ConcurrencyConflictException as InventoryConcurrencyConflictException;
 use App\Domains\Commerce\Inventory\Exceptions\DependentRecordsExistException as InventoryDependentRecordsExistException;
 use App\Domains\Commerce\Inventory\Exceptions\InsufficientStockException;
@@ -46,6 +47,7 @@ use App\Domains\Platform\Foundation\Http\Middleware\SecurityHeaders;
 use App\Domains\Platform\IdentityAccess\Exceptions\AuthorizationDeniedException;
 use App\Domains\Platform\IdentityAccess\Exceptions\ConcurrencyConflictException;
 use App\Domains\Platform\IdentityAccess\Http\Middleware\EnsurePermission;
+use App\Domains\Platform\IdentityAccess\Http\Middleware\EnsureStaffPrincipal;
 use App\Domains\Platform\Installer\Exceptions\AdministratorRoleMissingException;
 use App\Domains\Platform\Installer\Exceptions\AlreadyInstalledException;
 use App\Domains\Platform\Localization\Exceptions\CannotRemoveBaseCurrencyException;
@@ -106,9 +108,28 @@ return Application::configure(basePath: dirname(__DIR__))
         // pure JSON API with no first-party HTML surface.
         $middleware->append(SecurityHeaders::class);
 
-        // SECURITY:AUTHORIZATION's API-boundary permission check, reusable
-        // by every route in every module — see EnsurePermission's docblock.
-        $middleware->alias(['permission' => EnsurePermission::class]);
+        // `Middleware::alias()` REPLACES its internal array on every call
+        // (`$this->customAliases = $aliases`, not a merge) — every alias
+        // this application registers MUST be in this one call, or a later
+        // call silently wipes out an earlier one. Found live: adding
+        // `staff.guard`/`customer.guard` in a second call broke every
+        // `permission:` middleware platform-wide ("Target class
+        // [permission] does not exist").
+        $middleware->alias([
+            // SECURITY:AUTHORIZATION's API-boundary permission check,
+            // reusable by every route in every module — see
+            // EnsurePermission's docblock.
+            'permission' => EnsurePermission::class,
+
+            // Production Completion Plan v2, Milestone 5 (Customer
+            // Accounts): two Sanctum principal types now exist on this
+            // platform (staff `User`, customer `Customer`) — these two
+            // aliases are the explicit, defense-in-depth check that a
+            // route meant for one never silently accepts the other's
+            // token. See each middleware's own docblock.
+            'staff.guard' => EnsureStaffPrincipal::class,
+            'customer.guard' => EnsureCustomerPrincipal::class,
+        ]);
 
         // Phase 1 Hardening Pass finding (2026-08-08): Laravel's default
         // `Illuminate\Auth\Middleware\Authenticate::redirectTo()` calls

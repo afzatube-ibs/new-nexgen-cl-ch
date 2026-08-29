@@ -158,4 +158,4 @@ async function gatewayFetchList<T>(path: string, options: GatewayFetchOptions = 
   return { data: envelope.data, pagination: envelope.meta.pagination };
 }
 
-export { gatewayFetch, gatewayFetchList };
+export { gatewayFetch, gatewayFetchList, GATEWAY_BASE_URL };

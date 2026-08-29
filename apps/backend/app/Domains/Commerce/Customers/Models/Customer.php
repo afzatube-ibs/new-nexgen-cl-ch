@@ -7,12 +7,15 @@ namespace App\Domains\Commerce\Customers\Models;
 use App\Domains\Commerce\Customers\Models\Concerns\HasOptimisticLocking;
 use App\Domains\Platform\Foundation\EventBus\TenantId;
 use Database\Factories\CustomerFactory;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * MODULE:CUSTOMERS' aggregate root — customer-facing account and profile
@@ -26,14 +29,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * `tenant_id` implements ARCH:DATA_OWNERSHIP's designed-in, unexercised
  * tenant boundary.
  *
- * Deliberately does not use Laravel\Sanctum\HasApiTokens: no self-service
- * authentication endpoint exists yet (see Actions\RegisterCustomerAction's
- * docblock for the full scoping rationale) — adding token-issuance
- * capability with nothing that ever calls it would be exactly the
- * speculative, unused infrastructure this platform's engineering
- * principles reject. `password` is still a real, hashed column now,
- * because a customer's credential is core to what this aggregate models,
- * even before a login route exists to use it.
+ * Production Completion Plan v2, Milestone 5 (Customer Accounts) — the
+ * self-service authentication endpoint Actions\RegisterCustomerAction's
+ * own docblock named as the reason `HasApiTokens` was withheld now exists
+ * (Actions\LoginCustomerAction, Http\Controllers\CustomerAuthController),
+ * so the trait is real, used infrastructure, not speculative. A Customer's
+ * token and a staff User's token share Sanctum's one polymorphic
+ * `personal_access_tokens` table (`tokenable_type` already discriminates
+ * by model class) but must never be interchangeable at the authorization
+ * boundary — see Http\Middleware\EnsureCustomerPrincipal and Identity &
+ * Access's own Http\Middleware\EnsureStaffPrincipal, the two explicit,
+ * defense-in-depth checks that make that boundary real rather than
+ * assumed. `Customer` still has no `hasPermission()`/`can()` capable of
+ * satisfying `permission:` (EnsurePermission requires that method to
+ * exist) or Identity & Access's own Gate::before — a customer's token can
+ * authenticate, never authorize, a staff-only action.
  *
  * @property string $id
  * @property string $tenant_id
@@ -44,10 +54,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $status
  * @property int $lock_version
  */
-final class Customer extends Model
+final class Customer extends Model implements AuthenticatableContract
 {
     /** @use HasFactory<CustomerFactory> */
-    use HasFactory, HasOptimisticLocking, HasUuids, SoftDeletes;
+    use Authenticatable, HasApiTokens, HasFactory, HasOptimisticLocking, HasUuids, SoftDeletes;
 
     public const string STATUS_ACTIVE = 'active';
 

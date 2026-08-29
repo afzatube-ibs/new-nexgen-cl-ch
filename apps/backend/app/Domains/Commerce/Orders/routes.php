@@ -14,10 +14,16 @@ declare(strict_types=1);
  *
  * `orders/audit-logs` is registered before the resourceful
  * `orders/{order}` group for the same readability/route-matching reason
- * every prior module's own routes.php already documents.
+ * every prior module's own routes.php already documents. Production
+ * Completion Plan v2, Milestone 5 (Customer Accounts): `orders/mine` and
+ * `orders/mine/{order}` are declared before `orders/{order}` for the
+ * identical reason — both are real, customer-guarded (`customer.guard`,
+ * never `permission:`, since a customer holds no staff permissions) self-
+ * service routes handled by CustomerOrderController, not OrderController.
  */
 
 use App\Domains\Commerce\Orders\Http\Controllers\AuditLogController;
+use App\Domains\Commerce\Orders\Http\Controllers\CustomerOrderController;
 use App\Domains\Commerce\Orders\Http\Controllers\OrderController;
 use App\Domains\Commerce\Orders\Http\Controllers\OrderNoteController;
 use App\Domains\Commerce\Orders\Http\Controllers\OrderStatusController;
@@ -27,6 +33,11 @@ use Illuminate\Support\Facades\Route;
 // every prior module's routes.php: this module registers routes from its
 // own service provider, not bootstrap/app.php's `withRouting(api: ...)`.
 Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function (): void {
+    Route::middleware('customer.guard')->group(function (): void {
+        Route::get('orders/mine', [CustomerOrderController::class, 'index'])->name('v1.orders.mine.index');
+        Route::get('orders/mine/{order}', [CustomerOrderController::class, 'show'])->name('v1.orders.mine.show');
+    });
+
     Route::get('orders/audit-logs', [AuditLogController::class, 'index'])
         ->middleware('permission:orders.audit_log.view')->name('v1.orders.audit-logs.index');
 

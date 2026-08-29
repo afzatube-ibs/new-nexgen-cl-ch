@@ -181,9 +181,29 @@ export function StoreHeader({ categories, branding }: StoreHeaderProps) {
             <button type="button" aria-label="Search" onClick={() => setSearchOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle">
               <Icon icon={Search} size="standalone" />
             </button>
-            <button type="button" aria-label="Account — coming soon" title="Coming soon" className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle">
+            {/*
+              Production Completion Plan v2, Milestone 5 (Customer
+              Accounts). Deliberately always links to `/account`, never
+              conditionally to `/login`: knowing real login state here
+              would require reading the (httpOnly, by design unreadable
+              client-side) session cookie in a Server Component ancestor
+              of this Client Component — which, in this app's current
+              (non-PPR) Next.js configuration, would force the ENTIRE
+              site into dynamic, per-request rendering, discarding every
+              page's own real ISR caching just to color one header icon.
+              `/account`'s own layout already redirects to `/login`
+              (round-tripping back to `/account` after signing in) for a
+              visitor with no real session — the identical end result,
+              at zero cost to the rest of the site's performance.
+            */}
+            <Link
+              href="/account"
+              aria-label="My account"
+              title="My account"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle"
+            >
               <Icon icon={User} size="standalone" />
-            </button>
+            </Link>
             <button
               type="button"
               aria-label={activeItemCount > 0 ? `Open cart, ${activeItemCount} item${activeItemCount === 1 ? '' : 's'}` : 'Open cart'}
