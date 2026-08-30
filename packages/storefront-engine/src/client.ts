@@ -80,3 +80,11 @@ export * from './auth/ResetPasswordForm.js';
 // is this codebase's own established fix for exactly this situation.
 export * from './order/types.js';
 export * from './order/OrderConfirmationSummary.js';
+
+// Production Completion Plan v2, Milestone 11 (Reviews Foundation) — same
+// reasoning as `auth/authClient.ts`/`LoginForm.tsx` above: `reviewFormClient.ts`
+// only ever calls this app's own same-origin `/api/reviews` Route Handler,
+// never `gateway/reviews.ts` (the real, server-only module that Route
+// Handler itself calls) — genuinely client-only.
+export * from './reviews/reviewFormClient.js';
+export * from './reviews/ReviewForm.js';

@@ -24,7 +24,10 @@ import type { FastifyBaseLogger } from 'fastify';
 import { CircuitBreaker } from '../lib/circuitBreaker.js';
 import { BackendUpstreamError } from '../lib/errors.js';
 
-export type CustomerBackendModule = 'customers' | 'orders';
+// `reviews` added Milestone 11 (Reviews Foundation) — the real
+// customer-authenticated `POST reviews` submission (`routes/reviews.ts`),
+// forwarding the caller's own token exactly like every other module here.
+export type CustomerBackendModule = 'customers' | 'orders' | 'reviews';
 
 export interface CustomerBackendClientOptions {
   baseUrl: string;

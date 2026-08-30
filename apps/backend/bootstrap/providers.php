@@ -8,6 +8,7 @@ use App\Domains\Commerce\Orders\Providers\OrdersServiceProvider;
 use App\Domains\Commerce\Payments\Providers\PaymentsServiceProvider;
 use App\Domains\Commerce\Pricing\Providers\PricingServiceProvider;
 use App\Domains\Commerce\Promotions\Providers\PromotionsServiceProvider;
+use App\Domains\Commerce\Reviews\Providers\ReviewsServiceProvider;
 use App\Domains\Commerce\Search\Providers\SearchServiceProvider;
 use App\Domains\Operations\Fulfillment\Providers\FulfillmentServiceProvider;
 use App\Domains\Operations\Notifications\Providers\NotificationsServiceProvider;
@@ -44,4 +45,5 @@ return [
     ReturnsServiceProvider::class,
     NotificationsServiceProvider::class,
     SearchServiceProvider::class,
+    ReviewsServiceProvider::class,
 ];

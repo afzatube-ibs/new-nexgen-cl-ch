@@ -28,6 +28,9 @@ use App\Domains\Commerce\Pricing\Exceptions\DependentRecordsExistException as Pr
 use App\Domains\Commerce\Promotions\Exceptions\ConcurrencyConflictException as PromotionsConcurrencyConflictException;
 use App\Domains\Commerce\Promotions\Exceptions\PromotionNotEligibleException;
 use App\Domains\Commerce\Promotions\Exceptions\UsageLimitExceededException;
+use App\Domains\Commerce\Reviews\Exceptions\ConcurrencyConflictException as ReviewsConcurrencyConflictException;
+use App\Domains\Commerce\Reviews\Exceptions\DuplicateReviewException;
+use App\Domains\Commerce\Reviews\Exceptions\InvalidReviewStatusTransitionException;
 use App\Domains\Operations\Fulfillment\Exceptions\ConcurrencyConflictException as FulfillmentConcurrencyConflictException;
 use App\Domains\Operations\Fulfillment\Exceptions\InvalidShipmentStatusTransitionException;
 use App\Domains\Operations\Fulfillment\Exceptions\ShipmentValidationException;
@@ -450,6 +453,25 @@ return Application::configure(basePath: dirname(__DIR__))
         // details, courier unavailable for pickup, ...).
         $exceptions->render(function (ReturnValidationException $e) use ($envelope): JsonResponse {
             return $envelope('validation_failed', $e->getMessage(), details: ['reason' => $e->reasonCode], status: 422);
+        });
+
+        // Reviews' own optimistic-locking conflict.
+        $exceptions->render(function (ReviewsConcurrencyConflictException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Reviews' real `unique(tenant_id, customer_id, product_id)`
+        // constraint — a genuine conflict, not a validation failure.
+        $exceptions->render(function (DuplicateReviewException $e) use ($envelope): JsonResponse {
+            return $envelope('conflict', $e->getMessage(), status: 409);
+        });
+
+        // Reviews' moderation status-lifecycle guard — a well-formed
+        // request naming a real review and a real status that is
+        // nonetheless not reachable from where the review currently
+        // stands.
+        $exceptions->render(function (InvalidReviewStatusTransitionException $e) use ($envelope): JsonResponse {
+            return $envelope('validation_failed', $e->getMessage(), status: 422);
         });
 
         // Notifications' own optimistic-locking conflict.

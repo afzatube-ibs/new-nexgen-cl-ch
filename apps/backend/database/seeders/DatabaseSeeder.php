@@ -42,6 +42,7 @@ class DatabaseSeeder extends Seeder
             ReturnsPermissionSeeder::class,
             NotificationsPermissionSeeder::class,
             SearchPermissionSeeder::class,
+            ReviewsPermissionSeeder::class,
             RoleSeeder::class,
             ServiceAccountRoleSeeder::class,
             NotificationTemplateSeeder::class,

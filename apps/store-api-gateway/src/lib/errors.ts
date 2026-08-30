@@ -13,6 +13,7 @@ import { ZodError } from 'zod';
 export type GatewayErrorCode =
   | 'validation_failed'
   | 'not_found'
+  | 'conflict'
   | 'rate_limited'
   | 'circuit_open'
   | 'upstream_error'
@@ -77,6 +78,28 @@ export class GatewayError extends Error {
    */
   static unauthenticated(message = 'You must be signed in to do that.'): GatewayError {
     return new GatewayError(401, 'unauthenticated', message);
+  }
+
+  /**
+   * Real, live-found fix: a real backend 409 (a genuine business
+   * conflict — a duplicate resource, a stale optimistic-lock version, a
+   * submission already in progress) previously had no dedicated mapping
+   * at all and fell through `toGatewayError`'s generic catch-all,
+   * surfacing to every caller as a fabricated 502 `upstream_error` with a
+   * useless "the X service returned an unexpected response" message —
+   * discovered live while testing Milestone 11 (Reviews Foundation)'s
+   * own real `DuplicateReviewException` (a customer submitting a second
+   * review on the same product), but the gap was platform-wide: every
+   * other module's own real 409 (Checkout's in-progress-submission guard,
+   * Payments' duplicate-payment guard, every module's own optimistic-
+   * locking conflict) reaching the Gateway through `BackendUpstreamError`
+   * had the identical bug, just never exercised through this path before.
+   * `conflict` is its own distinct code (mirroring `unauthenticated`'s own
+   * precedent) so a caller can react to it specifically — never lump a
+   * real, actionable conflict in with a genuine upstream failure.
+   */
+  static conflict(message: string): GatewayError {
+    return new GatewayError(409, 'conflict', message);
   }
 
   static circuitOpen(dependency: string): GatewayError {
@@ -151,7 +174,7 @@ export function extractBackendValidationDetails(body: unknown): Array<{ field: s
   if (typeof parsed !== 'object' || parsed === null || !('error' in parsed)) return null;
   const { error } = parsed;
   if (typeof error !== 'object' || error === null || !('details' in error)) return null;
-  const { details } = error as { details: unknown };
+  const { details } = error;
   if (typeof details !== 'object' || details === null) return null;
 
   const result: Array<{ field: string; message: string }> = [];
@@ -221,6 +244,10 @@ export function toGatewayError(error: unknown, serviceName = 'catalog'): Gateway
     if (error.upstreamStatus === 422) {
       const details = extractBackendValidationDetails(error.upstreamBody);
       if (details) return GatewayError.validation(details);
+    }
+    if (error.upstreamStatus === 409) {
+      const message = extractBackendErrorMessage(error.upstreamBody);
+      if (message) return GatewayError.conflict(message);
     }
     if (error.upstreamStatus === null) {
       return new GatewayError(503, 'upstream_unavailable', `The ${serviceName} service is temporarily unavailable.`);

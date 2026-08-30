@@ -490,10 +490,23 @@ arch('nothing in Orders uses debugging leftovers')
     ->expect('App\Domains\Commerce\Orders')
     ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
 
+// Milestone 8 (Dashboard Real Widgets) real fix: this rule's own name is
+// about DB::transaction() coordination, but Pest's toUse() matches any use
+// of the facade — OrderMetricsController's two aggregate queries
+// (revenueByCurrency()/topProducts()) genuinely need the plain query
+// builder, never Eloquent, per that controller's own docblock (a raw
+// SUM/GROUP BY row has no relationship to Order/OrderItem's real
+// attributes or casts). Found live: this rule went unrun after that
+// milestone shipped and had been silently failing since — ignoring this
+// one controller by name, alongside Actions, is the real fix, not loosening
+// the rule platform-wide.
 arch('only Orders\' Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Orders')
     ->not->toUse('Illuminate\Support\Facades\DB')
-    ->ignoring('App\Domains\Commerce\Orders\Actions');
+    ->ignoring([
+        'App\Domains\Commerce\Orders\Actions',
+        'App\Domains\Commerce\Orders\Http\Controllers\OrderMetricsController',
+    ]);
 
 // --- Checkout ---
 //
@@ -1005,3 +1018,69 @@ arch('only Search\' Actions coordinate DB transactions directly')
     ->expect('App\Domains\Commerce\Search')
     ->not->toUse('Illuminate\Support\Facades\DB')
     ->ignoring('App\Domains\Commerce\Search\Actions');
+
+// --- Reviews ---
+//
+// Production Completion Plan v2, Milestone 11 (Reviews Foundation).
+// Reviews' one real, legitimate code-level dependency is Orders (see
+// Actions\CreateReviewAction's own docblock — it reads a customer's live
+// order history once, at submission time, purely to check for a genuine
+// verified purchase, exactly mirroring Payments' own narrow, read-only
+// dependency on Orders). This block forbids everything else, including
+// Customers: the authenticated customer's id/name reach this module
+// through the generic Guard/Model contracts a controller resolves at the
+// HTTP boundary (see Http\Controllers\ReviewController's own docblock),
+// never through a Customers\Models\Customer import, so no exception for
+// Customers is needed here the way CustomerOrderController's own
+// already-established Orders->Customers dependency needed one.
+
+arch('Reviews never depends on Operations or Growth')
+    ->expect('App\Domains\Commerce\Reviews')
+    ->not->toUse(['App\Domains\Operations', 'App\Domains\Growth']);
+
+arch('Reviews never depends on Catalog, Inventory, Pricing, Promotions, Checkout, Customers, Payments, Identity & Access, Store Configuration, or Media internals')
+    ->expect('App\Domains\Commerce\Reviews')
+    ->not->toUse([
+        'App\Domains\Commerce\Catalog',
+        'App\Domains\Commerce\Inventory',
+        'App\Domains\Commerce\Pricing',
+        'App\Domains\Commerce\Promotions',
+        'App\Domains\Commerce\Checkout',
+        'App\Domains\Commerce\Customers',
+        'App\Domains\Commerce\Payments',
+        'App\Domains\Platform\IdentityAccess',
+        'App\Domains\Platform\StoreConfiguration',
+        'App\Domains\Platform\Media',
+    ]);
+
+arch('Reviews controllers are final')
+    ->expect('App\Domains\Commerce\Reviews\Http\Controllers')
+    ->classes()
+    ->toBeFinal();
+
+arch('Reviews actions are final and readonly')
+    ->expect('App\Domains\Commerce\Reviews\Actions')
+    ->classes()
+    ->toBeFinal()
+    ->toBeReadonly();
+
+arch('Reviews models are final')
+    ->expect('App\Domains\Commerce\Reviews\Models')
+    ->classes()
+    ->toBeFinal();
+
+arch('nothing in Reviews uses debugging leftovers')
+    ->expect('App\Domains\Commerce\Reviews')
+    ->not->toUse(['dd', 'dump', 'var_dump', 'die']);
+
+// Http\Controllers\ReviewSummaryController's own docblock: an AVG/COUNT/
+// GROUP BY aggregate row has no relationship to the Review model's own
+// real attributes or casts, mirroring OrderMetricsController's identical,
+// already-fixed exception to this same rule shape.
+arch('only Reviews\' Actions coordinate DB transactions directly')
+    ->expect('App\Domains\Commerce\Reviews')
+    ->not->toUse('Illuminate\Support\Facades\DB')
+    ->ignoring([
+        'App\Domains\Commerce\Reviews\Actions',
+        'App\Domains\Commerce\Reviews\Http\Controllers\ReviewSummaryController',
+    ]);

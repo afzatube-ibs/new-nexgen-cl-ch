@@ -27,10 +27,12 @@ import {
   getBrand,
   getProduct,
   getRecommendations,
+  getReviews,
+  getReviewSummary,
   toMoney,
   type CourierId,
 } from '@nexgen/storefront-engine';
-import { AddToCartButton, BuyNowButton } from '@nexgen/storefront-engine/client';
+import { AddToCartButton, BuyNowButton, ReviewForm } from '@nexgen/storefront-engine/client';
 import { Badge, Text } from '@nexgen/ui';
 import { ShareButton } from '@/components/ShareButton';
 import { ViewTracker } from '@/components/ViewTracker';
@@ -189,23 +191,43 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  *
  * **Beta Milestone 2.6 additions** — Commerce Readiness Layer, "Review
  * Foundation" and "Shipping Presentation" areas wired live:
- * - `RatingSummary`/`ReviewList` ✅ rendered with `averageRating={null}
- *   totalCount={0} reviews={[]}` — **honestly empty**, since no Review
- *   backend exists yet (no such module in `apps/backend`). Real
- *   components, real empty state ("No reviews yet"), not a fake 4.8★.
- * - `QASection` ✅ same treatment — `questions={[]}`, real "No questions
- *   yet" empty state, no Q&A backend exists.
  * - `ShippingCalculator` ✅ real working form nested inside the existing
  *   "Shipping information" disclosure — submitting shows an honest "not
  *   available yet" result (`Newsletter.tsx`'s own established pattern),
  *   never a fabricated shipping cost.
  * - **Deliberately not wired here**: `VariantSelector` (`ProductDetail`
- *   carries no variant data at all yet), `ReviewFilters`/`ReviewSort`
- *   (filtering/sorting an always-empty review list has no real purpose
- *   until reviews exist), real per-product delivery estimates/urgency
- *   counts (no real per-SKU inventory-count or order-velocity data is
- *   composed to the Storefront yet — inventing either would violate
- *   `NEXGEN_STOREFRONT_DESIGN_DNA.md` §0's anti-fabrication refusal).
+ *   carries no variant data at all yet), real per-product delivery
+ *   estimates/urgency counts (no real per-SKU inventory-count or
+ *   order-velocity data is composed to the Storefront yet — inventing
+ *   either would violate `NEXGEN_STOREFRONT_DESIGN_DNA.md` §0's
+ *   anti-fabrication refusal).
+ *
+ * **Production Completion Plan v2, Milestone 11 (Reviews Foundation) —
+ * real reviews now wired, replacing Beta Milestone 2.6's honestly-empty
+ * placeholder**: `RatingSummary`/`ReviewList` render the real
+ * `getReviewSummary`/`getReviews` composition (approved reviews only,
+ * per the Gateway's own `routes/reviews.ts` docblock) — a genuinely
+ * unreviewed product still shows the identical honest "No reviews yet"
+ * empty state these components always had, now backed by a real,
+ * verified absence of data rather than a hardcoded one. `ReviewForm`
+ * (`@nexgen/storefront-engine/client`) is the real submission path,
+ * customer-authenticated only — deliberately never gated by a
+ * server-computed "is this visitor signed in" prop here, since reading
+ * the session cookie on this route would force the whole PDP out of
+ * static generation (see `app/page.tsx`'s own "deliberately does not
+ * forward the incoming request's Cookie header" rule, which applies
+ * identically here). `ReviewForm` itself discovers a signed-out caller
+ * from its own submission attempt's real 401 response and switches to a
+ * "sign in to review" prompt at that point — the PDP itself stays fully
+ * cacheable. `QASection` is left
+ * exactly as Beta Milestone 2.6 shipped it (`questions={[]}`): no Q&A
+ * backend exists anywhere in this platform, and Reviews Foundation's own
+ * scope is ratings/reviews only, never conflated with a distinct,
+ * unbuilt Q&A capability. `ReviewFilters`/`ReviewSort` remain unwired for
+ * the same reason as before — real data now exists, but adding
+ * client-side filter/sort state to this Server Component page is a
+ * separate, deliberately-scoped follow-up, not silently bundled into
+ * this milestone's own backend-and-submission-path objective.
  *
  * **Beta Sprint 3 — Cart Engine**: a real `AddToCartButton` sits in the
  * desktop info column and `StickyMobileBuyBar` takes the real
@@ -219,10 +241,18 @@ export default async function ProductPage({ params }: PageProps) {
   const { idSlug } = await params;
   const product = await loadProduct(idSlug);
 
-  const [brand, related, recommended] = await Promise.all([
+  const emptyReviewSummary = { averageRating: null, totalCount: 0, distribution: [] };
+
+  const [brand, related, recommended, reviewsResult, reviewSummary] = await Promise.all([
     product.brandId ? getBrand(product.brandId).catch(() => null) : Promise.resolve(null),
     getRecommendations({ slot: 'related', productId: product.id, limit: 8 }, { revalidateSeconds: 180 }),
     getRecommendations({ slot: 'recommended', productId: product.id, limit: 8 }, { revalidateSeconds: 300 }),
+    // Fails open to an honest empty list, never taking down the whole PDP —
+    // the same "a struggling secondary read must never break primary
+    // browsing" discipline `composition/pricing.ts`'s own docblock
+    // established for Pricing, applied here to Reviews.
+    getReviews(product.id, { revalidateSeconds: 60 }).catch(() => ({ data: [], pagination: undefined })),
+    getReviewSummary(product.id, { revalidateSeconds: 60 }).catch(() => emptyReviewSummary),
   ]);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
@@ -410,8 +440,9 @@ export default async function ProductPage({ params }: PageProps) {
 
       <div className="flex flex-col gap-6">
         <SectionHeader eyebrow="Reviews" heading="Ratings & reviews" />
-        <RatingSummary averageRating={null} totalCount={0} />
-        <ReviewList reviews={[]} />
+        <RatingSummary averageRating={reviewSummary.averageRating} totalCount={reviewSummary.totalCount} distribution={reviewSummary.distribution} />
+        <ReviewList reviews={reviewsResult.data} />
+        <ReviewForm productId={product.id} className="max-w-xl" />
       </div>
 
       <div className="flex flex-col gap-6">

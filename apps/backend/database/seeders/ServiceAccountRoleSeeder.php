@@ -79,6 +79,12 @@ class ServiceAccountRoleSeeder extends Seeder
             // already granted in every installation this seeder has been
             // checked against.
             'pricing.lookup.view',
+            // Production Completion Plan v2, Milestone 11 (Reviews
+            // Foundation) — the real, narrow permission the Gateway's own
+            // public reviews listing/summary composition needs, mirroring
+            // every other `*.view` permission already granted above for
+            // the identical reason.
+            'reviews.reviews.view',
         ]);
 
         $this->syncRole('checkout-service', 'Checkout Service (Gateway, Category-B guest checkout)', [

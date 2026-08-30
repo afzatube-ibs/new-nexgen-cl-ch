@@ -44,6 +44,7 @@ import { registerPreviewRoutes } from './routes/preview.js';
 import { registerCheckoutRoutes } from './routes/checkout.js';
 import { registerOrderLookupRoutes, registerCustomerOrderRoutes } from './routes/orders.js';
 import { registerCustomerRoutes } from './routes/customers.js';
+import { registerReviewRoutes } from './routes/reviews.js';
 import { registerVersionedRoutes, CURRENT_VERSION } from './versioning/apiVersion.js';
 import { GatewayError, toGatewayError } from './lib/errors.js';
 
@@ -166,6 +167,7 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
     registerOrderLookupRoutes(versionedApp, services.checkoutBackend, prefix);
     registerCustomerRoutes(versionedApp, services.customerBackend, prefix);
     registerCustomerOrderRoutes(versionedApp, services.customerBackend, prefix);
+    registerReviewRoutes(versionedApp, services, services.customerBackend, prefix);
   });
 
   app.addHook('onClose', async () => {

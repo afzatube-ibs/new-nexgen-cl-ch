@@ -13,6 +13,7 @@ export * from './gateway/client.js';
 export * from './gateway/catalog.js';
 export * from './gateway/recommendations.js';
 export * from './gateway/customerAuth.js';
+export * from './gateway/reviews.js';
 
 export * from './context/storeContext.js';
 

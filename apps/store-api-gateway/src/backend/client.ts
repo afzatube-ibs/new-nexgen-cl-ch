@@ -29,8 +29,10 @@ import type { BackendItemResponse, BackendListResponse } from './types.js';
 // or vice versa. `pricing` added Milestone 2 — the real, batched
 // `pricing/lookup-many` composition (`composition/pricing.ts`), on its
 // own breaker for the identical reason: a struggling Pricing read should
-// never trip Catalog's.
-export type BackendModule = 'catalog' | 'search' | 'branding' | 'pricing';
+// never trip Catalog's. `reviews` added Milestone 11 — the real, public
+// `reviews`/`reviews/summary` reads (`routes/reviews.ts`), on its own
+// breaker for the same reason.
+export type BackendModule = 'catalog' | 'search' | 'branding' | 'pricing' | 'reviews';
 
 export interface BackendClientOptions {
   baseUrl: string;
