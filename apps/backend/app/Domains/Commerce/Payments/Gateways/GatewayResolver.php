@@ -44,4 +44,19 @@ final readonly class GatewayResolver
             static fn (PaymentGatewayContract $gateway): bool => $gateway->isAvailable(),
         ));
     }
+
+    /**
+     * Every registered gateway, whether or not it is currently available —
+     * mirrors Shipping's Couriers\ProviderResolver::allProviders() and
+     * Notifications' Channels\ProviderResolver::allProviders() exactly, per
+     * GatewayRegistry's own docblock ("for PaymentMethodController to
+     * report as configured-but-incomplete"), realized here for Production
+     * Completion Plan v2, Milestone 12 (Production Readiness Indicators).
+     *
+     * @return list<PaymentGatewayContract>
+     */
+    public function allGateways(): array
+    {
+        return array_values($this->registry->all());
+    }
 }

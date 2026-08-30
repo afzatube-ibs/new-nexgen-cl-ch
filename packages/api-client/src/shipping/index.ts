@@ -3,3 +3,4 @@ export { listShippingZones, getShippingZone, createShippingZone, updateShippingZ
 export { listShippingMethods, getShippingMethod, createShippingMethod, updateShippingMethod, archiveShippingMethod, destroyShippingMethod } from './methods.js';
 export { listShippingRates, getShippingRate, createShippingRate, updateShippingRate, archiveShippingRate, destroyShippingRate } from './rates.js';
 export { listShippingAuditLogs } from './auditLogs.js';
+export { listShippingProviders } from './providers.js';

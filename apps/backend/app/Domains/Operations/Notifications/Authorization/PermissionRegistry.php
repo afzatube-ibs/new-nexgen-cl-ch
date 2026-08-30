@@ -29,6 +29,13 @@ final class PermissionRegistry
             new PermissionDefinition('notifications.notifications.view', 'View notifications and their delivery status', 'notifications'),
             new PermissionDefinition('notifications.notifications.manage', 'Retry or cancel a notification', 'notifications'),
             new PermissionDefinition('notifications.audit_log.view', "View Notifications' audit log", 'notifications'),
+            // Production Completion Plan v2, Milestone 12 (Production
+            // Readiness Indicators) — mirrors Shipping's own
+            // `shipping.providers.view` exactly: a distinct permission for
+            // "see which channel providers are registered/configured,"
+            // separate from `.notifications.view`'s own "see delivery
+            // status of individual sends."
+            new PermissionDefinition('notifications.providers.view', 'View registered notification channel providers', 'notifications'),
         ];
     }
 }

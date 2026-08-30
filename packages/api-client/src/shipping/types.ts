@@ -159,3 +159,11 @@ export interface ListShippingAuditLogsQuery {
   page?: number;
   perPage?: number;
 }
+
+/** `ShippingProviderController::index` / `Couriers\Contracts\ShippingProviderContract` — a code-and-config-defined provider, not an Eloquent row. */
+export interface ShippingProviderDTO {
+  code: string;
+  label: string;
+  available: boolean;
+  supportsLiveRateQuote: boolean;
+}

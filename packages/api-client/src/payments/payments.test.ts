@@ -49,11 +49,20 @@ describe('payments', () => {
   });
 
   it('listPaymentMethods() hits the real gateway registry endpoint', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [{ code: 'cod', label: 'Cash On Delivery' }] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [{ code: 'cod', label: 'Cash On Delivery', available: true }] }));
 
     await listPaymentMethods(client);
 
     const [url] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://api.test/payments/methods');
+  });
+
+  it('listPaymentMethods({ all: true }) requests every registered gateway, not only available ones', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: [{ code: 'sslcommerz', label: 'SSLCommerz', available: false }] }));
+
+    await listPaymentMethods(client, { all: true });
+
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url).toBe('https://api.test/payments/methods?all=1');
   });
 });

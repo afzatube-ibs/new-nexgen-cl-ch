@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use App\Domains\Operations\Notifications\Http\Controllers\AuditLogController;
 use App\Domains\Operations\Notifications\Http\Controllers\NotificationController;
+use App\Domains\Operations\Notifications\Http\Controllers\NotificationProviderController;
 use App\Domains\Operations\Notifications\Http\Controllers\NotificationTemplateController;
 use App\Domains\Operations\Notifications\Http\Controllers\NotificationWorkflowController;
 use Illuminate\Support\Facades\Route;
@@ -44,4 +45,12 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function ():
     // `return-requests/{returnRequest}`.
     Route::get('notification-audit-logs', [AuditLogController::class, 'index'])
         ->middleware('permission:notifications.audit_log.view')->name('v1.notifications.audit-logs.index');
+
+    // Production Completion Plan v2, Milestone 12 (Production Readiness
+    // Indicators) — a distinct `notification-providers` segment for the
+    // identical reason `notification-audit-logs` already is: sharing the
+    // `notifications/` prefix would collide with `notifications/
+    // {notification}`'s own wildcard binding.
+    Route::get('notification-providers', [NotificationProviderController::class, 'index'])
+        ->middleware('permission:notifications.providers.view')->name('v1.notifications.providers.index');
 });

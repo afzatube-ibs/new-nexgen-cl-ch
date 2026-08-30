@@ -24,6 +24,12 @@ final class PaymentMethodResource extends JsonResource
         return [
             'code' => $this->code(),
             'label' => $this->label(),
+            // Always real: `true` under the controller's default
+            // available-only mode (every gateway reaching this point
+            // already passed `isAvailable()`), and the real, meaningful
+            // signal under `?all=1` (Milestone 12, Production Readiness
+            // Indicators) — never hardcoded per mode.
+            'available' => $this->isAvailable(),
         ];
     }
 }

@@ -26,6 +26,7 @@ it('declares at least one permission for every resource this module exposes', fu
         'notifications.notifications.view',
         'notifications.notifications.manage',
         'notifications.audit_log.view',
+        'notifications.providers.view',
     ] as $expected) {
         expect($keys)->toContain($expected);
     }

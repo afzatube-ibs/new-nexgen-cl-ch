@@ -503,14 +503,12 @@ Each milestone is scoped to be independently shippable: it does not require any 
 - **Deliberately not built — a real, disclosed gap**: a staff-facing Admin moderation UI. Every moderation capability (approve/reject/respond/delete) is real, tested, and reachable via the real, permission-gated API today — not yet through a clickable Admin screen, the identical pattern Milestone 3's own report already established for Notifications' templates/logs UI. Tracked as a fast-follow.
 - **Completion**: Reviews 0% → ~70% (backend/Gateway/Storefront display+submission path). See `MILESTONE_11_REVIEWS_FOUNDATION_COMPLETION_REPORT.md`.
 
-### Milestone 12 — Merchant Onboarding & Production Readiness Indicators
-- **Objective**: A real onboarding checklist, a production-readiness indicator, and honest configuration warnings (missing payment gateway credentials, missing shipping zones, empty catalog, unconfigured email) surfaced directly in the Admin Dashboard — largely assembled from evidence this audit itself already gathered (e.g. "every payment gateway credential is empty," "only one shipping zone is configured," "the catalog has zero seeded products").
-- **Estimated files**: ~10–12 (a real configuration-health check service reading each module's own real state, plus a Dashboard-integrated warnings panel).
-- **Estimated complexity**: Low-Medium — mostly read-only checks against already-real data; no new domain logic.
-- **Dependencies**: Soft — most valuable after Milestone 8 (Dashboard) exists to host it, but could ship as its own standalone Admin page first.
-- **Production value**: High — turns every "merchant-configuration gap" named throughout this document into something the merchant is actually told about, rather than silently discovering at their first real customer's expense.
-- **Expected completion after**: New capability; indirectly raises perceived production-readiness of every module it reports on.
+### Milestone 12 — Merchant Onboarding & Production Readiness Indicators — ✅ Shipped
+- **Objective**: A real onboarding checklist, a production-readiness indicator, and honest configuration warnings (missing payment gateway credentials, missing shipping zones, empty catalog, unconfigured email) surfaced directly in the Admin Dashboard — largely assembled from evidence this audit itself already gathered.
+- **Verification against the repository (before implementation)**: a different, pre-existing "health check" system (`Platform\Foundation\Health`) already covers infrastructure uptime (database/cache/queue) — a genuinely separate, unauthenticated SRE concern, not reused here. No merchant-facing configuration-health checklist existed. The real per-module signals this milestone needs (Payments' `GatewayResolver`, Shipping's `Couriers\ProviderResolver`) already existed as real, tested capabilities — Payments' own `GatewayRegistry` docblock had already named this exact future use. Notifications alone had no equivalent provider-listing endpoint; the one real, narrow gap.
+- **What actually shipped**: `GatewayResolver::allGateways()` + `PaymentMethodController`'s new `?all=1` mode; a new `NotificationProviderController`/`.providers.view` permission mirroring Shipping's own proven pattern; `packages/api-client` additions for all three; a new cross-cutting `ProductionReadinessWidget` on the Admin Dashboard (owned by the Dashboard module itself, since it spans four business modules with no single owner) — five real, live, independently-fault-tolerant checks: online payment gateway, shipping zone count, real courier integration, email notification provider, active product count.
+- **Completion**: New capability, live-verified against this real environment's actual configuration. See `MILESTONE_12_PRODUCTION_READINESS_COMPLETION_REPORT.md`.
 
 ---
 
-**This document ends here, per instruction. Nothing above was implemented, modified, or committed.**
+**Part 3's originally-scoped milestones are now all shipped or superseded as of this session. No further milestones remain scheduled in this document.**

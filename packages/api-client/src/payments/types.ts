@@ -75,6 +75,8 @@ export interface ListPaymentsQuery {
 export interface PaymentMethodDTO {
   code: string;
   label: string;
+  /** Production Completion Plan v2, Milestone 12 (Production Readiness Indicators) — always real: `true` under the default available-only listing, and the real signal under `listPaymentMethods(client, { all: true })`. */
+  available: boolean;
 }
 
 export const PAYMENT_TARGET_TYPE = 'App\\Domains\\Commerce\\Payments\\Models\\Payment';

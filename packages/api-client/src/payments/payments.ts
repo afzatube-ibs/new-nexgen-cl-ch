@@ -16,7 +16,13 @@ export function getPayment(client: ApiClient, id: string): Promise<PaymentDTO> {
   return client.get<DataEnvelope<PaymentDTO>>(`${BASE_PATH}/${id}`).then((r) => r.data);
 }
 
-/** `GET /payments/methods` — the real gateway registry, `payments.payments.view`. */
-export function listPaymentMethods(client: ApiClient): Promise<ListEnvelope<PaymentMethodDTO>> {
-  return client.get<ListEnvelope<PaymentMethodDTO>>(`${BASE_PATH}/methods`);
+/**
+ * `GET /payments/methods` — the real gateway registry, `payments.payments.view`.
+ * `{ all: true }` (Milestone 12, Production Readiness Indicators) lists
+ * every REGISTERED gateway, configured or not — the default (no options)
+ * preserves the pre-existing available-only behavior real checkout
+ * screens already depend on.
+ */
+export function listPaymentMethods(client: ApiClient, options?: { all?: boolean }): Promise<ListEnvelope<PaymentMethodDTO>> {
+  return client.get<ListEnvelope<PaymentMethodDTO>>(`${BASE_PATH}/methods`, { query: options?.all ? { all: 1 } : undefined });
 }

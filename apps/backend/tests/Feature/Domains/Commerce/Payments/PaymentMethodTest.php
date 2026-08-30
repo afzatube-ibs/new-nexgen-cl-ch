@@ -27,3 +27,20 @@ it('denies listing payment methods without the view permission', function () {
         ->getJson('/api/v1/payments/methods')
         ->assertStatus(403);
 });
+
+it('lists every registered gateway, including unavailable ones, with ?all=1', function () {
+    $caller = userWithPermissions(['payments.payments.view']);
+
+    $response = $this->actingAs($caller, 'sanctum')->getJson('/api/v1/payments/methods?all=1');
+
+    $response->assertOk();
+    $codes = collect($response->json('data'))->pluck('code')->all();
+
+    expect($codes)->toContain('cod', 'bank_transfer', 'sslcommerz', 'bkash', 'nagad');
+
+    $cod = collect($response->json('data'))->firstWhere('code', 'cod');
+    expect($cod['available'])->toBeTrue();
+
+    $sslcommerz = collect($response->json('data'))->firstWhere('code', 'sslcommerz');
+    expect($sslcommerz['available'])->toBeFalse();
+});

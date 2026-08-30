@@ -48,3 +48,11 @@ export interface ListNotificationsQuery {
   relatedId?: string;
   page?: number;
 }
+
+/** `NotificationProviderController::index` / `Channels\Contracts\NotificationProviderContract` — a code-and-config-defined provider, not an Eloquent row. */
+export interface NotificationProviderDTO {
+  code: string;
+  label: string;
+  channel: string;
+  available: boolean;
+}
