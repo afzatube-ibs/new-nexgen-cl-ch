@@ -82,6 +82,16 @@ export interface ListStockItemsQuery {
   warehouseId?: string;
   /** `StockItemController::index` (apps/backend) filters by exact match — no partial/`LIKE` search on this column. */
   sku?: string;
+  /**
+   * Production Completion Plan v2, Milestone 8 (Dashboard Real Widgets) —
+   * filters on the real computed `quantity_on_hand - quantity_reserved`
+   * expression (no stored "available" column exists — see
+   * `StockItemController::index`'s own docblock) and, when present, also
+   * switches the real ordering to ascending-by-that-same-expression so the
+   * lowest-stock items sort first. The real "Low Stock" dashboard widget's
+   * own backend support.
+   */
+  quantityLte?: number;
   page?: number;
   perPage?: number;
 }

@@ -13,7 +13,13 @@ const BASE_PATH = '/stock-items';
 /** `StockItemController::index` — `inventory.stock.view`. No create/update/destroy endpoint exists; a StockItem row only ever comes into existence as a side effect of `adjustStock` or a completed transfer. */
 export function listStockItems(client: ApiClient, query?: ListStockItemsQuery): Promise<ListEnvelope<StockItemDTO>> {
   return client.get<ListEnvelope<StockItemDTO>>(BASE_PATH, {
-    query: query && { warehouse_id: query.warehouseId, sku: query.sku, page: query.page, per_page: query.perPage },
+    query: query && {
+      warehouse_id: query.warehouseId,
+      sku: query.sku,
+      quantity_lte: query.quantityLte,
+      page: query.page,
+      per_page: query.perPage,
+    },
   });
 }
 

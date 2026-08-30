@@ -145,6 +145,42 @@ export interface AddOrderNoteInput {
   expectedVersion: number;
 }
 
+/**
+ * Production Completion Plan v2, Milestone 8 (Dashboard Real Widgets) —
+ * `OrderMetricsController::summary`. Revenue is one entry per real
+ * `currency_code` actually present in the window, never blended into one
+ * number — this platform's own real order data spans more than one
+ * currency, confirmed directly against the dev database, and summing
+ * across currencies without a real conversion would be a fabricated
+ * number, not a real one. See that controller's own docblock for the
+ * exact "orders" vs. "revenue" inclusion rules (cancelled orders count as
+ * placed but never as revenue).
+ */
+export interface CurrencyAmountDTO {
+  currencyCode: string;
+  amount: string;
+}
+
+export interface OrderMetricsSummaryDTO {
+  pendingOrders: number;
+  ordersToday: number;
+  ordersThisMonth: number;
+  revenueToday: CurrencyAmountDTO[];
+  revenueThisMonth: CurrencyAmountDTO[];
+}
+
+/** `OrderMetricsController::topProducts` — all-time, by real total quantity sold. */
+export interface TopSellingProductDTO {
+  sku: string;
+  productName: string;
+  totalQuantity: number;
+}
+
+export interface ListTopSellingProductsQuery {
+  /** Server clamps to [1, 20] regardless of what's sent — mirrored here only as documentation, never re-validated client-side. */
+  limit?: number;
+}
+
 export interface OrderAuditLogDTO {
   id: string;
   actorId: string | null;
