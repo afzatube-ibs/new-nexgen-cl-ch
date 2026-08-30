@@ -70,6 +70,16 @@ final class RefundRequest extends Model
     protected function casts(): array
     {
         return [
+            // Matches the migration's own `decimal('amount', 14, 4)` —
+            // without this, SQLite's NUMERIC affinity returns a whole-
+            // number amount as a PHP int (not a decimal string), which
+            // `Payments\Actions\RefundPaymentAction::execute()`'s own
+            // `string $amount` parameter rejects with a live TypeError
+            // (found via Milestone 7's own live browser verification —
+            // the identical recurring bug class already fixed on
+            // `PriceListEntry`/`TaxRate` and `CheckoutSession`/
+            // `CheckoutItem` earlier this engagement).
+            'amount' => 'decimal:4',
             'requested_at' => 'datetime',
             'completed_at' => 'datetime',
         ];

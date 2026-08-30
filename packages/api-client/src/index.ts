@@ -38,6 +38,8 @@ export * from './shipping/index.js';
 
 export * from './fulfillment/index.js';
 
+export * from './returns/index.js';
+
 export * from './payments/index.js';
 
 export * from './notifications/index.js';

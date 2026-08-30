@@ -12,6 +12,7 @@ import './pricing/module.js';
 import './customers/module.js';
 import './orders/module.js';
 import './shipping/module.js';
+import './returns/module.js';
 import './payments/module.js';
 import './marketing/module.js';
 import './identity-access/module.js';
