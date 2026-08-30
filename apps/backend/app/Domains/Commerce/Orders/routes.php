@@ -25,6 +25,7 @@ declare(strict_types=1);
 use App\Domains\Commerce\Orders\Http\Controllers\AuditLogController;
 use App\Domains\Commerce\Orders\Http\Controllers\CustomerOrderController;
 use App\Domains\Commerce\Orders\Http\Controllers\OrderController;
+use App\Domains\Commerce\Orders\Http\Controllers\OrderMetricsController;
 use App\Domains\Commerce\Orders\Http\Controllers\OrderNoteController;
 use App\Domains\Commerce\Orders\Http\Controllers\OrderStatusController;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,14 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function ():
 
     Route::get('orders/audit-logs', [AuditLogController::class, 'index'])
         ->middleware('permission:orders.audit_log.view')->name('v1.orders.audit-logs.index');
+
+    // Production Completion Plan v2, Milestone 8 (Dashboard Real Widgets) —
+    // registered before the resourceful `orders/{order}` group below for
+    // the identical route-matching reason `orders/audit-logs` already is.
+    Route::get('orders/metrics', [OrderMetricsController::class, 'summary'])
+        ->middleware('permission:orders.orders.view')->name('v1.orders.metrics');
+    Route::get('orders/top-products', [OrderMetricsController::class, 'topProducts'])
+        ->middleware('permission:orders.orders.view')->name('v1.orders.top-products');
 
     Route::get('orders', [OrderController::class, 'index'])
         ->middleware('permission:orders.orders.view')->name('v1.orders.index');

@@ -35,6 +35,23 @@ final class StockItemController
             $query->where('sku', $request->string('sku')->toString());
         }
 
+        // Production Completion Plan v2, Milestone 8 (Dashboard Real
+        // Widgets) — `quantity_available` is a computed method
+        // (`available()`), never a stored column (see this model's own
+        // docblock: no reorder-point/low-stock field exists in the schema
+        // at all), so the filter is expressed as the same subtraction the
+        // real `available()` method performs, kept in one place rather
+        // than duplicated as a second definition of "available." Ordering
+        // ascending by that same expression surfaces the real lowest-stock
+        // items first, which is the only reason a caller would ever pass
+        // this filter.
+        if ($request->filled('quantity_lte')) {
+            $threshold = (int) $request->integer('quantity_lte');
+            $query->whereRaw('(quantity_on_hand - quantity_reserved) <= ?', [$threshold])
+                ->reorder()
+                ->orderByRaw('(quantity_on_hand - quantity_reserved) asc');
+        }
+
         return StockItemResource::collection($query->paginate());
     }
 
