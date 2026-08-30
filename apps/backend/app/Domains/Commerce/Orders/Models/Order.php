@@ -100,6 +100,19 @@ final class Order extends Model
     protected function casts(): array
     {
         return [
+            // Matches the migration's own `decimal('*_total'/'grand_total',
+            // 14, 4)` — without these, SQLite's NUMERIC affinity returns a
+            // whole-number total as a PHP int (not a decimal string), the
+            // same recurring bug class already found and fixed on
+            // `PriceListEntry`/`TaxRate`, `CheckoutSession`/`CheckoutItem`,
+            // and `RefundRequest` earlier this engagement — found here, on
+            // the platform's own central financial model, while building
+            // Milestone 8's revenue dashboard widgets.
+            'subtotal' => 'decimal:4',
+            'discount_total' => 'decimal:4',
+            'tax_total' => 'decimal:4',
+            'shipping_total' => 'decimal:4',
+            'grand_total' => 'decimal:4',
             'placed_at' => 'datetime',
         ];
     }

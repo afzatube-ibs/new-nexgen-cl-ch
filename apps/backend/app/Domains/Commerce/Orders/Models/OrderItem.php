@@ -44,6 +44,26 @@ final class OrderItem extends Model
     ];
 
     /**
+     * Matches the order_items migration's own `decimal(*, 14, 4)` columns
+     * — without these, SQLite's NUMERIC affinity returns a whole-number
+     * amount as a PHP int (not a decimal string), the same recurring bug
+     * class already found and fixed on `Order` itself and three other
+     * models earlier this engagement (see `Order::casts()`'s own
+     * docblock).
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'unit_price' => 'decimal:4',
+            'discount_amount' => 'decimal:4',
+            'tax_amount' => 'decimal:4',
+            'line_subtotal' => 'decimal:4',
+        ];
+    }
+
+    /**
      * See Identity & Access's User::newFactory() docblock for why this
      * project keeps every factory directly under database/factories/
      * rather than mirroring the domain folder structure a second time.

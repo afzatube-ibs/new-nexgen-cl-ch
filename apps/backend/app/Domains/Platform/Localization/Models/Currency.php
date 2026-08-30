@@ -59,6 +59,13 @@ final class Currency extends Model
     {
         return [
             'decimal_places' => 'integer',
+            // Matches the migration's own `decimal('exchange_rate', 20,
+            // 6)` — without this, SQLite's NUMERIC affinity returns a
+            // whole-number rate (e.g. the base currency's own `1`) as a
+            // PHP int (not a decimal string), the same recurring bug class
+            // already found and fixed on several other money-shaped
+            // columns this engagement.
+            'exchange_rate' => 'decimal:6',
             'is_base' => 'boolean',
         ];
     }

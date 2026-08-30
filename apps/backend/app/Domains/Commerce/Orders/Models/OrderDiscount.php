@@ -36,6 +36,22 @@ final class OrderDiscount extends Model
     ];
 
     /**
+     * Matches the order_discounts migration's own `decimal('amount', 14,
+     * 4)` — without this, SQLite's NUMERIC affinity returns a whole-number
+     * amount as a PHP int (not a decimal string), the same recurring bug
+     * class already found and fixed on `Order`/`OrderItem` and several
+     * other models earlier this engagement.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'decimal:4',
+        ];
+    }
+
+    /**
      * See Identity & Access's User::newFactory() docblock for why this
      * project keeps every factory directly under database/factories/
      * rather than mirroring the domain folder structure a second time.

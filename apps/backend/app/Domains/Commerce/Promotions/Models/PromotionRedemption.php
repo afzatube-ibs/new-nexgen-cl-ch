@@ -47,6 +47,12 @@ final class PromotionRedemption extends Model
     protected function casts(): array
     {
         return [
+            // Matches the migration's own `decimal('discount_amount', 14,
+            // 4)` — without this, SQLite's NUMERIC affinity returns a
+            // whole-number amount as a PHP int (not a decimal string), the
+            // same recurring bug class already found and fixed on several
+            // other money-shaped columns this engagement.
+            'discount_amount' => 'decimal:4',
             'redeemed_at' => 'datetime',
         ];
     }
