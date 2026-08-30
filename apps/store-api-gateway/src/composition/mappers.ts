@@ -46,16 +46,12 @@ export interface BrandSummary {
 
 /**
  * `Collection` has no image field either (same real gap as `Category`,
- * confirmed by the same direct code read of `CollectionResource`) — and,
- * unlike Category/Brand, the real backend's `ProductController::index()`
- * has no `collection_id` filter at all (only `category_id`, confirmed by
- * direct code read) — so a Collection's own MEMBER PRODUCTS cannot be
- * listed through this Gateway today. This summary type (and the
- * `/v1/collections` routes below) expose only the Collection's own real
- * metadata; "products in this collection" is a genuine, additive backend
- * gap (`ProductController::index()` needs a `collection_id` filter,
- * mirroring its own existing `category_id` filter exactly) — named here,
- * not fixed, per "Gateway orchestrates, never modifies Commerce."
+ * confirmed by the same direct code read of `CollectionResource`). Its
+ * member products are a separate call — `GET /v1/products?collection_id=`,
+ * backed by `ProductController::index()`'s own real `collection_id` filter
+ * (neXgen Production Sprint, Milestone 2 completion, mirroring the
+ * existing `category_id` filter exactly) — not carried on this summary
+ * type itself.
  */
 export interface CollectionSummary {
   id: string;

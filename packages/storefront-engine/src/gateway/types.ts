@@ -59,12 +59,11 @@ export interface BrandSummary {
 }
 
 /**
- * Real metadata only. The Gateway has no way to list a Collection's own
- * member products today — `ProductController::index()` on the real
- * backend supports `category_id` but not `collection_id`
- * (`apps/store-api-gateway/src/composition/mappers.ts`'s own
- * `CollectionSummary` docblock) — a genuine, additive backend gap, named
- * in `BETA_MILESTONE_1_STOREFRONT_FOUNDATION_REPORT.md`, not fixed here.
+ * Real metadata for one Collection. Member-product listing is a separate
+ * real call — `getProducts({ collectionId })`, backed by
+ * `ProductController::index()`'s own `collection_id` filter (neXgen
+ * Production Sprint, Milestone 2 completion) — not carried on this summary
+ * itself.
  */
 export interface CollectionSummary {
   id: string;

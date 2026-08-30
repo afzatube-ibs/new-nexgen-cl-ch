@@ -484,13 +484,10 @@ Each milestone is scoped to be independently shippable: it does not require any 
 - **A real, small gap found and fixed while wiring the Pending Orders widget's own deep link**: `OrdersListPage` read `customer_id` from the URL to seed its filter but never `status` — `?status=pending` was silently ignored. Fixed to mirror the existing `customer_id` pattern exactly; live-verified.
 - **Completion**: Dashboard 15% → ~90%. See `MILESTONE_8_DASHBOARD_WIDGETS_COMPLETION_REPORT.md`.
 
-### Milestone 9 — Collections Completion
-- **Objective**: Real collection product listing, filtering, sorting, and pagination — the Storefront's collection page currently renders an honest empty state only.
-- **Estimated files**: ~8–10 (backend: additive `collection_id` filter on `ProductController::index()`, ~1–2 files; Gateway: route/param passthrough, ~1–2; Storefront: real collection page rebuild, ~4–6).
-- **Estimated complexity**: Low — the smallest milestone on this list; Catalog's own collection-membership data model already exists.
-- **Dependencies**: None.
-- **Production value**: Medium — collections are a real merchandising tool but not launch-blocking the way pricing/search are.
-- **Expected completion after**: Collections (part of Catalog) becomes real; Catalog itself moves only marginally since it was already scored on its backend maturity.
+### Milestone 9 — Collections Completion — ✅ Shipped (found already partially implemented)
+- **Corrected against the repository before implementation, per instruction**: the plan's own claim ("collection page currently renders an honest empty state only," needing a new backend filter + Gateway passthrough) was stale on every count. Direct verification found `ProductController::index()` already had a real `collection_id` filter, the Gateway already passed it through with real cache tagging, and `storefront-engine`'s `getProducts()` already forwarded it — all shipped under an earlier "neXgen Production Sprint — Milestone 2" initiative this plan's own audit had missed. The Collection page itself was real, not an empty state, but functionally thin: no `searchParams` at all, so it could not sort, filter, or paginate — unlike its sibling `categories/[idSlug]` page, already rebuilt to a full "Professional Category Page" standard (Beta Milestone 2). **Classification: partially implemented** (real, production-ready data path; a materially incomplete page UI relative to its own sibling and the plan's own named objective).
+- **What shipped**: Rebuilt the Collection page to real parity with the Category page's own proven pattern — real Toolbar (sort/grid-list toggle), Brand filter sidebar/drawer (a Collection has no sibling/child hierarchy the way a Category does, so Brand is its one real second filter dimension, mirroring the Category page's own), real Pagination, full URL sync. Reused every component unchanged. Also corrected two stale code comments (`CollectionSummary`'s own docblock in `storefront-engine` and the Gateway) that still claimed the `collection_id` filter didn't exist.
+- **Completion**: Collections (part of Catalog) — production ready. See `MILESTONE_9_COLLECTIONS_COMPLETION_REPORT.md`.
 
 ### Milestone 10 — Settings Framework Population + Localization Admin
 - **Objective**: Give Store Configuration and Localization their own real settings panels (the ones the Settings framework was always designed to host), plus resolve why zero modules currently register one.
