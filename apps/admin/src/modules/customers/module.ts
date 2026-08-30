@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Users } from 'lucide-react';
 import { registerModule } from '../../registry/moduleRegistry.js';
-import type { ModuleNavItem, ModuleRoute } from '../../registry/types.js';
+import type { ModuleNavItem, ModuleRoute, DashboardWidgetDefinition } from '../../registry/types.js';
 
 /**
  * Customers — Phase 2.5, on top of the real, already-complete backend
@@ -50,6 +50,16 @@ const routes: ModuleRoute[] = [
   },
 ];
 
+/** Production Completion Plan v2, Milestone 8 (Dashboard Real Widgets). */
+const dashboardWidgets: DashboardWidgetDefinition[] = [
+  {
+    id: 'customers-latest',
+    span: 6,
+    permissions: ['customers.customers.view'],
+    component: lazy(() => import('./widgets/LatestCustomersWidget.js').then((m) => ({ default: m.LatestCustomersWidget }))),
+  },
+];
+
 const navigation: ModuleNavItem[] = [
   {
     id: 'customers',
@@ -62,4 +72,4 @@ const navigation: ModuleNavItem[] = [
   },
 ];
 
-registerModule({ id: 'customers', navigation, routes });
+registerModule({ id: 'customers', navigation, routes, dashboardWidgets });

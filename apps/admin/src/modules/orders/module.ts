@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Package } from 'lucide-react';
 import { registerModule } from '../../registry/moduleRegistry.js';
-import type { ModuleNavItem, ModuleRoute } from '../../registry/types.js';
+import type { ModuleNavItem, ModuleRoute, DashboardWidgetDefinition } from '../../registry/types.js';
 
 /**
  * Orders — Phase 2.6, Slice 1 (Order Management), on top of the real,
@@ -43,6 +43,60 @@ const routes: ModuleRoute[] = [
   },
 ];
 
+/**
+ * Production Completion Plan v2, Milestone 8 (Dashboard Real Widgets) —
+ * Orders' own contribution to the real, pluggable Dashboard
+ * (`registry/types.ts`'s own `dashboardWidgets` contract, unused by any
+ * module until this milestone). Every widget reads a real endpoint — no
+ * fabricated KPI stands in for data that doesn't exist. `RecentActivity`
+ * is gated by `orders.audit_log.view`, distinct from every other widget
+ * here's `orders.orders.view` — it reads a more sensitive endpoint.
+ */
+const dashboardWidgets: DashboardWidgetDefinition[] = [
+  {
+    id: 'orders-pending',
+    span: 4,
+    permissions: ['orders.orders.view'],
+    component: lazy(() => import('./widgets/PendingOrdersWidget.js').then((m) => ({ default: m.PendingOrdersWidget }))),
+  },
+  {
+    id: 'orders-today',
+    span: 4,
+    permissions: ['orders.orders.view'],
+    component: lazy(() => import('./widgets/TodaysOrdersWidget.js').then((m) => ({ default: m.TodaysOrdersWidget }))),
+  },
+  {
+    id: 'orders-revenue-today',
+    span: 4,
+    permissions: ['orders.orders.view'],
+    component: lazy(() => import('./widgets/TodaysRevenueWidget.js').then((m) => ({ default: m.TodaysRevenueWidget }))),
+  },
+  {
+    id: 'orders-revenue-month',
+    span: 6,
+    permissions: ['orders.orders.view'],
+    component: lazy(() => import('./widgets/ThisMonthRevenueWidget.js').then((m) => ({ default: m.ThisMonthRevenueWidget }))),
+  },
+  {
+    id: 'orders-top-products',
+    span: 6,
+    permissions: ['orders.orders.view'],
+    component: lazy(() => import('./widgets/TopSellingProductsWidget.js').then((m) => ({ default: m.TopSellingProductsWidget }))),
+  },
+  {
+    id: 'orders-recent',
+    span: 8,
+    permissions: ['orders.orders.view'],
+    component: lazy(() => import('./widgets/RecentOrdersWidget.js').then((m) => ({ default: m.RecentOrdersWidget }))),
+  },
+  {
+    id: 'orders-recent-activity',
+    span: 4,
+    permissions: ['orders.audit_log.view'],
+    component: lazy(() => import('./widgets/RecentActivityWidget.js').then((m) => ({ default: m.RecentActivityWidget }))),
+  },
+];
+
 const navigation: ModuleNavItem[] = [
   {
     id: 'orders',
@@ -55,4 +109,4 @@ const navigation: ModuleNavItem[] = [
   },
 ];
 
-registerModule({ id: 'orders', navigation, routes });
+registerModule({ id: 'orders', navigation, routes, dashboardWidgets });

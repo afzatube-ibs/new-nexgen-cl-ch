@@ -1,7 +1,7 @@
 import { lazy } from 'react';
 import { Warehouse } from 'lucide-react';
 import { registerModule } from '../../registry/moduleRegistry.js';
-import type { ModuleNavItem, ModuleRoute } from '../../registry/types.js';
+import type { ModuleNavItem, ModuleRoute, DashboardWidgetDefinition } from '../../registry/types.js';
 
 /**
  * Inventory — Phase 2.3, on top of the real, already-complete backend
@@ -50,6 +50,16 @@ const routes: ModuleRoute[] = [
   },
 ];
 
+/** Production Completion Plan v2, Milestone 8 (Dashboard Real Widgets) — see `LowStockWidget`'s own docblock for the real `quantity_lte` backend it reads. */
+const dashboardWidgets: DashboardWidgetDefinition[] = [
+  {
+    id: 'inventory-low-stock',
+    span: 6,
+    permissions: ['inventory.stock.view'],
+    component: lazy(() => import('./widgets/LowStockWidget.js').then((m) => ({ default: m.LowStockWidget }))),
+  },
+];
+
 const navigation: ModuleNavItem[] = [
   {
     id: 'inventory',
@@ -64,4 +74,4 @@ const navigation: ModuleNavItem[] = [
   },
 ];
 
-registerModule({ id: 'inventory', navigation, routes });
+registerModule({ id: 'inventory', navigation, routes, dashboardWidgets });

@@ -65,10 +65,16 @@ export function OrdersListPage() {
 
   const initialCustomerId = searchParams.get('customer_id') ?? undefined;
   const customerNameFromNav = (location.state as { customerName?: string } | null)?.customerName;
+  // Dashboard widgets' own "Pending Orders" deep link (`?status=pending`)
+  // — a real `OrderStatus` value, or `all` for anything else, mirroring
+  // `initialCustomerId`'s own precedent for seeding a filter from the URL.
+  const ORDER_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+  const statusParam = searchParams.get('status');
+  const initialStatus: StatusFilter = statusParam && (ORDER_STATUSES as string[]).includes(statusParam) ? (statusParam as OrderStatus) : 'all';
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 350);
-  const [status, setStatus] = useState<StatusFilter>('all');
+  const [status, setStatus] = useState<StatusFilter>(initialStatus);
   const [customerId, setCustomerId] = useState<string | undefined>(initialCustomerId);
   const [page, setPage] = useState(1);
 

@@ -15,9 +15,11 @@ const SPAN_CLASS: Record<4 | 6 | 8 | 12, string> = {
 /**
  * The real dashboard framework (Phase 2.1 §5): renders whatever widgets are
  * registered (`ModuleDefinition.dashboardWidgets`) for the current
- * operator's permissions. No business module exists yet, so this is
- * genuinely, correctly empty out of the box — a real Empty State, never a
- * fabricated KPI card standing in for data that doesn't exist.
+ * operator's permissions. As of Production Completion Plan v2, Milestone 8
+ * (Dashboard Real Widgets), Orders/Inventory/Customers each register real
+ * widgets here — see their own `module.ts` files. The Empty State below
+ * still renders honestly for an operator whose real permissions grant none
+ * of them, never a fabricated KPI card standing in for data they can't see.
  */
 export function DashboardPage() {
   const { permissions } = useAuth();

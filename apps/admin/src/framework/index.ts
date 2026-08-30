@@ -14,6 +14,8 @@ export { ImportDialog } from './ImportDialog.js';
 export type { ImportDialogProps } from './ImportDialog.js';
 export { ExportButton } from './ExportButton.js';
 export type { ExportButtonProps } from './ExportButton.js';
+export { DashboardWidgetCard } from './DashboardWidgetCard.js';
+export type { DashboardWidgetCardProps } from './DashboardWidgetCard.js';
 export { toCsv, parseCsv, downloadFile } from './csv.js';
 export { applyServerValidationErrors } from './applyServerValidationErrors.js';
 
