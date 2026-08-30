@@ -9,9 +9,11 @@ import { getSettingsPanels } from '../../registry/moduleRegistry.js';
  * Settings Framework (Phase 2.1 §8): "implement the framework only... no
  * hardcoded settings pages." This module registers itself (nav entry +
  * route) but contributes zero `settingsPanels` — every tab rendered here
- * comes from another module's own registration. An empty state, not a
- * placeholder "General Settings" page, is the correct and honest state of
- * a platform with no business modules built yet.
+ * comes from another module's own registration. As of Production
+ * Completion Plan v2, Milestone 10, the `localization` module registers
+ * the first two real panels (Store Configuration, Localization) — see its
+ * own `module.ts`. The Empty State below still renders honestly for an
+ * operator whose real permissions grant none of the registered panels.
  */
 export function SettingsPage() {
   const { permissions } = useAuth();
