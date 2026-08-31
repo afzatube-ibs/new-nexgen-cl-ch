@@ -17,3 +17,4 @@ import './localization/module.js';
 import './payments/module.js';
 import './marketing/module.js';
 import './identity-access/module.js';
+import './reviews/module.js';

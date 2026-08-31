@@ -47,3 +47,5 @@ export * from './payments/index.js';
 export * from './notifications/index.js';
 
 export * from './promotions/index.js';
+
+export * from './reviews/index.js';
