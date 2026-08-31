@@ -88,9 +88,26 @@ export function createRedisEventQueue(url: string, keyPrefix: string, logger: Fa
       if (!available) return [];
       try {
         await moveDueDelayedToReady();
-        const raw = await client.rpop(READY_KEY, count);
-        if (!raw) return [];
-        return raw.map((value) => JSON.parse(value) as QueuedEvent);
+        // Real, live-found bug: `RPOP key count` (the two-argument form
+        // this used to call in one round trip) was only added in Redis
+        // 6.2 — this environment's own real Redis server (confirmed via
+        // `INFO server`: `redis_version:3.0.504`, a Windows port that
+        // predates it by years) rejects it outright with "ERR wrong
+        // number of arguments," meaning `dequeueReady` silently returned
+        // nothing on every single call, every tick, platform-wide,
+        // regardless of how many real events were actually queued.
+        // Popping one key at a time (plain single-key `RPOP`, supported
+        // since Redis 1.0) is the version-compatible fix — extra round
+        // trips only when there is real work to do, and it stops the
+        // moment the queue runs dry, exactly like the two-argument form's
+        // own semantics.
+        const results: QueuedEvent[] = [];
+        for (let i = 0; i < count; i += 1) {
+          const raw = await client.rpop(READY_KEY);
+          if (!raw) break;
+          results.push(JSON.parse(raw) as QueuedEvent);
+        }
+        return results;
       } catch (error) {
         logger.warn({ err: error }, 'Event queue: dequeue failed');
         return [];

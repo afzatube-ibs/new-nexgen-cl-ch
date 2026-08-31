@@ -516,6 +516,12 @@ Each milestone is scoped to be independently shippable: it does not require any 
 - **A real environment issue found and fixed along the way, unrelated to this milestone's own code**: all four local dev servers were found down (an environment outage, not caused by this session's own changes); restarted all four, and found + fixed the Gateway's own `BACKEND_SERVICE_TOKEN` had gone invalid independent of anything built this session — rotated it via the platform's own existing `identity-access:create-service-account` command, restoring real Storefront functionality platform-wide (Catalog, Pricing, Reviews, Branding — every public read that depends on that one fixed credential), not just for Reviews.
 - **Completion**: Reviews now has no further known gaps. See `MILESTONE_13_REVIEWS_ADMIN_MODERATION_UI_COMPLETION_REPORT.md`.
 
+### Milestone 14 — Event Queue Redis Version-Compatibility Fix — ✅ Shipped
+- **Objective**: Fix a real, live-observed bug found while restarting the Gateway for Milestone 13's own verification — its Event Pipeline's background dequeue loop was failing on every single tick.
+- **Root cause**: `events/queue.ts`'s `dequeueReady()` called the two-argument `RPOP key count` form, which did not exist before Redis 6.2 — this environment's own real Redis reports `3.0.504`. Classified as a real version-compatibility bug, not a design gap; the rest of the Event Pipeline is real and correct.
+- **What actually shipped**: `dequeueReady()` now loops the plain, universally-supported single-key `RPOP key` up to `count` times — identical semantics, compatible with every Redis version since 1.0.
+- **Completion**: Live-verified against this environment's own real (old) Redis — the warning stopped entirely, and a real test event was confirmed durably queued, dequeued, and delivered with zero errors. See `MILESTONE_14_EVENT_QUEUE_REDIS_COMPATIBILITY_FIX_REPORT.md`.
+
 ---
 
-**Part 3's originally-scoped milestones, plus Milestone 13 (identified during Milestone 11's own verification), are now all shipped as of this session. No further milestones remain scheduled in this document.**
+**Part 3's originally-scoped milestones, plus Milestones 13–14 (identified during live verification), are now all shipped as of this session. No further milestones remain scheduled in this document.**
