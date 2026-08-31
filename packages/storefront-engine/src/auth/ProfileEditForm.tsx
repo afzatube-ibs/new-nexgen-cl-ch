@@ -17,12 +17,18 @@ export interface ProfileEditFormProps {
  * file with no `server-only` marker (see that file's own docblock) —
  * never from `gateway/customerAuth.ts` itself, which owns the real
  * fetch/token-forwarding code this Client Component must never bundle.
+ *
+ * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `profile.email`
+ * is now nullable (`useState(profile.email)` would have handed a
+ * controlled `<Input>` a `null` value, which React treats as
+ * uncontrolled — `?? ''` here matches the same defensive pattern already
+ * used for `phone` on the line below it).
  */
 export function ProfileEditForm({ profile }: ProfileEditFormProps) {
   const router = useRouter();
   const [name, setName] = useState(profile.name);
-  const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone ?? '');
+  const [email, setEmail] = useState(profile.email ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -36,7 +42,7 @@ export function ProfileEditForm({ profile }: ProfileEditFormProps) {
       const response = await fetch('/api/account/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone: phone || null, expectedVersion: profile.version }),
+        body: JSON.stringify({ name, phone, email: email || null, expectedVersion: profile.version }),
       });
       const json = (await response.json().catch(() => ({}))) as { message?: string };
       if (!response.ok) throw new Error(json.message ?? 'Something went wrong updating your profile.');
@@ -54,8 +60,8 @@ export function ProfileEditForm({ profile }: ProfileEditFormProps) {
       <CardContent className="pt-4">
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <Input label="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input label="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Input label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Input label="Mobile number" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Input label="Email address (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           {error && (
             <Alert variant="danger" role="alert">
               {error}

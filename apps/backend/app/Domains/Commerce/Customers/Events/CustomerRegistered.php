@@ -19,9 +19,16 @@ use App\Domains\Platform\Foundation\EventBus\DomainEvent;
  */
 final class CustomerRegistered extends DomainEvent
 {
+    /**
+     * `$email` is nullable as of Phase 4.0 Slice 4.1 (Mobile-First
+     * Customer Identity) — a customer may now register with phone only.
+     * See `Listeners\SendWelcomeEmailOnCustomerRegistered` for the one
+     * real subscriber, and why it now skips sending when this is null
+     * rather than queuing a notification to nowhere.
+     */
     public function __construct(
         public readonly string $customerId,
-        public readonly string $email,
+        public readonly ?string $email,
         ?string $correlationId = null,
     ) {
         parent::__construct($correlationId);

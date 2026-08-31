@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -48,9 +49,11 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $id
  * @property string $tenant_id
  * @property string $name
- * @property string $email
+ * @property string|null $email
  * @property string $password
  * @property string|null $phone
+ * @property string $phone_verification_status
+ * @property Carbon|null $phone_verified_at
  * @property string $status
  * @property int $lock_version
  */
@@ -63,11 +66,26 @@ final class Customer extends Model implements AuthenticatableContract
 
     public const string STATUS_ARCHIVED = 'archived';
 
+    /**
+     * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — the Product
+     * Owner's own addendum's three states. `phone_verified_at` (set only
+     * by Slice 4.2's OTP module, never mass-assignable here) is the
+     * authoritative signal; this column is the human/Admin-facing label
+     * plus the one state (`BLOCKED`) that isn't derivable from a
+     * timestamp alone.
+     */
+    public const string PHONE_UNVERIFIED = 'unverified';
+
+    public const string PHONE_VERIFIED = 'verified';
+
+    public const string PHONE_BLOCKED = 'blocked';
+
     protected $fillable = [
         'name',
         'email',
         'password',
         'phone',
+        'phone_verification_status',
         'status',
     ];
 
@@ -79,6 +97,7 @@ final class Customer extends Model implements AuthenticatableContract
     {
         return [
             'password' => 'hashed',
+            'phone_verified_at' => 'datetime',
         ];
     }
 
@@ -99,6 +118,7 @@ final class Customer extends Model implements AuthenticatableContract
         self::creating(function (self $customer): void {
             $customer->tenant_id ??= TenantId::DEFAULT;
             $customer->status ??= self::STATUS_ACTIVE;
+            $customer->phone_verification_status ??= self::PHONE_UNVERIFIED;
             // See Identity & Access's User::booted() for why this is set
             // here rather than relying on the migration's database-level
             // default: a caller reading $customer->lock_version
@@ -111,6 +131,11 @@ final class Customer extends Model implements AuthenticatableContract
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function isPhoneVerified(): bool
+    {
+        return $this->phone_verification_status === self::PHONE_VERIFIED;
     }
 
     /**

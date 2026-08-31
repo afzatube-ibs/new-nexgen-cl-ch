@@ -25,16 +25,31 @@ import type { CustomerBackendClient } from '../backend/customerBackendClient.js'
 import { bearerTokenFrom } from '../lib/auth.js';
 import { toGatewayError, GatewayError } from '../lib/errors.js';
 
+/**
+ * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `phone` is now
+ * the required, primary identity (was optional); `email` is now optional
+ * (was required). Relayed through unchanged to the real backend's own
+ * `RegisterCustomerRequest`, which is the actual source of truth for
+ * these rules — this schema exists only so a malformed request fails
+ * fast at the Gateway with a real 400 rather than an opaque backend
+ * round-trip, never a second, independently-maintained copy of the
+ * backend's own validation.
+ */
 const registerBodySchema = z.object({
   name: z.string().min(1),
-  email: z.string().email(),
+  phone: z.string().min(1),
+  email: z.string().email().optional().nullable(),
   password: z.string().min(1),
   password_confirmation: z.string().min(1),
-  phone: z.string().optional().nullable(),
 });
 
+/**
+ * Phase 4.0 Slice 4.1 — `identifier` (phone- or email-shaped) replaces
+ * the previous `email`-only field, matching
+ * `Customers\Http\Requests\LoginCustomerRequest`'s own rename.
+ */
 const loginBodySchema = z.object({
-  email: z.string().email(),
+  identifier: z.string().min(1),
   password: z.string().min(1),
   device_name: z.string().min(1).default('storefront'),
 });
@@ -52,8 +67,11 @@ const resetPasswordBodySchema = z.object({
 
 const updateProfileBodySchema = z.object({
   name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional().nullable(),
+  email: z.string().email().optional().nullable(),
+  // Not `.nullable()` — Phase 4.0 Slice 4.1 made `phone` the primary
+  // identity; a customer can change it, but the real backend's own
+  // `UpdateMyProfileRequest` never allows clearing it to null.
+  phone: z.string().min(1).optional(),
   expected_version: z.number().int().min(1),
 });
 

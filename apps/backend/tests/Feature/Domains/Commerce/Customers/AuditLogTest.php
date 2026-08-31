@@ -18,6 +18,7 @@ it('lists audited customer changes for a caller with the view permission', funct
     $this->actingAs($caller, 'sanctum')->postJson('/api/v1/customers', [
         'name' => 'Audited Customer',
         'email' => 'audited@nexgen-demo.test',
+        'phone' => '+8801700009999',
         'password' => 'Str0ng!Passw0rd#One',
         'password_confirmation' => 'Str0ng!Passw0rd#One',
     ])->assertCreated();

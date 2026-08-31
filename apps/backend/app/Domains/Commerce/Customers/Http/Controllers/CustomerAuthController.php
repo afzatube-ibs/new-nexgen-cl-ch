@@ -63,7 +63,7 @@ final class CustomerAuthController
     {
         try {
             $result = $this->loginCustomerAction->execute(
-                email: $request->string('email')->toString(),
+                identifier: $request->string('identifier')->toString(),
                 password: $request->string('password')->toString(),
                 deviceName: $request->string('device_name')->toString(),
             );
@@ -71,7 +71,7 @@ final class CustomerAuthController
             // API:ERROR_MODEL: a validation-shaped 422, message
             // deliberately generic — mirrors Identity & Access's own
             // AuthController::login() exactly.
-            throw ValidationException::withMessages(['email' => [$e->getMessage()]]);
+            throw ValidationException::withMessages(['identifier' => [$e->getMessage()]]);
         }
 
         return (new CustomerResource($result['customer']))

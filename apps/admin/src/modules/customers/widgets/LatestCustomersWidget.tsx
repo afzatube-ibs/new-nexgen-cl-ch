@@ -38,7 +38,7 @@ export function LatestCustomersWidget() {
                   {customer.name}
                 </Text>
                 <Text variant="caption" className="truncate text-text-secondary">
-                  {customer.email}
+                  {customer.phone ?? customer.email ?? '—'}
                 </Text>
               </div>
               <Text variant="caption" className="shrink-0 text-text-secondary">

@@ -11,6 +11,11 @@ import { loginAccount, AuthRequestError } from './authClient.js';
  * customer login. On success, the real session cookie is already set
  * (by `/api/auth/login`, before this component's own fetch resolves) —
  * this just redirects into the account area next.
+ *
+ * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — a single
+ * "Mobile number or email" field replaces the previous email-only field,
+ * per the Product Owner's own requirement: "Customer login should
+ * support mobile number... Email login may remain supported."
  */
 export interface LoginFormProps {
   /** Where to land after a real, successful login — defaults to the account overview. */
@@ -19,7 +24,7 @@ export interface LoginFormProps {
 
 export function LoginForm({ redirectTo = '/account' }: LoginFormProps) {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,14 +33,14 @@ export function LoginForm({ redirectTo = '/account' }: LoginFormProps) {
     event.preventDefault();
     setError(null);
 
-    if (!email.trim() || !password) {
-      setError('Enter your email and password.');
+    if (!identifier.trim() || !password) {
+      setError('Enter your mobile number or email, and password.');
       return;
     }
 
     setLoading(true);
     try {
-      await loginAccount(email.trim(), password);
+      await loginAccount(identifier.trim(), password);
       router.push(redirectTo);
       router.refresh();
     } catch (err) {
@@ -49,7 +54,13 @@ export function LoginForm({ redirectTo = '/account' }: LoginFormProps) {
     <Card>
       <CardContent className="pt-4">
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-          <Input label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            label="Mobile number or email"
+            type="text"
+            autoComplete="username"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+          />
           <div className="flex flex-col gap-1.5">
             <Input label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
             <Link href="/forgot-password" className="self-end text-caption text-brand hover:underline">

@@ -160,7 +160,7 @@ export function CustomerDetailPage() {
             <Badge className={customer.status === 'active' ? 'bg-feedback-success text-black' : undefined}>{customer.status}</Badge>
           </div>
           <Text variant="body" className="mt-1 text-text-secondary">
-            {customer.email}
+            {customer.phone ?? customer.email ?? '—'}
           </Text>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -206,8 +206,28 @@ export function CustomerDetailPage() {
           <CardContent>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <OverviewField label="Name" value={<Text variant="body">{customer.name}</Text>} />
-              <OverviewField label="Email" value={<Text variant="body">{customer.email}</Text>} />
-              <OverviewField label="Phone" value={<Text variant="body">{customer.phone ?? '—'}</Text>} />
+              <OverviewField
+                label="Phone"
+                value={
+                  <div className="flex items-center gap-1.5">
+                    <Text variant="body">{customer.phone ?? '—'}</Text>
+                    {customer.phone && (
+                      <Badge
+                        className={
+                          customer.phoneVerificationStatus === 'verified'
+                            ? 'bg-feedback-success text-black'
+                            : customer.phoneVerificationStatus === 'blocked'
+                              ? 'bg-feedback-danger text-white'
+                              : undefined
+                        }
+                      >
+                        {customer.phoneVerificationStatus}
+                      </Badge>
+                    )}
+                  </div>
+                }
+              />
+              <OverviewField label="Email" value={<Text variant="body">{customer.email ?? '—'}</Text>} />
               <OverviewField
                 label="Status"
                 value={<Badge className={customer.status === 'active' ? 'bg-feedback-success text-black' : undefined}>{customer.status}</Badge>}

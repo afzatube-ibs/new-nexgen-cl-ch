@@ -30,8 +30,8 @@ final class UpdateMyProfileRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:255'],
-            'email' => ['sometimes', 'email', 'max:255', Rule::unique('customers', 'email')->ignore($this->user()?->id)],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'email' => ['sometimes', 'nullable', 'email', 'max:255', Rule::unique('customers', 'email')->ignore($this->user()?->id)],
+            'phone' => ['sometimes', 'string', 'max:50', Rule::unique('customers', 'phone')->ignore($this->user()?->id)],
             'expected_version' => ['required', 'integer', 'min:1'],
         ];
     }

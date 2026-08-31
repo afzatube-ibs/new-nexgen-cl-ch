@@ -64,7 +64,13 @@ final readonly class RequestPasswordResetAction
 
         $this->eventBus->publish(new CustomerPasswordResetRequested(
             customerId: $customer->id,
-            email: $customer->email,
+            // `$email`, not `$customer->email` — genuinely the identical
+            // value here (the query above only ever matches a row whose
+            // `email` column equals this real, non-null string), but
+            // `Customer::$email` widened to `?string` under Phase 4.0
+            // Slice 4.1 (Mobile-First Customer Identity); `$email` keeps
+            // this call statically well-typed without an unsafe cast.
+            email: $email,
             plainTextToken: $plainTextToken,
         ));
     }

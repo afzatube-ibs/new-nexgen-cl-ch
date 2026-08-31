@@ -13,10 +13,20 @@ import { registerAccount, loginAccount, AuthRequestError } from './authClient.js
  * fabricated session) so a new customer lands in their own account
  * straight away, rather than being sent back to a login form to re-type
  * the password they just entered.
+ *
+ * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — mobile number is
+ * now the required, primary field (was email); email is optional and
+ * hidden behind a progressive-disclosure toggle, per the Product Owner's
+ * own requirement: "Registration should primarily use mobile number...
+ * Email is optional." Login-after-register below uses the phone number
+ * just entered as the identifier — every new customer has one, not every
+ * new customer has an email.
  */
 export function RegisterForm() {
   const router = useRouter();
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [showEmail, setShowEmail] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
@@ -29,8 +39,8 @@ export function RegisterForm() {
     setError(null);
     setFieldErrors({});
 
-    if (!name.trim() || !email.trim() || !password) {
-      setError('Fill in your name, email, and password.');
+    if (!name.trim() || !phone.trim() || !password) {
+      setError('Fill in your name, mobile number, and password.');
       return;
     }
     if (password !== passwordConfirmation) {
@@ -40,8 +50,8 @@ export function RegisterForm() {
 
     setLoading(true);
     try {
-      await registerAccount({ name: name.trim(), email: email.trim(), password, passwordConfirmation: password });
-      await loginAccount(email.trim(), password);
+      await registerAccount({ name: name.trim(), phone: phone.trim(), email: email.trim() || undefined, password, passwordConfirmation: password });
+      await loginAccount(phone.trim(), password);
       router.push('/account');
       router.refresh();
     } catch (err) {
@@ -61,7 +71,33 @@ export function RegisterForm() {
       <CardContent className="pt-4">
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <Input label="Full name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={fieldErrors.email} />
+          <Input
+            label="Mobile number"
+            type="tel"
+            autoComplete="tel"
+            placeholder="01XXXXXXXXX"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            error={fieldErrors.phone}
+          />
+          {showEmail ? (
+            <Input
+              label="Email address (optional)"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              error={fieldErrors.email}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowEmail(true)}
+              className="self-start text-label text-text-secondary underline decoration-dotted hover:text-text-primary"
+            >
+              + Add an email address (optional)
+            </button>
+          )}
           <Input label="Password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} error={fieldErrors.password} />
           <Input
             label="Confirm password"

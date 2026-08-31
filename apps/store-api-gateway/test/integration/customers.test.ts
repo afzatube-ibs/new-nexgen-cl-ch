@@ -17,7 +17,7 @@ describe('routes/customers (integration — Category C, real per-request custome
     const response = await app.inject({
       method: 'POST',
       url: '/v1/customers/register',
-      payload: { name: 'Jane', email: 'jane@example.test', password: 'Str0ng!Passw0rd#123', password_confirmation: 'Str0ng!Passw0rd#123' },
+      payload: { name: 'Jane', phone: '+8801700000000', email: 'jane@example.test', password: 'Str0ng!Passw0rd#123', password_confirmation: 'Str0ng!Passw0rd#123' },
     });
 
     expect(response.statusCode).toBe(200);
@@ -70,11 +70,44 @@ describe('routes/customers (integration — Category C, real per-request custome
     const response = await app.inject({
       method: 'POST',
       url: '/v1/customers/login',
-      payload: { email: 'jane@example.test', password: 'correct-password', device_name: 'storefront' },
+      payload: { identifier: 'jane@example.test', password: 'correct-password', device_name: 'storefront' },
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.json().meta.token).toBe('real-plaintext-token');
+    await app.close();
+  });
+
+  // Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `identifier`
+  // accepts a phone-shaped value too, matching the real backend's own
+  // `LoginCustomerAction` OR lookup.
+  it('POST /v1/customers/login accepts a phone number as the identifier', async () => {
+    stubBackendFetch([
+      { match: 'customers/login', status: 200, body: { data: { id: CUSTOMER_ID, phone: '+8801812345678' }, meta: { token: 'real-plaintext-token' } } },
+    ]);
+    const app = await buildTestApp(testEnv());
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/customers/login',
+      payload: { identifier: '+8801812345678', password: 'correct-password', device_name: 'storefront' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().meta.token).toBe('real-plaintext-token');
+    await app.close();
+  });
+
+  it('POST /v1/customers/register rejects a request with no phone at all, before ever reaching the real backend', async () => {
+    const app = await buildTestApp(testEnv());
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/customers/register',
+      payload: { name: 'Jane', email: 'jane@example.test', password: 'Str0ng!Passw0rd#123', password_confirmation: 'Str0ng!Passw0rd#123' },
+    });
+
+    expect(response.statusCode).toBe(422);
     await app.close();
   });
 

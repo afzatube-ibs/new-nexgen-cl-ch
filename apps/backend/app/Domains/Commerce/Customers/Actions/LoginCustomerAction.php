@@ -30,18 +30,29 @@ final readonly class LoginCustomerAction
     ) {}
 
     /**
+     * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `$identifier`
+     * may be either a phone or an email; looked up against both columns
+     * rather than requiring the caller to say which, matching the
+     * Storefront's own single "phone or email" login field. No
+     * normalization (e.g. stripping a country-code prefix) is applied —
+     * an exact match against whichever value the customer registered
+     * with, the same discipline `email` lookups have always used here.
+     *
      * @return array{customer: Customer, token: NewAccessToken}
      */
-    public function execute(string $email, string $password, string $deviceName): array
+    public function execute(string $identifier, string $password, string $deviceName): array
     {
-        $customer = Customer::query()->where('email', $email)->first();
+        $customer = Customer::query()
+            ->where('email', $identifier)
+            ->orWhere('phone', $identifier)
+            ->first();
 
         if ($customer === null || ! Hash::check($password, $customer->password)) {
-            $this->fail($email, 'invalid_credentials');
+            $this->fail($identifier, 'invalid_credentials');
         }
 
         if (! $customer->isActive()) {
-            $this->fail($email, 'account_not_active');
+            $this->fail($identifier, 'account_not_active');
         }
 
         $token = $customer->createToken($deviceName);
@@ -58,16 +69,16 @@ final readonly class LoginCustomerAction
         return ['customer' => $customer, 'token' => $token];
     }
 
-    private function fail(string $attemptedEmail, string $reason): never
+    private function fail(string $attemptedIdentifier, string $reason): never
     {
         $this->auditLogger->log(
             action: 'customer.authentication_failed',
             actorId: null,
-            targetType: 'attempted_email',
-            targetId: $attemptedEmail,
+            targetType: 'attempted_identifier',
+            targetId: $attemptedIdentifier,
         );
 
-        $this->eventBus->publish(new CustomerAuthenticationFailed($attemptedEmail, $reason));
+        $this->eventBus->publish(new CustomerAuthenticationFailed($attemptedIdentifier, $reason));
 
         throw new AuthenticationFailedException;
     }

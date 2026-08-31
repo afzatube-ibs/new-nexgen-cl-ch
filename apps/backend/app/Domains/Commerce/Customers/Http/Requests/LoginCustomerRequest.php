@@ -16,12 +16,22 @@ final class LoginCustomerRequest extends FormRequest
     }
 
     /**
+     * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — a single
+     * `identifier` field (phone-shaped or email-shaped, either is
+     * accepted; see `Actions\LoginCustomerAction` for the OR lookup)
+     * replaces the previous `email`-only field, per the Product Owner's
+     * own requirement: "Customer login should support mobile number...
+     * Email login may remain supported." Not validated as `email` or a
+     * phone-specific format here — deliberately loose, since it must
+     * accept either shape and the real lookup (not a format check) is
+     * what actually decides whether it matches an account.
+     *
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'max:255'],
+            'identifier' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
             'device_name' => ['required', 'string', 'max:255'],
         ];

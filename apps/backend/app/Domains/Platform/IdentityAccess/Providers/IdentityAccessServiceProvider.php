@@ -29,11 +29,18 @@ final class IdentityAccessServiceProvider extends ServiceProvider
             return $user->hasPermission($ability) ? true : null;
         });
 
-        // Keyed by email+IP, not IP alone: an attacker rotating IPs against
-        // one email is still throttled, and one IP's legitimate users on a
-        // shared connection (e.g. an office NAT) don't lock each other out.
+        // Keyed by identifier+IP, not IP alone: an attacker rotating IPs
+        // against one identifier is still throttled, and one IP's
+        // legitimate users on a shared connection (e.g. an office NAT)
+        // don't lock each other out. Shared across staff login (always
+        // `email`) and Customer login (Phase 4.0 Slice 4.1 renamed its
+        // own field to `identifier` — phone- or email-shaped) — falls
+        // back to `identifier` only when `email` is absent, so staff
+        // behavior is byte-for-byte unchanged.
         RateLimiter::for('login', function ($request) {
-            return Limit::perMinute(5)->by($request->string('email').'|'.$request->ip());
+            $key = $request->string('email')->toString() ?: $request->string('identifier')->toString();
+
+            return Limit::perMinute(5)->by($key.'|'.$request->ip());
         });
 
         require __DIR__.'/../routes.php';

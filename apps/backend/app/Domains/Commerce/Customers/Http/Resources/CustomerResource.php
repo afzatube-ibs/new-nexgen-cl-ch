@@ -30,6 +30,8 @@ final class CustomerResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            'phoneVerificationStatus' => $this->phone_verification_status,
+            'phoneVerifiedAt' => $this->phone_verified_at?->toIso8601String(),
             'status' => $this->status,
             'addresses' => CustomerAddressResource::collection($this->whenLoaded('addresses')),
             'version' => $this->lock_version,

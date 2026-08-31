@@ -11,8 +11,11 @@
 export interface CustomerProfile {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
+  /** Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — see `Customer::PHONE_*` on the real backend. */
+  phoneVerificationStatus: 'unverified' | 'verified' | 'blocked';
+  phoneVerifiedAt: string | null;
   status: string;
   addresses: CustomerAddress[];
   version: number;
@@ -35,18 +38,20 @@ export interface CustomerAddress {
   isDefaultBilling: boolean;
 }
 
+/** Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `phone` required, `email` optional (was the inverse). */
 export interface RegisterCustomerInput {
   name: string;
-  email: string;
+  phone: string;
+  email?: string | null;
   password: string;
   passwordConfirmation: string;
-  phone?: string | null;
 }
 
+/** Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `email` may now be explicitly cleared to `null`; `phone` may be changed but never cleared, matching the real backend's own `UpdateMyProfileRequest`. */
 export interface UpdateMyProfileInput {
   name?: string;
-  email?: string;
-  phone?: string | null;
+  email?: string | null;
+  phone?: string;
   expectedVersion: number;
 }
 

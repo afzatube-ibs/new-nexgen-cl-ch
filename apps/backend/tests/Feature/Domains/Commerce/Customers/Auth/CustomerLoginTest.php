@@ -7,11 +7,11 @@ use App\Domains\Commerce\Customers\Models\Customer;
 use App\Domains\Platform\IdentityAccess\Models\User;
 use Illuminate\Support\Facades\Hash;
 
-it('issues a real token for correct credentials', function () {
+it('issues a real token for correct credentials via email', function () {
     $customer = Customer::factory()->create(['password' => Hash::make('correct-horse-battery-staple')]);
 
     $response = $this->postJson('/api/v1/customers/login', [
-        'email' => $customer->email,
+        'identifier' => $customer->email,
         'password' => 'correct-horse-battery-staple',
         'device_name' => 'test-suite',
     ]);
@@ -21,38 +21,57 @@ it('issues a real token for correct credentials', function () {
         ->assertJsonStructure(['meta' => ['token']]);
 });
 
-it('rejects an unknown email with a generic message, identical to a wrong password', function () {
+// Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — login now
+// accepts either identity, per the Product Owner's own requirement:
+// "Customer login should support mobile number... Email login may
+// remain supported."
+it('issues a real token for correct credentials via phone number', function () {
+    $customer = Customer::factory()->create(['phone' => '+8801812345678', 'password' => Hash::make('correct-horse-battery-staple')]);
+
+    $response = $this->postJson('/api/v1/customers/login', [
+        'identifier' => '+8801812345678',
+        'password' => 'correct-horse-battery-staple',
+        'device_name' => 'test-suite',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.id', $customer->id)
+        ->assertJsonStructure(['meta' => ['token']]);
+});
+
+it('rejects an unknown identifier with a generic message, identical to a wrong password', function () {
     // A dedicated, unique placeholder — never `nobody@example.test`, the
     // exact literal RateLimitingTest's own "purpose-built stricter route
     // limiter" test uses against this identical `throttle:login` bucket
-    // (keyed by email|ip): reusing it here would make that unrelated
-    // test's rate-limit counter start pre-exhausted whenever the full
-    // suite (not this file in isolation) runs, a real cross-file
-    // test-isolation collision found and fixed live while wiring this
-    // milestone's own Customer login onto the same, deliberately shared
-    // `login` limiter.
+    // (keyed by email|ip, falling back to identifier|ip for Customer
+    // login as of Phase 4.0 Slice 4.1): reusing it here would make that
+    // unrelated test's rate-limit counter start pre-exhausted whenever
+    // the full suite (not this file in isolation) runs, a real
+    // cross-file test-isolation collision found and fixed live while
+    // wiring this milestone's own Customer login onto the same,
+    // deliberately shared `login` limiter.
     $unknown = $this->postJson('/api/v1/customers/login', [
-        'email' => 'no-such-customer@example.test',
+        'identifier' => 'no-such-customer@example.test',
         'password' => 'whatever',
         'device_name' => 'test-suite',
     ]);
 
     $customer = Customer::factory()->create(['password' => Hash::make('the-real-password')]);
     $wrongPassword = $this->postJson('/api/v1/customers/login', [
-        'email' => $customer->email,
+        'identifier' => $customer->email,
         'password' => 'a-wrong-password',
         'device_name' => 'test-suite',
     ]);
 
-    $unknown->assertStatus(422)->assertJsonPath('error.details.email.0', 'The provided credentials are incorrect.');
-    $wrongPassword->assertStatus(422)->assertJsonPath('error.details.email.0', 'The provided credentials are incorrect.');
+    $unknown->assertStatus(422)->assertJsonPath('error.details.identifier.0', 'The provided credentials are incorrect.');
+    $wrongPassword->assertStatus(422)->assertJsonPath('error.details.identifier.0', 'The provided credentials are incorrect.');
 });
 
 it('rejects login for an archived customer account', function () {
     $customer = Customer::factory()->archived()->create(['password' => Hash::make('correct-horse-battery-staple')]);
 
     $response = $this->postJson('/api/v1/customers/login', [
-        'email' => $customer->email,
+        'identifier' => $customer->email,
         'password' => 'correct-horse-battery-staple',
         'device_name' => 'test-suite',
     ]);
@@ -63,8 +82,8 @@ it('rejects login for an archived customer account', function () {
 it('audits both a successful and a failed customer authentication attempt', function () {
     $customer = Customer::factory()->create(['password' => Hash::make('correct-horse-battery-staple')]);
 
-    $this->postJson('/api/v1/customers/login', ['email' => $customer->email, 'password' => 'correct-horse-battery-staple', 'device_name' => 'test-suite']);
-    $this->postJson('/api/v1/customers/login', ['email' => $customer->email, 'password' => 'wrong', 'device_name' => 'test-suite']);
+    $this->postJson('/api/v1/customers/login', ['identifier' => $customer->email, 'password' => 'correct-horse-battery-staple', 'device_name' => 'test-suite']);
+    $this->postJson('/api/v1/customers/login', ['identifier' => $customer->email, 'password' => 'wrong', 'device_name' => 'test-suite']);
 
     expect(AuditLog::query()->where('action', 'customer.authenticated')->count())->toBe(1);
     expect(AuditLog::query()->where('action', 'customer.authentication_failed')->count())->toBe(1);

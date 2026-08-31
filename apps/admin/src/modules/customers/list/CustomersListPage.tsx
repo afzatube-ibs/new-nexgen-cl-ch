@@ -115,8 +115,8 @@ export function CustomersListPage() {
   const columns: DataTableColumn<CustomerDTO>[] = useMemo(
     () => [
       { id: 'name', header: 'Customer', sortable: true, cell: (row) => <Text variant="body-strong">{row.name}</Text> },
-      { id: 'email', header: 'Email', sortable: true, cell: (row) => row.email },
       { id: 'phone', header: 'Phone', cell: (row) => row.phone ?? <span className="text-text-secondary">—</span> },
+      { id: 'email', header: 'Email', sortable: true, cell: (row) => row.email ?? <span className="text-text-secondary">—</span> },
       {
         id: 'status',
         header: 'Status',

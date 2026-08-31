@@ -37,8 +37,23 @@ final readonly class RegisterCustomerAction
         return DB::transaction(function () use ($attributes, $actorId) {
             $customer = Customer::query()->create([
                 'name' => $attributes['name'],
-                'email' => $attributes['email'],
+                'email' => $attributes['email'] ?? null,
                 'password' => $attributes['password'],
+                // Deliberately `?? null`, not required here: this Action
+                // has more than one real caller (self-service
+                // registration, whose own Http\Requests\
+                // RegisterCustomerRequest already enforces `phone` as
+                // required before this ever runs — and Checkout's own
+                // guest-to-customer conversion in
+                // Checkout\Actions\SubmitCheckoutAction, which has no
+                // `guest_phone` field yet as of Phase 4.0 Slice 4.1;
+                // that's real future work for Slice 4.3, not invented
+                // here). Requiring `phone` unconditionally in this
+                // shared Action would duplicate a validation concern
+                // that belongs to each caller's own Request, per
+                // SECURITY:AUTHORIZATION's "no module performs its own
+                // bespoke, disconnected [validation] logic" — and would
+                // break the real, working Checkout guest flow today.
                 'phone' => $attributes['phone'] ?? null,
             ]);
 

@@ -44,20 +44,22 @@ async function authRequest<T>(path: string, body?: unknown): Promise<T> {
   return json;
 }
 
+/** Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `phone` required, `email` optional (was the inverse). */
 export interface RegisterAccountInput {
   name: string;
-  email: string;
+  phone: string;
+  email?: string;
   password: string;
   passwordConfirmation: string;
-  phone?: string;
 }
 
-export function registerAccount(input: RegisterAccountInput): Promise<{ email: string }> {
+export function registerAccount(input: RegisterAccountInput): Promise<{ phone: string; email: string | null }> {
   return authRequest('/api/auth/register', input);
 }
 
-export function loginAccount(email: string, password: string): Promise<{ email: string }> {
-  return authRequest('/api/auth/login', { email, password });
+/** `identifier` may be either a phone or an email. */
+export function loginAccount(identifier: string, password: string): Promise<{ phone: string | null; email: string | null }> {
+  return authRequest('/api/auth/login', { identifier, password });
 }
 
 export function logoutAccount(): Promise<void> {

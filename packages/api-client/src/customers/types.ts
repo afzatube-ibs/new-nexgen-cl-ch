@@ -24,11 +24,17 @@ export interface CustomerAddressDTO {
   updatedAt: string | null;
 }
 
+/** Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — see `Customer::PHONE_*` on the real backend. */
+export type CustomerPhoneVerificationStatus = 'unverified' | 'verified' | 'blocked';
+
 export interface CustomerDTO {
   id: string;
   name: string;
-  email: string;
+  /** Nullable as of Phase 4.0 Slice 4.1 — a customer may register with phone only. */
+  email: string | null;
   phone: string | null;
+  phoneVerificationStatus: CustomerPhoneVerificationStatus;
+  phoneVerifiedAt: string | null;
   status: CustomerStatus;
   /** Only present when the response embeds it — `CustomerController::show`/`store`/`update`/`archive` (`$customer->load('addresses')` on `show` only; the collection endpoint never loads it). Absent (`undefined`), never an empty array, when not loaded — see `customers.ts`'s own docblock. */
   addresses?: CustomerAddressDTO[];
@@ -42,19 +48,25 @@ export interface CustomerDTO {
  * are required at create only; `Customer` has no self-service login yet
  * (see the architecture doc's own §3), so this is a staff-set credential,
  * not a "send a reset link" flow this slice does not build.
+ *
+ * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `phone` is now
+ * required, `email` optional (was the inverse); staff-side creation
+ * reuses this exact same real backend request, per `CustomerController::
+ * store()`, confirmed by reading it directly.
  */
 export interface CreateCustomerInput {
   name: string;
-  email: string;
+  phone: string;
+  email?: string | null;
   password: string;
   passwordConfirmation: string;
-  phone?: string | null;
 }
 
 export interface UpdateCustomerInput {
   name?: string;
-  email?: string;
-  phone?: string | null;
+  email?: string | null;
+  /** May be changed but never cleared — the real backend's own `UpdateCustomerProfileRequest` disallows a null phone. */
+  phone?: string;
   expectedVersion: number;
 }
 

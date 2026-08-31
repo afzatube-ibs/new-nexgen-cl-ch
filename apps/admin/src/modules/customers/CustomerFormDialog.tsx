@@ -9,11 +9,15 @@ import { applyServerValidationErrors } from '../../framework/index.js';
 import { customersErrorMessage } from './shared/errors.js';
 import { useCreateCustomer, useUpdateCustomer } from './shared/queries.js';
 
+// Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `phone` is now
+// the required, primary identity (was optional); `email` is now optional
+// (was required), matching `RegisterCustomerRequest`'s own real rules —
+// staff-side creation reuses that exact same backend request.
 const createSchema = z
   .object({
     name: z.string().min(1, 'Name is required').max(255),
-    email: z.string().min(1, 'Email is required').email('Enter a valid email address').max(255),
-    phone: z.string().max(50).optional(),
+    phone: z.string().min(1, 'Mobile number is required').max(50),
+    email: z.string().email('Enter a valid email address').max(255).optional().or(z.literal('')),
     // Length-checked here only (matches this codebase's own currency-code/
     // country-code field precedent) — the real mixed-case/number/symbol
     // rule stays server-side (`RegisterCustomerRequest`'s own
@@ -27,8 +31,8 @@ const createSchema = z
 
 const editSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
-  email: z.string().min(1, 'Email is required').email('Enter a valid email address').max(255),
-  phone: z.string().max(50).optional(),
+  phone: z.string().min(1, 'Mobile number is required').max(50),
+  email: z.string().email('Enter a valid email address').max(255).optional().or(z.literal('')),
 });
 
 /**
@@ -40,8 +44,8 @@ const editSchema = z.object({
  */
 interface FormValues {
   name: string;
-  email: string;
-  phone?: string;
+  phone: string;
+  email?: string;
   password?: string;
   passwordConfirmation?: string;
 }
@@ -53,11 +57,11 @@ export interface CustomerFormDialogProps {
   customer?: CustomerDTO;
 }
 
-const EMPTY_VALUES: FormValues = { name: '', email: '', phone: '', password: '', passwordConfirmation: '' };
+const EMPTY_VALUES: FormValues = { name: '', phone: '', email: '', password: '', passwordConfirmation: '' };
 
 function valuesFromCustomer(customer?: CustomerDTO): FormValues {
   if (!customer) return EMPTY_VALUES;
-  return { name: customer.name, email: customer.email, phone: customer.phone ?? '' };
+  return { name: customer.name, phone: customer.phone ?? '', email: customer.email ?? '' };
 }
 
 /**
@@ -135,16 +139,16 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFor
       if (isEdit && customer) {
         await updateMutation.mutateAsync({
           id: customer.id,
-          input: { name: values.name, email: values.email, phone: values.phone || null, expectedVersion: customer.version },
+          input: { name: values.name, phone: values.phone, email: values.email || null, expectedVersion: customer.version },
         });
         toast({ variant: 'success', title: 'Customer updated', description: `"${values.name}" has been saved.` });
       } else {
         await createMutation.mutateAsync({
           name: values.name,
-          email: values.email,
+          phone: values.phone,
+          email: values.email || null,
           password: values.password ?? '',
           passwordConfirmation: values.passwordConfirmation ?? '',
-          phone: values.phone || null,
         });
         toast({ variant: 'success', title: 'Customer created', description: `"${values.name}" has been added.` });
       }
@@ -162,7 +166,7 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFor
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit customer' : 'New customer'}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update this customer's name, email, or phone." : 'Register a new customer account on their behalf.'}
+            {isEdit ? "Update this customer's name, mobile number, or email." : 'Register a new customer account on their behalf.'}
           </DialogDescription>
         </DialogHeader>
         {formError && (
@@ -172,8 +176,8 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFor
         )}
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
           <Input label="Name" hint="e.g. Jane Shopper." error={errors.name?.message} {...register('name')} />
-          <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
-          <Input label="Phone" hint="Optional." error={errors.phone?.message} {...register('phone')} />
+          <Input label="Mobile number" error={errors.phone?.message} {...register('phone')} />
+          <Input label="Email" type="email" hint="Optional." error={errors.email?.message} {...register('email')} />
 
           {!isEdit && (
             <div className="flex flex-col gap-2 rounded-md border border-border p-3">

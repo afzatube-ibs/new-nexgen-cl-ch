@@ -49,7 +49,7 @@ it('resets a real password with a real token, and the new password actually work
     $reset->assertOk();
 
     $login = $this->postJson('/api/v1/customers/login', [
-        'email' => $customer->email,
+        'identifier' => $customer->email,
         'password' => 'Str0ng!NewPassw0rd#1',
         'device_name' => 'test-suite',
     ]);

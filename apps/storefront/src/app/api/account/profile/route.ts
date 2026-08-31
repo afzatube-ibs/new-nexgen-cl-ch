@@ -9,7 +9,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     return NextResponse.json({ message: 'You must be signed in to do that.' }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => null)) as { name?: string; email?: string; phone?: string | null; expectedVersion?: number } | null;
+  const body = (await request.json().catch(() => null)) as { name?: string; email?: string | null; phone?: string; expectedVersion?: number } | null;
 
   if (!body?.expectedVersion) {
     return NextResponse.json({ message: 'expectedVersion is required.' }, { status: 422 });

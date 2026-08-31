@@ -548,3 +548,9 @@ Each milestone is scoped to be independently shippable: it does not require any 
 ### Phase 4.0 — Bangladesh Commerce & Trust Platform
 
 A new, larger initiative opened 2026-09-01 in direct response to the Product Owner's own explicit production requirements — mobile-first identity, OTP, Checkout redesign, guest checkout, fraud prevention, Bangladesh optimization, all cross-cutting rather than isolated. Sized and sequenced as its own Phase (matching Phase 2.4/2.9/3.0's own shape) rather than folded into this plan's own Milestone numbering, since it touches the same core aggregates (`Customer`, Checkout) five separate times if treated as isolated milestones — see the Product Owner's own requirement 7. Architecture research complete; full detail, verified findings, proposed slice sequence, and open business-decision questions: `planning/architecture/PHASE_4_0_BANGLADESH_COMMERCE_ARCHITECTURE.md`.
+
+- **Slice 4.1 — Mobile-First Customer Identity — ✅ Shipped (2026-09-01).** Phone is now the required, unique, primary Customer identity; email is optional. Registration is mobile-first; login accepts phone or email. Groundwork `phone_verification_status`/`phone_verified_at` columns added for Slice 4.2 to populate. Live-verified end to end (Storefront register-by-phone, login-by-phone; Admin Customers List/New Customer dialog). Full detail: `planning/reports/PHASE_4_0_SLICE_4_1_MOBILE_FIRST_IDENTITY_COMPLETION_REPORT.md`.
+- **Slice 4.2 — OTP Module + Admin Settings — not yet started.**
+- **Slice 4.3 — Checkout UX Redesign + Guest Phone — not yet started.**
+- **Slice 4.4 — Fraud Prevention Engine — not yet started.**
+- **Slice 4.5 — Freeze Audit + documentation — not yet started.**

@@ -71,15 +71,20 @@ async function gatewayRequest<T>(path: string, options: { method: 'GET' | 'POST'
 export async function registerCustomer(input: RegisterCustomerInput): Promise<CustomerProfile> {
   const envelope = await gatewayRequest<{ data: CustomerProfile }>('v1/customers/register', {
     method: 'POST',
-    body: { name: input.name, email: input.email, password: input.password, password_confirmation: input.passwordConfirmation, phone: input.phone },
+    body: { name: input.name, phone: input.phone, email: input.email, password: input.password, password_confirmation: input.passwordConfirmation },
   });
   return envelope.data;
 }
 
-export async function loginCustomer(email: string, password: string): Promise<{ customer: CustomerProfile; token: string }> {
+/**
+ * Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `identifier` may
+ * be either a phone or an email, matching the real backend's own OR
+ * lookup (`LoginCustomerAction`).
+ */
+export async function loginCustomer(identifier: string, password: string): Promise<{ customer: CustomerProfile; token: string }> {
   const envelope = await gatewayRequest<{ data: CustomerProfile; meta: { requestId: string; token: string } }>('v1/customers/login', {
     method: 'POST',
-    body: { email, password, device_name: 'storefront' },
+    body: { identifier, password, device_name: 'storefront' },
   });
   return { customer: envelope.data, token: envelope.meta.token };
 }

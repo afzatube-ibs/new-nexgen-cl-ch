@@ -12,25 +12,26 @@ import { GatewayRequestError } from '@nexgen/storefront-engine';
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json().catch(() => null)) as {
     name?: string;
-    email?: string;
+    phone?: string;
+    email?: string | null;
     password?: string;
     passwordConfirmation?: string;
-    phone?: string | null;
   } | null;
 
-  if (!body?.name || !body.email || !body.password || !body.passwordConfirmation) {
-    return NextResponse.json({ message: 'Name, email, and password are required.' }, { status: 422 });
+  // Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — phone required, email optional (was the inverse).
+  if (!body?.name || !body.phone || !body.password || !body.passwordConfirmation) {
+    return NextResponse.json({ message: 'Name, mobile number, and password are required.' }, { status: 422 });
   }
 
   try {
     const customer = await registerCustomer({
       name: body.name,
+      phone: body.phone,
       email: body.email,
       password: body.password,
       passwordConfirmation: body.passwordConfirmation,
-      phone: body.phone,
     });
-    return NextResponse.json({ email: customer.email });
+    return NextResponse.json({ phone: customer.phone, email: customer.email });
   } catch (error) {
     if (error instanceof GatewayRequestError) {
       const fieldErrors = extractFieldErrors(error);

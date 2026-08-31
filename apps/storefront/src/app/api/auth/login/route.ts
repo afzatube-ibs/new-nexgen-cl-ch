@@ -12,16 +12,17 @@ import { CUSTOMER_SESSION_COOKIE } from '@/lib/customerSession';
  * client-side JS cannot read.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json().catch(() => null)) as { email?: string; password?: string } | null;
+  const body = (await request.json().catch(() => null)) as { identifier?: string; password?: string } | null;
 
-  if (!body?.email || !body.password) {
-    return NextResponse.json({ message: 'Email and password are required.' }, { status: 422 });
+  // Phase 4.0 Slice 4.1 (Mobile-First Customer Identity) — `identifier` may be either a phone or an email.
+  if (!body?.identifier || !body.password) {
+    return NextResponse.json({ message: 'Mobile number or email, and password, are required.' }, { status: 422 });
   }
 
   try {
-    const { customer, token } = await loginCustomer(body.email, body.password);
+    const { customer, token } = await loginCustomer(body.identifier, body.password);
 
-    const response = NextResponse.json({ email: customer.email });
+    const response = NextResponse.json({ phone: customer.phone, email: customer.email });
     response.cookies.set(CUSTOMER_SESSION_COOKIE, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
