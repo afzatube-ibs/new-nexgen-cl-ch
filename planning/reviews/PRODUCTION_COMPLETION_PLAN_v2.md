@@ -537,4 +537,14 @@ Each milestone is scoped to be independently shippable: it does not require any 
 
 ---
 
-**Part 3's originally-scoped milestones, plus Milestones 13–16 (identified during live verification), are now all shipped as of this session. No further milestones remain scheduled in this document.**
+**Part 3's originally-scoped milestones, plus Milestones 13–16 (identified during live verification), are now all shipped as of this session.**
+
+### Milestone 17 — Customer-Initiated Returns — ⏸️ Paused (scoping in progress)
+
+- **Objective**: close a real, disclosed gap in the original plan's own Part 2 findings — every Returns route (`app/Domains/Operations/Returns/routes.php`) requires a staff `permission:`; no customer-facing way to request a return exists anywhere (confirmed: no Gateway route, no Storefront page).
+- **Real architectural constraint found mid-scoping**: `CreateReturnRequestAction`'s own docblock documents that Returns has no lawful dependency on Commerce modules at all — it cannot verify order ownership or delivery-eligibility itself. Orders already has the exact right-shaped precedent (`orders/mine/{order}`, a real `customer.guard`-scoped, ownership-checked endpoint) — the composition belongs in the Gateway layer, not inside Returns.
+- **Paused** — not abandoned — when the Product Owner's Phase 4.0 requirements (below) arrived mid-scoping. Resume once Phase 4.0's own Mobile-First Identity slice (4.1) lands, since a customer-initiated return flow should identify the customer the same (soon to be phone-first) way the rest of the platform does, rather than being built against the identity model about to change underneath it.
+
+### Phase 4.0 — Bangladesh Commerce & Trust Platform
+
+A new, larger initiative opened 2026-09-01 in direct response to the Product Owner's own explicit production requirements — mobile-first identity, OTP, Checkout redesign, guest checkout, fraud prevention, Bangladesh optimization, all cross-cutting rather than isolated. Sized and sequenced as its own Phase (matching Phase 2.4/2.9/3.0's own shape) rather than folded into this plan's own Milestone numbering, since it touches the same core aggregates (`Customer`, Checkout) five separate times if treated as isolated milestones — see the Product Owner's own requirement 7. Architecture research complete; full detail, verified findings, proposed slice sequence, and open business-decision questions: `planning/architecture/PHASE_4_0_BANGLADESH_COMMERCE_ARCHITECTURE.md`.
