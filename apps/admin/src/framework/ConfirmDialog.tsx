@@ -33,6 +33,18 @@ export interface ConfirmDialogProps {
  * (blocking delete-while-in-use). Now caught, shown, and the dialog stays
  * open so the merchant can act on it (Cancel, or fix the underlying issue
  * and retry).
+ *
+ * Footer buttons `stopPropagation()` on click — `DialogContent` renders
+ * via a React portal, and React re-dispatches synthetic events by walking
+ * the *component* tree, not the DOM tree, so a click here still bubbles
+ * past the portal boundary to whatever the `trigger` sits inside. Found
+ * live-verifying Milestone 16 (Notifications Admin UI, 2026-09-01):
+ * confirming "Cancel notification" from a `DataTable` row (`trigger`
+ * itself already stops its own click, but that doesn't stop *this*
+ * button's separate click) bubbled to the row's `onRowClick` and
+ * force-navigated to the detail page right after the confirm succeeded.
+ * Since every module's destructive list-row action goes through this one
+ * component, the fix belongs here rather than in each list page.
  */
 export function ConfirmDialog({
   trigger,
@@ -80,10 +92,24 @@ export function ConfirmDialog({
           </Alert>
         )}
         <DialogFooter>
-          <Button variant="secondary" onClick={() => setOpen(false)} disabled={submitting}>
+          <Button
+            variant="secondary"
+            onClick={(event) => {
+              event.stopPropagation();
+              setOpen(false);
+            }}
+            disabled={submitting}
+          >
             Cancel
           </Button>
-          <Button variant={destructive ? 'destructive' : 'primary'} onClick={() => void handleConfirm()} loading={submitting}>
+          <Button
+            variant={destructive ? 'destructive' : 'primary'}
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleConfirm();
+            }}
+            loading={submitting}
+          >
             {confirmLabel}
           </Button>
         </DialogFooter>

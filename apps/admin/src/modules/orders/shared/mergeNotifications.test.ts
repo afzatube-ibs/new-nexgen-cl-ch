@@ -22,6 +22,7 @@ function notification(overrides: Partial<NotificationDTO>): NotificationDTO {
     cancelledAt: null,
     failureReason: null,
     version: 1,
+    deliveryAttempts: [],
     createdAt: '2026-08-01T00:00:00Z',
     updatedAt: '2026-08-01T00:00:00Z',
     ...overrides,

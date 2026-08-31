@@ -39,11 +39,23 @@ export function DropdownMenuContent({ className, sideOffset = 4, ...props }: Rad
  * row-level Delete (`ConfirmDialog` wrapping a `DropdownMenuItem` trigger,
  * the framework's own standard pattern) — fixed here, at the root, instead
  * of patching each call site.
+ *
+ * Also `stopPropagation()`s its own click — same portal-bubbling mechanism
+ * documented on `Dialog`'s Overlay/Close (`Dialog.tsx`): `DropdownMenuContent`
+ * renders via a React portal, so a click on an item still bubbles, through
+ * the *component* tree, past the portal boundary to whatever this menu is
+ * nested inside in JSX — a `DataTable` row with its own `onClick`, most
+ * notably. Not yet reproduced on a shipped page (no current list page
+ * combines a row-action `DropdownMenu` with `DataTable`'s `onRowClick`),
+ * but it's the identical mechanism just confirmed live in `ConfirmDialog`
+ * while verifying Milestone 16 (Notifications Admin UI, 2026-09-01) — fixed
+ * here pre-emptively so the next module that does combine them doesn't
+ * rediscover it.
  */
 export const DropdownMenuItem = forwardRef<
   ElementRef<typeof RadixDropdownMenu.Item>,
   RadixDropdownMenu.DropdownMenuItemProps & { destructive?: boolean }
->(function DropdownMenuItem({ className, destructive, ...props }, ref) {
+>(function DropdownMenuItem({ className, destructive, onClick, ...props }, ref) {
   return (
     <RadixDropdownMenu.Item
       ref={ref}
@@ -54,12 +66,17 @@ export const DropdownMenuItem = forwardRef<
         destructive && 'text-feedback-danger data-[highlighted]:bg-feedback-danger/10',
         className,
       )}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+      }}
       {...props}
     />
   );
 });
 
-export function DropdownMenuCheckboxItem({ className, children, ...props }: RadixDropdownMenu.DropdownMenuCheckboxItemProps) {
+/** `stopPropagation()`s its own click — see `DropdownMenuItem`'s docblock for why. */
+export function DropdownMenuCheckboxItem({ className, children, onClick, ...props }: RadixDropdownMenu.DropdownMenuCheckboxItemProps) {
   return (
     <RadixDropdownMenu.CheckboxItem
       className={cn(
@@ -67,6 +84,10 @@ export function DropdownMenuCheckboxItem({ className, children, ...props }: Radi
         'data-[highlighted]:bg-surface-subtle',
         className,
       )}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+      }}
       {...props}
     >
       <span className="absolute left-2 flex items-center">
@@ -79,7 +100,8 @@ export function DropdownMenuCheckboxItem({ className, children, ...props }: Radi
   );
 }
 
-export function DropdownMenuRadioItem({ className, children, ...props }: RadixDropdownMenu.DropdownMenuRadioItemProps) {
+/** `stopPropagation()`s its own click — see `DropdownMenuItem`'s docblock for why. */
+export function DropdownMenuRadioItem({ className, children, onClick, ...props }: RadixDropdownMenu.DropdownMenuRadioItemProps) {
   return (
     <RadixDropdownMenu.RadioItem
       className={cn(
@@ -87,6 +109,10 @@ export function DropdownMenuRadioItem({ className, children, ...props }: RadixDr
         'data-[highlighted]:bg-surface-subtle',
         className,
       )}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.(event);
+      }}
       {...props}
     >
       <span className="absolute left-2 flex items-center">

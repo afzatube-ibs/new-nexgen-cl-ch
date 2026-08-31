@@ -43,13 +43,29 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(func
 ) {
   return (
     <DialogPortal>
-      <RadixDialog.Overlay className="fixed inset-0 z-50 bg-slate-950/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+      {/*
+       * Both the Overlay and the Close button `stopPropagation()` on click —
+       * `DialogPortal` renders outside this component's DOM parent, but
+       * React re-dispatches synthetic events by walking the *component*
+       * tree, not the DOM tree, so a click here still bubbles past the
+       * portal boundary to whatever this Dialog happens to be nested inside
+       * in JSX (a `DataTable` row with its own `onClick`, most notably).
+       * Found live-verifying Milestone 16 (Notifications Admin UI,
+       * 2026-09-01) via the sibling bug in `ConfirmDialog`'s own footer
+       * buttons — same root cause, same fix, applied here so it can't
+       * recur through this Dialog's own built-in dismiss controls either.
+       */}
+      <RadixDialog.Overlay
+        className="fixed inset-0 z-50 bg-slate-950/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        onClick={(event) => event.stopPropagation()}
+      />
       <RadixDialog.Content ref={ref} className={cn(dialogContentVariants({ size }), className)} {...props}>
         {children}
         {showCloseButton && (
           <RadixDialog.Close
             className="absolute right-4 top-4 rounded-sm text-text-secondary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             aria-label="Close"
+            onClick={(event) => event.stopPropagation()}
           >
             <X className="size-4" />
           </RadixDialog.Close>
