@@ -15,6 +15,8 @@ import {
   listNotifications,
   getCustomer,
   ORDER_RELATED_TYPE,
+  PAYMENT_RELATED_TYPE,
+  SHIPMENT_RELATED_TYPE,
   type OrderDTO,
   type OrderNoteDTO,
   type ListOrdersQuery,
@@ -30,6 +32,7 @@ import {
   type NotificationDTO,
 } from '@nexgen/api-client';
 import { apiClient } from '../../../lib/apiClient.js';
+import { mergeNotifications } from './mergeNotifications.js';
 
 const QUERY_KEY = 'orders';
 
@@ -195,11 +198,67 @@ export function useOrderPayments(orderId: string | undefined): UseQueryResult<Li
 
 const NOTIFICATIONS_QUERY_KEY = 'orders-notifications';
 
-/** `GET /notifications?related_type=order&related_id=` — `NotificationController::index` (Notifications' own), confirmed server-side filterable by reading it directly; the exact `related_type` value (`'order'`) confirmed via `SendOrderConfirmationOnOrderPlaced` directly. */
-export function useOrderNotifications(orderId: string | undefined): UseQueryResult<ListEnvelope<NotificationDTO>> {
+/**
+ * Real, disclosed cross-module gap found independently by both the
+ * Shipping Freeze Audit and the Payments Freeze Audit (`PROJECT_STATUS.md`
+ * rows 30/35): this card originally queried only `related_type=order`, so
+ * the real `shipment.dispatched`/`shipment.delivered` and
+ * `payment.receipt` notifications those two modules' own listeners already
+ * queue correctly (confirmed live by direct database query, per each
+ * audit's own report) were invisible here even though they genuinely
+ * exist and genuinely relate to this order. Closed here (Production
+ * Completion Plan v2, Milestone 15): `related_id` for a payment/shipment
+ * notification is the real Payment's/Shipment's own id, never the parent
+ * Order's (confirmed by reading `SendPaymentReceiptOnPaymentCaptured`/
+ * `SendShipmentNoticeOnShipmentDispatched` directly) — so this queries the
+ * order's own real Payments/Shipments first (the identical, already-real
+ * `useOrderPayments`/`useOrderShipments` queries the Payments/Fulfillment
+ * cards already use), then one notification lookup per real payment/
+ * shipment id, and merges every result with the order-level notifications
+ * into one real, chronologically-sorted list.
+ *
+ * A caller lacking `payments.payments.view`/`fulfillment.shipments.view`
+ * (this card's own permission, `notifications.notifications.view`, is
+ * independent of both) simply never learns those ids, and this degrades
+ * to exactly today's order-only behavior for them — never a hard error,
+ * mirroring `useCustomerName`'s own established "missing permission
+ * degrades gracefully, never worse than before" precedent.
+ */
+export function useOrderNotifications(orderId: string | undefined): UseQueryResult<NotificationDTO[]> {
   return useQuery({
     queryKey: [NOTIFICATIONS_QUERY_KEY, orderId],
-    queryFn: () => listNotifications(apiClient, { relatedType: ORDER_RELATED_TYPE, relatedId: orderId }),
+    queryFn: async (): Promise<NotificationDTO[]> => {
+      const id = orderId as string;
+
+      const [orderResult, shipmentsResult, paymentsResult] = await Promise.all([
+        listNotifications(apiClient, { relatedType: ORDER_RELATED_TYPE, relatedId: id }),
+        listShipments(apiClient, { orderId: id }).catch((): ListEnvelope<ShipmentDTO> => ({ data: [] })),
+        listPayments(apiClient, { orderId: id }).catch((): ListEnvelope<PaymentDTO> => ({ data: [] })),
+      ]);
+
+      const [shipmentNotificationLists, paymentNotificationLists] = await Promise.all([
+        Promise.all(
+          shipmentsResult.data.map((shipment) =>
+            listNotifications(apiClient, { relatedType: SHIPMENT_RELATED_TYPE, relatedId: shipment.id }).catch(
+              (): ListEnvelope<NotificationDTO> => ({ data: [] }),
+            ),
+          ),
+        ),
+        Promise.all(
+          paymentsResult.data.map((payment) =>
+            listNotifications(apiClient, { relatedType: PAYMENT_RELATED_TYPE, relatedId: payment.id }).catch(
+              (): ListEnvelope<NotificationDTO> => ({ data: [] }),
+            ),
+          ),
+        ),
+      ]);
+
+      return mergeNotifications(
+        orderResult.data,
+        shipmentNotificationLists.map((r) => r.data),
+        paymentNotificationLists.map((r) => r.data),
+      );
+    },
     enabled: Boolean(orderId),
     retry: false,
   });

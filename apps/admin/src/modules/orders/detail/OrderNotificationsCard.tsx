@@ -16,17 +16,32 @@ function formatDateTime(value: string | null): string {
   return value ? new Date(value).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
 }
 
+const RELATED_TYPE_LABEL: Record<string, string> = {
+  order: 'Order',
+  payment: 'Payment',
+  shipment: 'Shipment',
+};
+
 /**
  * Notifications — `notifications.notifications.view`, a real,
  * server-filtered read of Notifications' own `GET /notifications?
- * related_type=order&related_id=` (`NotificationController::index`,
- * confirmed by reading it directly). A real, existing cross-domain
- * relationship: placing an order already queues a real order-confirmation
- * email today, via the platform's own already-live
- * `SendOrderConfirmationOnOrderPlaced` listener (`related_type: 'order'`,
- * confirmed by reading that listener directly) — this card answers the
- * real merchant question "did the customer's confirmation email actually
- * go out?" with real delivery status, not a guess.
+ * related_type=&related_id=` (`NotificationController::index`, confirmed
+ * by reading it directly), merged across every real notification this
+ * order's own lifecycle has genuinely triggered: order confirmation
+ * (`related_type=order`, `SendOrderConfirmationOnOrderPlaced`), payment
+ * receipts (`related_type=payment`, `SendPaymentReceiptOnPaymentCaptured`
+ * — `relatedId` is the real Payment's own id, so this queries every real
+ * payment on this order via the same `useOrderPayments` the Payments card
+ * already uses), and shipment dispatch/delivery notices
+ * (`related_type=shipment`, `SendShipmentNoticeOnShipmentDispatched` —
+ * likewise the real Shipment's own id, via `useOrderShipments`). Closes a
+ * real, disclosed gap independently found by both the Shipping Freeze
+ * Audit and the Payments Freeze Audit (`PROJECT_STATUS.md` rows 30/35):
+ * this card originally queried `related_type=order` only, so real
+ * shipment/payment notifications — confirmed live, by both audits, to
+ * genuinely exist and queue correctly — were invisible here. See
+ * `useOrderNotifications`'s own docblock for the full merge logic and its
+ * graceful degradation when the caller lacks a cross-module permission.
  *
  * A separate permission from `orders.*`. Read-only: no retry/cancel/
  * template-authoring action is built here — those belong to a distinct,
@@ -34,7 +49,7 @@ function formatDateTime(value: string | null): string {
  */
 export function OrderNotificationsCard({ orderId }: { orderId: string }) {
   const { data, status, refetch } = useOrderNotifications(orderId);
-  const notifications = data?.data ?? [];
+  const notifications = data ?? [];
 
   return (
     <Card>
@@ -63,6 +78,11 @@ export function OrderNotificationsCard({ orderId }: { orderId: string }) {
                     {notification.channel}
                   </Text>
                   <Badge variant={STATUS_VARIANT[notification.status]}>{notification.status}</Badge>
+                  {notification.relatedType && notification.relatedType !== 'order' && (
+                    <Text variant="caption" className="text-text-secondary">
+                      {RELATED_TYPE_LABEL[notification.relatedType] ?? notification.relatedType}
+                    </Text>
+                  )}
                 </div>
                 <Text variant="caption" className="text-text-secondary">
                   {notification.recipient} ·{' '}

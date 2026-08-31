@@ -15,6 +15,10 @@
 export type NotificationStatus = 'pending' | 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled';
 
 export const ORDER_RELATED_TYPE = 'order';
+/** `app/Listeners/SendPaymentReceiptOnPaymentCaptured.php` — confirmed by reading it directly: `relatedId` is the real Payment's own id, never the parent Order's. */
+export const PAYMENT_RELATED_TYPE = 'payment';
+/** `app/Listeners/SendShipmentNoticeOnShipmentDispatched.php` — confirmed by reading it directly: `relatedId` is the real Shipment's own id, never the parent Order's. */
+export const SHIPMENT_RELATED_TYPE = 'shipment';
 
 /** The exact shape `NotificationResource` returns from `index()` — `deliveryAttempts` is a `whenLoaded()` relation, present only on `show()`, omitted here. */
 export interface NotificationDTO {

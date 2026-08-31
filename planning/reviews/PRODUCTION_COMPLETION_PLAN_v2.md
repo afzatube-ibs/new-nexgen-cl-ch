@@ -522,6 +522,12 @@ Each milestone is scoped to be independently shippable: it does not require any 
 - **What actually shipped**: `dequeueReady()` now loops the plain, universally-supported single-key `RPOP key` up to `count` times — identical semantics, compatible with every Redis version since 1.0.
 - **Completion**: Live-verified against this environment's own real (old) Redis — the warning stopped entirely, and a real test event was confirmed durably queued, dequeued, and delivered with zero errors. See `MILESTONE_14_EVENT_QUEUE_REDIS_COMPATIBILITY_FIX_REPORT.md`.
 
+### Milestone 15 — Order Notifications Cross-Module Visibility Fix — ✅ Shipped
+- **Objective**: Close a real, disclosed gap named independently by both the Shipping Freeze Audit and the Payments Freeze Audit (`PROJECT_STATUS.md` rows 30/35, both predating this plan) — real shipment/payment notifications genuinely queue correctly but never appeared on Order Detail's own Notifications card.
+- **Root cause (re-confirmed)**: `related_id` for a payment/shipment notification is that Payment's/Shipment's own id, never the parent Order's — the card's own order-scoped query could never match them by construction.
+- **What actually shipped**: `useOrderNotifications` now fetches the order's own real shipments/payments first (the same queries the sibling cards already use), looks up notifications per real id, and merges everything into one chronological list — a new, independently-tested `mergeNotifications` helper, plus a small per-row label so the merged list stays legible.
+- **Completion**: Live-verified against the exact real order/notification the original Payments Freeze Audit had found existed in the database but couldn't see in the Admin UI — now visible. See `MILESTONE_15_ORDER_NOTIFICATIONS_CROSS_MODULE_VISIBILITY_FIX_REPORT.md`.
+
 ---
 
-**Part 3's originally-scoped milestones, plus Milestones 13–14 (identified during live verification), are now all shipped as of this session. No further milestones remain scheduled in this document.**
+**Part 3's originally-scoped milestones, plus Milestones 13–15 (identified during live verification), are now all shipped as of this session. No further milestones remain scheduled in this document.**
