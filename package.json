@@ -27,5 +27,9 @@
     "cross-env": "^7.0.3",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.62.4",
+    "@rollup/rollup-linux-x64-musl": "4.62.4"
   }
 }

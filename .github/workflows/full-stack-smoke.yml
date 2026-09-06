@@ -1,0 +1,194 @@
+name: full-stack-smoke
+
+on:
+  push:
+    branches: [main, nexgen-v1-production]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: nexgen_testing
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=8
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Clean Node install
+        run: npm ci
+
+      - name: Verify Rollup native package
+        run: test -d node_modules/@rollup/rollup-linux-x64-gnu
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, pdo_mysql, redis, intl, zip, bcmath, opcache, dom, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Install backend dependencies
+        working-directory: apps/backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Fresh MySQL migration and seed
+        working-directory: apps/backend
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: nexgen_testing
+          DB_USERNAME: root
+          DB_PASSWORD: ""
+          REDIS_HOST: 127.0.0.1
+          CACHE_STORE: redis
+          SESSION_DRIVER: redis
+          QUEUE_CONNECTION: redis
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          php artisan migrate:fresh --seed --force
+          php artisan identity-access:create-admin --name='Smoke Admin' --email='admin@nexgen.local' --password='Smoke!Pass1234'
+          php artisan identity-access:create-service-account storefront-service > /tmp/storefront-token.txt
+          php artisan identity-access:create-service-account checkout-service > /tmp/checkout-token.txt
+          awk '/^[0-9]+\|/{print; exit}' /tmp/storefront-token.txt > /tmp/storefront-token-value.txt
+          awk '/^[0-9]+\|/{print; exit}' /tmp/checkout-token.txt > /tmp/checkout-token-value.txt
+          test -s /tmp/storefront-token-value.txt
+          test -s /tmp/checkout-token-value.txt
+
+      - name: Configure production-like runtime environment
+        run: |
+          cp apps/storefront/.env.example apps/storefront/.env.local
+          cp apps/admin/.env.example apps/admin/.env.local
+          STORE_TOKEN="$(cat /tmp/storefront-token-value.txt)"
+          CHECKOUT_TOKEN="$(cat /tmp/checkout-token-value.txt)"
+          {
+            echo 'BACKEND_BASE_URL=http://127.0.0.1:8080/api/v1'
+            echo "BACKEND_SERVICE_TOKEN=$STORE_TOKEN"
+            echo "BACKEND_CHECKOUT_SERVICE_TOKEN=$CHECKOUT_TOKEN"
+            echo 'REDIS_URL=redis://127.0.0.1:6379'
+            echo 'GUEST_SESSION_SECRET=gate0-smoke-guest-session-secret-1234567890'
+            echo 'PREVIEW_TOKEN_SECRET=gate0-smoke-preview-token-secret-1234567890'
+            echo 'PUBLIC_BASE_URL=http://127.0.0.1:4000'
+            echo 'CORS_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:5173'
+          } >> "$GITHUB_ENV"
+
+      - name: Build Gateway and Admin
+        run: |
+          npm run build -w apps/store-api-gateway
+          npm run build -w apps/admin
+
+      - name: Start Backend and Gateway
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: nexgen_testing
+          DB_USERNAME: root
+          DB_PASSWORD: ""
+          REDIS_HOST: 127.0.0.1
+          CACHE_STORE: redis
+          SESSION_DRIVER: redis
+          QUEUE_CONNECTION: redis
+        run: |
+          mkdir -p /tmp/nexgen-smoke/logs /tmp/nexgen-smoke/screenshots
+          (cd apps/backend && php artisan serve --host=127.0.0.1 --port=8080 > /tmp/nexgen-smoke/logs/backend.log 2>&1 &)
+          (cd apps/store-api-gateway && npm start > /tmp/nexgen-smoke/logs/gateway.log 2>&1 &)
+          for i in $(seq 1 60); do
+            curl -sS http://127.0.0.1:8080 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:4000/health >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -sS -o /dev/null -w 'backend=%{http_code}\n' http://127.0.0.1:8080
+          curl -fsS http://127.0.0.1:4000/health
+
+      - name: Build Storefront against running Gateway
+        run: npm run build -w apps/storefront
+
+      - name: Start Storefront and Admin
+        run: |
+          (npm run start -w apps/storefront -- --hostname 127.0.0.1 --port 3000 > /tmp/nexgen-smoke/logs/storefront.log 2>&1 &)
+          (npm run preview -w apps/admin -- --host 127.0.0.1 --port 5173 > /tmp/nexgen-smoke/logs/admin.log 2>&1 &)
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:3000 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:5173/login >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS -o /dev/null -w 'storefront=%{http_code}\n' http://127.0.0.1:3000
+          curl -fsS -o /dev/null -w 'admin=%{http_code}\n' http://127.0.0.1:5173/login
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke and screenshots
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+            const errors = [];
+            page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+
+            let response = await page.goto('http://127.0.0.1:3000', { waitUntil: 'networkidle' });
+            console.log('STOREFRONT_STATUS', response?.status());
+            console.log('STOREFRONT_TITLE', await page.title());
+            console.log('STOREFRONT_BODY', (await page.locator('body').innerText()).slice(0, 2000).replace(/\n+/g, ' | '));
+            await page.screenshot({ path: '/tmp/nexgen-smoke/screenshots/storefront-home.png', fullPage: true });
+
+            response = await page.goto('http://127.0.0.1:5173/login', { waitUntil: 'networkidle' });
+            console.log('ADMIN_STATUS', response?.status());
+            console.log('ADMIN_TITLE', await page.title());
+            console.log('ADMIN_BODY', (await page.locator('body').innerText()).slice(0, 1200).replace(/\n+/g, ' | '));
+            await page.screenshot({ path: '/tmp/nexgen-smoke/screenshots/admin-login.png', fullPage: true });
+
+            console.log('BROWSER_CONSOLE_ERRORS', JSON.stringify(errors));
+            await browser.close();
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexgen-full-stack-smoke-${{ github.sha }}
+          path: /tmp/nexgen-smoke
+          if-no-files-found: warn
+          retention-days: 7
