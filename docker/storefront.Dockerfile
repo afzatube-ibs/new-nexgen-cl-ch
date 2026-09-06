@@ -7,6 +7,15 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
+COPY package.json package-lock.json ./
+COPY apps ./apps
+COPY packages ./packages
+
+# Keep the expensive workspace install independent of deployment-specific
+# public URLs so Admin/Storefront/Gateway builds can reuse the same Docker
+# cache layer whenever package manifests are unchanged.
+RUN npm ci
+
 ARG NEXT_PUBLIC_SITE_URL
 ARG NEXT_PUBLIC_MEDIA_ORIGIN
 ARG NEXT_PUBLIC_STORE_API_GATEWAY_URL
@@ -15,11 +24,6 @@ ENV NEXT_PUBLIC_MEDIA_ORIGIN=${NEXT_PUBLIC_MEDIA_ORIGIN}
 ENV NEXT_PUBLIC_STORE_API_GATEWAY_URL=${NEXT_PUBLIC_STORE_API_GATEWAY_URL}
 ENV NODE_ENV=production
 
-COPY package.json package-lock.json ./
-COPY apps ./apps
-COPY packages ./packages
-
-RUN npm ci
 RUN npm run build -w apps/storefront
 RUN npm prune --omit=dev
 
