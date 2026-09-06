@@ -1,0 +1,341 @@
+# neXgen Core — complete self-hosted production topology.
+#
+# Usage:
+#   cp .env.production.example .env.production
+#   # fill secrets and public URLs
+#   docker compose --env-file .env.production -f docker-compose.production.yml build
+#
+# MySQL and Redis are intentionally not published to the host. TLS/domain
+# termination belongs in the operator's edge proxy/load balancer in front of
+# the four public HTTP services.
+
+x-backend-environment: &backend-environment
+  APP_NAME: ${APP_NAME:-neXgen Core}
+  APP_ENV: production
+  APP_KEY: ${APP_KEY:?APP_KEY must be set in .env.production}
+  APP_DEBUG: "false"
+  APP_URL: ${BACKEND_PUBLIC_URL:?BACKEND_PUBLIC_URL must be set}
+  STOREFRONT_URL: ${STOREFRONT_PUBLIC_URL:?STOREFRONT_PUBLIC_URL must be set}
+  APP_LOCALE: ${APP_LOCALE:-en}
+  APP_FALLBACK_LOCALE: ${APP_FALLBACK_LOCALE:-en}
+  APP_MAINTENANCE_DRIVER: cache
+  BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+  API_RATE_LIMIT_PER_MINUTE: ${API_RATE_LIMIT_PER_MINUTE:-120}
+  CORS_ALLOWED_ORIGINS: ${BACKEND_CORS_ALLOWED_ORIGINS:?BACKEND_CORS_ALLOWED_ORIGINS must be set}
+  LOG_CHANNEL: structured
+  LOG_STACK: single
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  DB_CONNECTION: mysql
+  DB_HOST: mysql
+  DB_PORT: 3306
+  DB_DATABASE: ${DB_DATABASE:-nexgen}
+  DB_USERNAME: ${DB_USERNAME:-nexgen}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+
+  SESSION_DRIVER: redis
+  SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+  SESSION_ENCRYPT: "false"
+  SESSION_PATH: /
+  SESSION_CONNECTION: default
+  SANCTUM_TOKEN_EXPIRATION_MINUTES: ${SANCTUM_TOKEN_EXPIRATION_MINUTES:-20160}
+  SANCTUM_TOKEN_PREFIX: ${SANCTUM_TOKEN_PREFIX:-}
+
+  BROADCAST_CONNECTION: log
+  FILESYSTEM_DISK: ${FILESYSTEM_DISK:-local}
+  QUEUE_CONNECTION: redis
+  CACHE_STORE: redis
+  CACHE_PREFIX: ${CACHE_PREFIX:-nexgen_cache}
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: redis
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+  REDIS_PORT: 6379
+
+  MAIL_MAILER: ${MAIL_MAILER:-log}
+  MAIL_SCHEME: ${MAIL_SCHEME:-null}
+  MAIL_HOST: ${MAIL_HOST:-127.0.0.1}
+  MAIL_PORT: ${MAIL_PORT:-2525}
+  MAIL_USERNAME: ${MAIL_USERNAME:-null}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-null}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-hello@example.com}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:-neXgen Core}
+
+  PAYMENTS_ENABLED_GATEWAYS: ${PAYMENTS_ENABLED_GATEWAYS:-cod,bank_transfer,sslcommerz,bkash,nagad}
+  PAYMENTS_COD_FEE: ${PAYMENTS_COD_FEE:-0.0000}
+  PAYMENTS_RECONCILIATION_THRESHOLD_MINUTES: ${PAYMENTS_RECONCILIATION_THRESHOLD_MINUTES:-30}
+  PAYMENTS_CHECKOUT_RETURN_URL: ${PAYMENTS_CHECKOUT_RETURN_URL:-}
+  PAYMENTS_BANK_TRANSFER_BANK_NAME: ${PAYMENTS_BANK_TRANSFER_BANK_NAME:-}
+  PAYMENTS_BANK_TRANSFER_ACCOUNT_NAME: ${PAYMENTS_BANK_TRANSFER_ACCOUNT_NAME:-}
+  PAYMENTS_BANK_TRANSFER_ACCOUNT_NUMBER: ${PAYMENTS_BANK_TRANSFER_ACCOUNT_NUMBER:-}
+  PAYMENTS_BANK_TRANSFER_ROUTING_NUMBER: ${PAYMENTS_BANK_TRANSFER_ROUTING_NUMBER:-}
+  PAYMENTS_BANK_TRANSFER_BRANCH: ${PAYMENTS_BANK_TRANSFER_BRANCH:-}
+  SSLCOMMERZ_STORE_ID: ${SSLCOMMERZ_STORE_ID:-}
+  SSLCOMMERZ_STORE_PASSWORD: ${SSLCOMMERZ_STORE_PASSWORD:-}
+  SSLCOMMERZ_SANDBOX: ${SSLCOMMERZ_SANDBOX:-true}
+  BKASH_APP_KEY: ${BKASH_APP_KEY:-}
+  BKASH_APP_SECRET: ${BKASH_APP_SECRET:-}
+  BKASH_USERNAME: ${BKASH_USERNAME:-}
+  BKASH_PASSWORD: ${BKASH_PASSWORD:-}
+  BKASH_SANDBOX: ${BKASH_SANDBOX:-true}
+  NAGAD_MERCHANT_ID: ${NAGAD_MERCHANT_ID:-}
+  NAGAD_MERCHANT_PRIVATE_KEY: ${NAGAD_MERCHANT_PRIVATE_KEY:-}
+  NAGAD_PUBLIC_KEY: ${NAGAD_PUBLIC_KEY:-}
+  NAGAD_SANDBOX: ${NAGAD_SANDBOX:-true}
+
+  SHIPPING_ENABLED_PROVIDERS: ${SHIPPING_ENABLED_PROVIDERS:-manual,steadfast,pathao,redx,paperfly,sundarban,ecourier}
+  STEADFAST_API_KEY: ${STEADFAST_API_KEY:-}
+  STEADFAST_SECRET_KEY: ${STEADFAST_SECRET_KEY:-}
+  STEADFAST_BASE_URL: ${STEADFAST_BASE_URL:-}
+  PATHAO_CLIENT_ID: ${PATHAO_CLIENT_ID:-}
+  PATHAO_CLIENT_SECRET: ${PATHAO_CLIENT_SECRET:-}
+  PATHAO_USERNAME: ${PATHAO_USERNAME:-}
+  PATHAO_PASSWORD: ${PATHAO_PASSWORD:-}
+  PATHAO_STORE_ID: ${PATHAO_STORE_ID:-}
+  PATHAO_SANDBOX: ${PATHAO_SANDBOX:-true}
+  REDX_API_TOKEN: ${REDX_API_TOKEN:-}
+  REDX_BASE_URL: ${REDX_BASE_URL:-}
+  PAPERFLY_MERCHANT_ID: ${PAPERFLY_MERCHANT_ID:-}
+  PAPERFLY_API_KEY: ${PAPERFLY_API_KEY:-}
+  PAPERFLY_BASE_URL: ${PAPERFLY_BASE_URL:-}
+  ECOURIER_API_KEY: ${ECOURIER_API_KEY:-}
+  ECOURIER_API_SECRET: ${ECOURIER_API_SECRET:-}
+  ECOURIER_USER_ID: ${ECOURIER_USER_ID:-}
+  ECOURIER_BASE_URL: ${ECOURIER_BASE_URL:-}
+
+  NOTIFICATIONS_ENABLED_EMAIL_PROVIDERS: ${NOTIFICATIONS_ENABLED_EMAIL_PROVIDERS:-smtp,mailgun,ses,brevo}
+  NOTIFICATIONS_DEFAULT_EMAIL_PROVIDER: ${NOTIFICATIONS_DEFAULT_EMAIL_PROVIDER:-smtp}
+  NOTIFICATIONS_MAX_ATTEMPTS: ${NOTIFICATIONS_MAX_ATTEMPTS:-5}
+  NOTIFICATIONS_QUEUE_CONNECTION: redis
+  NOTIFICATIONS_QUEUE_NAME: ${NOTIFICATIONS_QUEUE_NAME:-notifications}
+  NOTIFICATIONS_SMTP_HOST: ${NOTIFICATIONS_SMTP_HOST:-}
+  NOTIFICATIONS_SMTP_PORT: ${NOTIFICATIONS_SMTP_PORT:-587}
+  NOTIFICATIONS_SMTP_ENCRYPTION: ${NOTIFICATIONS_SMTP_ENCRYPTION:-tls}
+  NOTIFICATIONS_SMTP_USERNAME: ${NOTIFICATIONS_SMTP_USERNAME:-}
+  NOTIFICATIONS_SMTP_PASSWORD: ${NOTIFICATIONS_SMTP_PASSWORD:-}
+  NOTIFICATIONS_SMTP_FROM_ADDRESS: ${NOTIFICATIONS_SMTP_FROM_ADDRESS:-}
+  NOTIFICATIONS_SMTP_FROM_NAME: ${NOTIFICATIONS_SMTP_FROM_NAME:-neXgen Core}
+  MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+  MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
+  MAILGUN_REGION: ${MAILGUN_REGION:-us}
+  MAILGUN_FROM_ADDRESS: ${MAILGUN_FROM_ADDRESS:-}
+  MAILGUN_FROM_NAME: ${MAILGUN_FROM_NAME:-neXgen Core}
+  SES_REGION: ${SES_REGION:-us-east-1}
+  SES_SMTP_USERNAME: ${SES_SMTP_USERNAME:-}
+  SES_SMTP_PASSWORD: ${SES_SMTP_PASSWORD:-}
+  SES_SMTP_PORT: ${SES_SMTP_PORT:-587}
+  SES_FROM_ADDRESS: ${SES_FROM_ADDRESS:-}
+  SES_FROM_NAME: ${SES_FROM_NAME:-neXgen Core}
+  BREVO_API_KEY: ${BREVO_API_KEY:-}
+  BREVO_FROM_ADDRESS: ${BREVO_FROM_ADDRESS:-}
+  BREVO_FROM_NAME: ${BREVO_FROM_NAME:-neXgen Core}
+
+  SEARCH_ENGINES: ${SEARCH_ENGINES:-mysql_fulltext}
+  SEARCH_DEFAULT_ENGINE: ${SEARCH_DEFAULT_ENGINE:-mysql_fulltext}
+  SEARCH_REINDEX_CHUNK_SIZE: ${SEARCH_REINDEX_CHUNK_SIZE:-200}
+
+services:
+  backend-nginx:
+    build:
+      context: .
+      dockerfile: docker/backend-nginx.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8080}:80"
+    volumes:
+      - backend_storage:/var/www/html/storage:ro
+    networks:
+      - nexgen
+
+  app:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    command: ["php-fpm"]
+    restart: unless-stopped
+    environment: *backend-environment
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+    networks:
+      - nexgen
+    healthcheck:
+      test: ["CMD", "php", "artisan", "platform:health", "--liveness"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    command: ["worker"]
+    restart: unless-stopped
+    environment: *backend-environment
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+    networks:
+      - nexgen
+    healthcheck:
+      test: ["CMD", "php", "artisan", "platform:health", "--liveness"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  scheduler:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    command: ["scheduler"]
+    restart: unless-stopped
+    environment: *backend-environment
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/var/www/html/storage
+    networks:
+      - nexgen
+    healthcheck:
+      test: ["CMD", "php", "artisan", "platform:health", "--liveness"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/store-api-gateway.Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      HOST: 0.0.0.0
+      NODE_ENV: production
+      LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-info}
+      BACKEND_BASE_URL: http://backend-nginx/api/v1
+      BACKEND_SERVICE_TOKEN: ${BACKEND_SERVICE_TOKEN:-BOOTSTRAP_TOKEN_NOT_CONFIGURED}
+      BACKEND_CHECKOUT_SERVICE_TOKEN: ${BACKEND_CHECKOUT_SERVICE_TOKEN:-BOOTSTRAP_TOKEN_NOT_CONFIGURED}
+      REDIS_URL: ${GATEWAY_REDIS_URL:?GATEWAY_REDIS_URL must be set with URL-encoded Redis credentials}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-nx_gw_cache:}
+      GUEST_SESSION_COOKIE_NAME: ${GUEST_SESSION_COOKIE_NAME:-nx_did}
+      GUEST_SESSION_SECRET: ${GUEST_SESSION_SECRET:?GUEST_SESSION_SECRET must be at least 32 characters}
+      CORS_ALLOWED_ORIGINS: ${STOREFRONT_PUBLIC_URL:?STOREFRONT_PUBLIC_URL must be set}
+      RATE_LIMIT_MAX: ${GATEWAY_RATE_LIMIT_MAX:-120}
+      RATE_LIMIT_WINDOW_MS: ${GATEWAY_RATE_LIMIT_WINDOW_MS:-60000}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}
+      SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-en}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-BDT}
+      EVENTS_WEBHOOK_URL: ${EVENTS_WEBHOOK_URL:-}
+      META_CAPI_ACCESS_TOKEN: ${META_CAPI_ACCESS_TOKEN:-}
+      GA4_API_SECRET: ${GA4_API_SECRET:-}
+      TIKTOK_EVENTS_ACCESS_TOKEN: ${TIKTOK_EVENTS_ACCESS_TOKEN:-}
+      PREVIEW_TOKEN_SECRET: ${PREVIEW_TOKEN_SECRET:?PREVIEW_TOKEN_SECRET must be at least 32 characters}
+      PREVIEW_TOKEN_TTL_SECONDS: ${PREVIEW_TOKEN_TTL_SECONDS:-3600}
+      PUBLIC_BASE_URL: ${GATEWAY_PUBLIC_URL:?GATEWAY_PUBLIC_URL must be set}
+    depends_on:
+      backend-nginx:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${GATEWAY_PORT:-4000}:4000"
+    networks:
+      - nexgen
+
+  storefront:
+    build:
+      context: .
+      dockerfile: docker/storefront.Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: ${STOREFRONT_PUBLIC_URL:?STOREFRONT_PUBLIC_URL must be set}
+        NEXT_PUBLIC_MEDIA_ORIGIN: ${BACKEND_PUBLIC_URL:?BACKEND_PUBLIC_URL must be set}
+        NEXT_PUBLIC_STORE_API_GATEWAY_URL: ${GATEWAY_PUBLIC_URL:?GATEWAY_PUBLIC_URL must be set}
+    restart: unless-stopped
+    environment:
+      STORE_API_GATEWAY_URL: http://gateway:4000
+      NEXT_PUBLIC_SITE_URL: ${STOREFRONT_PUBLIC_URL}
+      NEXT_PUBLIC_MEDIA_ORIGIN: ${BACKEND_PUBLIC_URL}
+      NEXT_PUBLIC_STORE_API_GATEWAY_URL: ${GATEWAY_PUBLIC_URL}
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - "${STOREFRONT_PORT:-3000}:3000"
+    networks:
+      - nexgen
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/admin.Dockerfile
+      args:
+        VITE_API_BASE_URL: ${BACKEND_PUBLIC_URL:?BACKEND_PUBLIC_URL must be set}/api/v1
+    restart: unless-stopped
+    depends_on:
+      backend-nginx:
+        condition: service_healthy
+    ports:
+      - "${ADMIN_PORT:-8081}:80"
+    networks:
+      - nexgen
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-nexgen}
+      MYSQL_USER: ${DB_USERNAME:-nexgen}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD must be set}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - nexgen
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - nexgen
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+networks:
+  nexgen:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  backend_storage:
