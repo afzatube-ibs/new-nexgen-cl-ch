@@ -11,6 +11,7 @@ export * from './gateway/types.js';
 export * from './gateway/errors.js';
 export * from './gateway/client.js';
 export * from './gateway/catalog.js';
+export * from './gateway/content.js';
 export * from './gateway/recommendations.js';
 export * from './gateway/customerAuth.js';
 export * from './gateway/reviews.js';
@@ -23,6 +24,7 @@ export * from './seo/jsonLd.js';
 
 export * from './primitives/types.js';
 export * from './primitives/Hero.js';
+export * from './primitives/RichText.js';
 export * from './primitives/ProductCard.js';
 export * from './primitives/ProductGrid.js';
 export * from './primitives/CategoryGrid.js';

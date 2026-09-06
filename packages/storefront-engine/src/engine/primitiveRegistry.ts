@@ -6,6 +6,7 @@ import { Hero } from '../primitives/Hero.js';
 import { Newsletter } from '../primitives/Newsletter.js';
 import { ProductCard } from '../primitives/ProductCard.js';
 import { ProductGrid } from '../primitives/ProductGrid.js';
+import { RichText } from '../primitives/RichText.js';
 import { TrustBar } from '../primitives/TrustBar.js';
 import type { StorefrontPrimitiveName } from '../theme/types.js';
 
@@ -43,12 +44,18 @@ const heroConfigSchema = z.object({
   cta: z.object({ label: z.string().min(1), href: z.string().min(1) }).optional(),
 });
 
+const richTextConfigSchema = z.object({
+  heading: z.string().min(1).max(180).optional(),
+  body: z.string().min(1).max(50000),
+});
+
 function entry(component: ComponentType<never>, configSchema?: ZodTypeAny): PrimitiveRegistryEntry {
   return { component: component as unknown as ComponentType<Record<string, unknown>>, configSchema };
 }
 
 export const defaultPrimitiveRegistry: Partial<Record<StorefrontPrimitiveName, PrimitiveRegistryEntry>> = {
   Hero: entry(Hero, heroConfigSchema),
+  RichText: entry(RichText, richTextConfigSchema),
   ProductGrid: entry(ProductGrid),
   CategoryGrid: entry(CategoryGrid),
   BrandSlider: entry(BrandSlider),
