@@ -1,0 +1,27 @@
+name: gate0-lock-repair
+
+on:
+  push:
+    branches:
+      - nexgen-v1-production
+
+jobs:
+  regenerate-lock:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Regenerate optional dependency metadata
+        run: |
+          rm -rf node_modules
+          npm install --package-lock-only --ignore-scripts
+      - name: Verify Linux Rollup package is locked
+        run: grep -q 'node_modules/@rollup/rollup-linux-x64-gnu' package-lock.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repaired-package-lock
+          path: package-lock.json
+          retention-days: 1
