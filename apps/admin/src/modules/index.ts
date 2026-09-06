@@ -6,6 +6,7 @@
 import './dashboard/module.js';
 import './settings/module.js';
 import './appearance/module.js';
+import './cms/module.js';
 import './catalog/module.js';
 import './inventory/module.js';
 import './pricing/module.js';
