@@ -48,6 +48,32 @@ export interface SaveCmsPageInput {
   metaDescription?: string | null;
 }
 
+export interface CmsMenuItemDTO {
+  id: string;
+  label: string;
+  href: string;
+}
+
+export interface CmsMenuDTO {
+  id: string;
+  storeId: string;
+  handle: string;
+  title: string;
+  items: CmsMenuItemDTO[];
+  status: 'draft' | 'published';
+  isPublished: boolean;
+  publishedAt: string | null;
+  lockVersion: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface SaveCmsMenuInput {
+  handle: string;
+  title: string;
+  items: CmsMenuItemDTO[];
+}
+
 function toWire(input: Partial<SaveCmsPageInput>): Record<string, unknown> {
   const payload: Record<string, unknown> = {};
   if (input.slug !== undefined) payload.slug = input.slug;
@@ -93,8 +119,31 @@ export async function listCmsPageRevisions(client: ApiClient, storeId: string, p
 }
 
 export async function restoreCmsPageRevision(client: ApiClient, storeId: string, pageId: string, revisionId: string, expectedVersion: number): Promise<CmsPageDTO> {
-  const response = await client.post<DataEnvelope<CmsPageDTO>>(`/stores/${storeId}/cms/pages/${pageId}/revisions/${revisionId}/restore`, {
-    expected_version: expectedVersion,
-  });
+  const response = await client.post<DataEnvelope<CmsPageDTO>>(`/stores/${storeId}/cms/pages/${pageId}/revisions/${revisionId}/restore`, { expected_version: expectedVersion });
+  return response.data;
+}
+
+export async function listCmsMenus(client: ApiClient, storeId: string): Promise<CmsMenuDTO[]> {
+  const response = await client.get<DataEnvelope<CmsMenuDTO[]>>(`/stores/${storeId}/cms/menus`);
+  return response.data;
+}
+
+export async function createCmsMenu(client: ApiClient, storeId: string, input: SaveCmsMenuInput): Promise<CmsMenuDTO> {
+  const response = await client.post<DataEnvelope<CmsMenuDTO>>(`/stores/${storeId}/cms/menus`, input);
+  return response.data;
+}
+
+export async function updateCmsMenu(client: ApiClient, storeId: string, menuId: string, input: Partial<SaveCmsMenuInput>, expectedVersion: number): Promise<CmsMenuDTO> {
+  const response = await client.patch<DataEnvelope<CmsMenuDTO>>(`/stores/${storeId}/cms/menus/${menuId}`, { ...input, expected_version: expectedVersion });
+  return response.data;
+}
+
+export async function publishCmsMenu(client: ApiClient, storeId: string, menuId: string, expectedVersion: number): Promise<CmsMenuDTO> {
+  const response = await client.post<DataEnvelope<CmsMenuDTO>>(`/stores/${storeId}/cms/menus/${menuId}/publish`, { expected_version: expectedVersion });
+  return response.data;
+}
+
+export async function unpublishCmsMenu(client: ApiClient, storeId: string, menuId: string, expectedVersion: number): Promise<CmsMenuDTO> {
+  const response = await client.post<DataEnvelope<CmsMenuDTO>>(`/stores/${storeId}/cms/menus/${menuId}/unpublish`, { expected_version: expectedVersion });
   return response.data;
 }
