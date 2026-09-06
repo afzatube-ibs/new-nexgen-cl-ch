@@ -113,6 +113,7 @@ it('seeds both real Store API Gateway service-account roles with their exact, co
         'checkout.sessions.view',
         'orders.orders.view',
         'payments.payments.manage',
+        'payments.payments.view',
         'shipping.rates.view',
     ]);
 });
