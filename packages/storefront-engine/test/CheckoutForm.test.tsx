@@ -5,36 +5,28 @@ import { CheckoutForm } from '../src/checkout/CheckoutForm.js';
 import { addItem, clearCart, getCart } from '../src/cart/cartStore.js';
 import * as checkoutClient from '../src/checkout/checkoutClient.js';
 
-/**
- * Real, deterministic coverage of `CheckoutForm`'s own real validation and
- * real submission — same `@vitest-environment jsdom` + React Testing
- * Library approach `AddToCartButton.test.tsx` established.
- *
- * Beta Sprint 5 — `submitCheckout` is mocked at the module boundary here
- * (this file's own concern is CheckoutForm's own behavior: what it sends
- * and how it reacts, not the real Gateway's own HTTP contract, which
- * `checkoutClient.test.ts` covers directly against a stubbed `fetch`).
- * `next/navigation`'s `useRouter` is mocked because this component runs
- * outside a real Next.js App Router tree in a unit test.
- *
- * neXgen Overnight Sprint — Milestone 1, Objective 1. `fetchShippingOptions`
- * is mocked the same way: selecting a Division now triggers a real fetch,
- * so any test that reaches "Place order" successfully selects a Division
- * and waits for a real (mocked) shipping option to appear and auto-select.
- */
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 const REAL_SHIPPING_OPTION = { id: 'method-1', label: 'Standard Delivery', amount: '60.0000', currencyCode: 'BDT' };
+const AVAILABLE_PAYMENT_METHODS: checkoutClient.CheckoutPaymentMethod[] = [
+  { code: 'cod', label: 'Cash on Delivery' },
+  { code: 'banktransfer', label: 'Bank Transfer' },
+];
 
 function selectDivision() {
   fireEvent.click(screen.getByRole('combobox', { name: 'Division' }));
   fireEvent.click(screen.getByRole('option', { name: 'Dhaka' }));
 }
 
+async function waitForPayments() {
+  await waitFor(() => expect(screen.getByRole('radio', { name: 'Cash on Delivery' })).toBeTruthy());
+}
+
 beforeEach(() => {
   clearCart();
   push.mockClear();
+  vi.spyOn(checkoutClient, 'fetchPaymentMethods').mockResolvedValue(AVAILABLE_PAYMENT_METHODS);
 });
 
 afterEach(() => {
@@ -48,16 +40,41 @@ describe('checkout/CheckoutForm', () => {
     expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toBeTruthy();
   });
 
-  it('renders the real order summary from the real cart when items exist', () => {
+  it('renders the real order summary from the real cart when items exist', async () => {
     addItem({ productId: 'p1', name: 'Widget', href: '/products/p1', quantity: 2 });
     render(<CheckoutForm />);
     expect(screen.getByText('Widget')).toBeTruthy();
+    await waitForPayments();
     expect(screen.getByRole('button', { name: 'Place order' })).toBeTruthy();
   });
 
-  it('blocks submission and shows real validation errors when required fields are empty', () => {
+  it('renders only payment methods returned as available by the Gateway', async () => {
+    vi.mocked(checkoutClient.fetchPaymentMethods).mockResolvedValue([{ code: 'cod', label: 'Cash on Delivery' }]);
+    addItem({ productId: 'p1', name: 'Widget', href: '/products/p1' });
+
+    render(<CheckoutForm />);
+
+    await waitForPayments();
+    expect(screen.queryByRole('radio', { name: 'bKash' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Nagad' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'SSLCommerz' })).toBeNull();
+    expect(screen.queryByText('Bank Transfer')).toBeNull();
+  });
+
+  it('shows an honest blocking state when the backend has no available payment method', async () => {
+    vi.mocked(checkoutClient.fetchPaymentMethods).mockResolvedValue([]);
+    addItem({ productId: 'p1', name: 'Widget', href: '/products/p1' });
+
+    render(<CheckoutForm />);
+
+    await waitFor(() => expect(screen.getByText('No payment methods are available right now. Please contact the store before placing an order.')).toBeTruthy());
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Place order' }).disabled).toBe(true);
+  });
+
+  it('blocks submission and shows real validation errors when required fields are empty', async () => {
     addItem({ productId: 'p1', name: 'Widget', href: '/products/p1' });
     render(<CheckoutForm />);
+    await waitForPayments();
 
     fireEvent.click(screen.getByRole('button', { name: 'Place order' }));
 
@@ -68,7 +85,7 @@ describe('checkout/CheckoutForm', () => {
     expect(screen.getByText('City is required.')).toBeTruthy();
     expect(screen.getByText('Division is required.')).toBeTruthy();
     expect(screen.getByText('Select a shipping method.')).toBeTruthy();
-    expect(screen.getByText('Select a payment method.')).toBeTruthy();
+    expect(screen.getByText('Select an available payment method.')).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -105,6 +122,7 @@ describe('checkout/CheckoutForm', () => {
     });
 
     render(<CheckoutForm />);
+    await waitForPayments();
 
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'shopper@example.com' } });
     fireEvent.change(screen.getByLabelText('Recipient name'), { target: { value: 'Jane Shopper' } });
@@ -115,9 +133,7 @@ describe('checkout/CheckoutForm', () => {
     selectDivision();
 
     await waitFor(() => expect(screen.getByText('Standard Delivery')).toBeTruthy());
-
     fireEvent.click(screen.getByRole('button', { name: 'Place order' }));
-
     await waitFor(() => expect(push).toHaveBeenCalledWith('/checkout/success'));
 
     expect(submitCheckoutSpy).toHaveBeenCalledTimes(1);
@@ -131,7 +147,6 @@ describe('checkout/CheckoutForm', () => {
       lines: [{ productId: 'p1', quantity: 1 }],
     });
     expect(sentBody?.address.city).toBe('Dhaka');
-    // A real success clears the real cart — never leaves a stale local cart behind a real, placed order.
     expect(getCart().lines).toHaveLength(0);
   });
 
@@ -141,6 +156,7 @@ describe('checkout/CheckoutForm', () => {
     vi.spyOn(checkoutClient, 'submitCheckout').mockRejectedValue(new Error('Could not reach the server. Please check your connection and try again.'));
 
     render(<CheckoutForm />);
+    await waitForPayments();
 
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'shopper@example.com' } });
     fireEvent.change(screen.getByLabelText('Recipient name'), { target: { value: 'Jane Shopper' } });
@@ -151,12 +167,10 @@ describe('checkout/CheckoutForm', () => {
     selectDivision();
 
     await waitFor(() => expect(screen.getByText('Standard Delivery')).toBeTruthy());
-
     fireEvent.click(screen.getByRole('button', { name: 'Place order' }));
 
     await waitFor(() => expect(screen.getByText('Could not reach the server. Please check your connection and try again.')).toBeTruthy());
     expect(push).not.toHaveBeenCalled();
-    // The real cart survives a real failure — nothing was placed, nothing should be lost.
     expect(getCart().lines).toHaveLength(1);
   });
 });
