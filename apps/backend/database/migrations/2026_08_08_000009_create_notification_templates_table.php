@@ -38,9 +38,12 @@ return new class extends Migration
     {
         Schema::create('notification_templates', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('tenant_id')->default('default');
-            $table->string('code');
-            $table->string('channel');
+            // Keep the composite unique key comfortably below MySQL/InnoDB's
+            // 3072-byte index limit when the database uses utf8mb4 (4 bytes
+            // per character). These are identifiers, not free-form content.
+            $table->string('tenant_id', 191)->default('default');
+            $table->string('code', 191);
+            $table->string('channel', 32);
             $table->string('locale', 10)->default('en');
             $table->string('subject')->nullable();
             $table->text('body');
