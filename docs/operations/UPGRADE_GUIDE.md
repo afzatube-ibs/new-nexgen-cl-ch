@@ -2,97 +2,151 @@
 
 | Field | Value |
 |---|---|
-| **Scope** | Deploying a new version of `apps/backend` over an existing, already-live installation |
-| **Companion documents** | `PRODUCTION_DEPLOYMENT_GUIDE.md` (first deployment), `DISASTER_RECOVERY_GUIDE.md` (what to do if an upgrade goes wrong) |
-
-Per `docs/11_DEPLOYMENT_STANDARD.md` §11 (`Upgrade Strategy`) and §10 (`Rollback Philosophy`) — this document is the concrete procedure those sections describe.
-
----
-
-## 1. Pre-Upgrade Checklist
-
-- [ ] The new version's commit has already passed `.github/workflows/backend-ci.yml` (PHPStan, Pint, Deptrac, the full Pest suite) — never deploy a commit CI hasn't run against
-- [ ] `git log` reviewed for any new migration files — know in advance whether this upgrade adds tables/columns (additive, low-risk) or modifies/removes existing ones (higher-risk, read the migration itself)
-- [ ] `CHANGELOG.md` reviewed for the new version's own entry — every module addition/change in this codebase's history has documented its own migration and rollback considerations there
-- [ ] A recent, verified backup exists (`DISASTER_RECOVERY_GUIDE.md` §2) — taken *before* this upgrade begins, not relying on the last scheduled one
-- [ ] If the new version changes any `.env.example` entries (new required config, renamed variables), the running deployment's real `.env` has been updated to match — `git diff <old>..<new> -- apps/backend/.env.example` is the fastest way to see exactly what changed
+| **Scope** | Deploying a new neXgen release over an existing full production installation |
+| **Primary topology** | `docker-compose.production.yml` + local `.env.production` |
+| **Companion documents** | `PRODUCTION_DEPLOYMENT_GUIDE.md`, `DISASTER_RECOVERY_GUIDE.md`, `TROUBLESHOOTING_GUIDE.md` |
 
 ---
 
-## 2. Standard Upgrade Procedure
+## 1. Pre-upgrade checklist
+
+Before changing the running release:
+
+- [ ] The target commit has passed the repository's backend/full-stack/production packaging checks that apply to it.
+- [ ] Review migrations between the running revision and the target revision.
+- [ ] Review changes to `.env.production.example`, `apps/backend/.env.example`, Storefront/Gateway/Admin environment contracts, and `docker-compose.production.yml`.
+- [ ] Take and verify a fresh MySQL backup and, when local media storage is used, a `backend_storage` backup.
+- [ ] Record the currently deployed Git SHA/tag so rollback has an unambiguous target.
+- [ ] Confirm sufficient disk space exists to build the new images while the old images/volumes still exist.
+
+Never use `migrate:fresh`, `db:wipe`, or delete named volumes during a normal upgrade.
+
+---
+
+## 2. Standard upgrade procedure
 
 ```bash
-# 1. Pull the new code
-git fetch origin && git checkout <new-tag-or-commit>
+COMPOSE='docker compose --env-file .env.production -f docker-compose.production.yml'
 
-# 2. Rebuild the images (composer dependencies may have changed)
-docker compose build app worker
+# 1. Move the working tree to the exact reviewed release.
+git fetch origin
+git checkout <new-tag-or-commit>
 
-# 3. Take the worker offline first, to avoid a worker processing a job
-#    against half-migrated data while `app` is still being replaced
-docker compose stop worker
+# 2. Validate configuration before touching running containers.
+$COMPOSE config --quiet
 
-# 4. Recreate the app containers with the new image
-docker compose up -d app
+# 3. Build all deployable images. Browser-exposed Admin/Storefront origins
+#    are compiled at image build time, so they must be rebuilt as part of a
+#    normal release rather than assumed to follow runtime environment changes.
+$COMPOSE build
 
-# 5. Run migrations — every migration in this codebase is written to be
-#    safe to run against a live database (additive by convention; see
-#    §3 below for the one class of migration that needs extra care)
-docker compose exec app php artisan migrate --force
+# 4. Pause asynchronous writers before changing schema/code.
+$COMPOSE stop worker scheduler
 
-# 6. Sync permissions for any module whose PermissionRegistry changed
-#    (safe to just run all of them — idempotent)
-docker compose exec app php artisan db:seed --force
+# 5. Run migrations using the NEW backend image in a one-off container.
+#    Existing MySQL/Redis volumes remain untouched.
+$COMPOSE run --rm app php artisan migrate --force
 
-# 7. Bring the worker back up on the new image
-docker compose up -d worker
+# 6. Sync safe permission/role/template catalog data. DatabaseSeeder is
+#    deliberately credential-free and idempotent for these platform records.
+$COMPOSE run --rm app php artisan db:seed --force
 
-# 8. Verify — run every check in PRODUCTION_DEPLOYMENT_GUIDE.md §4
+# 7. Recreate the complete application tier on the new images.
+$COMPOSE up -d --remove-orphans
+
+# 8. Wait for health checks and verify.
+$COMPOSE ps
+$COMPOSE exec -T app php artisan platform:health
 ```
 
-**Why stop the worker before migrating (step 3)**: a job already in flight when a migration changes a table's shape could fail mid-execution in a confusing way. Since every queue job in this codebase (`Jobs\SendNotificationJob`, currently the only one) is designed to be safely re-attempted (`Actions\SendNotificationAction`'s own retry policy), a few minutes of the worker being offline during migration costs nothing — an in-flight job simply resumes once the worker restarts.
+Then run every go-live verification in `PRODUCTION_DEPLOYMENT_GUIDE.md`, including the real HTTPS Storefront, Admin login, Gateway health/integration, and stable worker/scheduler logs.
+
+### Why worker and scheduler stop before migration
+
+Both can initiate application work while the schema is changing. Pausing them prevents a queued notification/scheduled task from executing halfway through a release boundary. HTTP traffic should also be placed behind an operator-owned maintenance page/window if a migration is not guaranteed compatible with both old and new code simultaneously.
 
 ---
 
-## 3. Migrations That Need More Than the Standard Procedure
+## 3. Environment changes
 
-Every migration this codebase has ever shipped has been additive (`CREATE TABLE`, `ADD COLUMN`) — confirmed by this platform's own delivery discipline across all 19 modules (no destructive migration exists in `database/migrations/` as of Phase 1.1). If a future migration ever needs to **drop or rename** a column/table that existing rows depend on:
+There are two different environment classes in this platform:
 
-1. Do it in two separate deployments, not one: deployment A adds the new shape *alongside* the old one and starts writing to both; deployment B (after A has been live long enough to confirm correctness) removes the old shape. This is standard expand/contract migration practice — nothing in this codebase currently requires it, but the pattern should be followed the first time one does.
-2. Never run a destructive migration without a fresh backup taken immediately beforehand, regardless of how recent the last scheduled one is.
-
----
-
-## 4. Rollback
-
-Per `docs/11_DEPLOYMENT_STANDARD.md` §10, a rollback path must be "verified by actually being exercised (not only designed)" before go-live — this section is the designed procedure; exercising it against a real staging environment before the first production upgrade is a remaining recommendation (see `PRODUCTION_READINESS_REPORT.md`), not something this session could perform without one.
+### Runtime values
+Backend/Gateway secrets and internal runtime settings are supplied by Compose when containers start. After changing them, recreate the affected service:
 
 ```bash
-# 1. Stop the worker (same reasoning as upgrading — avoid a job running
-#    against a database shape the old code doesn't expect)
-docker compose stop worker
+$COMPOSE up -d --force-recreate app worker scheduler gateway
+```
 
-# 2. Roll back the code
+### Browser-bundle values
+`VITE_API_BASE_URL` and Storefront `NEXT_PUBLIC_*` values are intentionally compiled into static/client output. Changing public Backend/Gateway/Storefront origins therefore requires rebuilding the corresponding image:
+
+```bash
+$COMPOSE build admin storefront
+$COMPOSE up -d admin storefront
+```
+
+Never place a secret in any `VITE_*` or `NEXT_PUBLIC_*` variable; those values are readable by browsers.
+
+---
+
+## 4. Migration discipline
+
+Prefer expand/contract migrations:
+
+1. **Expand release:** add the new table/column/index while old code can still operate.
+2. Migrate/backfill data if required.
+3. Deploy code that uses the new shape.
+4. **Contract release:** remove the old shape only after no deployed code depends on it.
+
+For any destructive migration, take an immediately pre-change backup and define the rollback/data-recovery path before deployment. A migration being syntactically reversible is not proof that application data can be safely reconstructed after rollback.
+
+---
+
+## 5. Rollback without data restoration
+
+Use this only when the failed release has **not** written incompatible/bad business data.
+
+```bash
+COMPOSE='docker compose --env-file .env.production -f docker-compose.production.yml'
+
+# 1. Stop asynchronous writers and, if necessary, remove public traffic.
+$COMPOSE stop worker scheduler
+
+# 2. Return source to the recorded previous release and validate its config.
 git checkout <previous-tag-or-commit>
-docker compose build app worker
+$COMPOSE config --quiet
 
-# 3. If the failed upgrade included new migrations, roll them back
-#    BEFORE restarting the app on old code — old code was never tested
-#    against the new schema
-docker compose exec app php artisan migrate:rollback --step=<N> --force
+# 3. Rebuild previous application images.
+$COMPOSE build
 
-# 4. Restart on the old image
-docker compose up -d app worker
+# 4. If the failed release used a schema that the previous code cannot
+#    tolerate, explicitly roll back ONLY the reviewed migrations required.
+#    Otherwise leave additive schema in place.
+# $COMPOSE run --rm app php artisan migrate:rollback --step=<N> --force
 
-# 5. Verify (PRODUCTION_DEPLOYMENT_GUIDE.md §4)
+# 5. Recreate the previous application tier.
+$COMPOSE up -d --remove-orphans
+
+# 6. Verify all public surfaces and internal health.
+$COMPOSE exec -T app php artisan platform:health
+$COMPOSE ps
 ```
 
-**If the failed upgrade's migration is additive-only** (the common case, per §3), rolling the migration back is usually optional — old code simply ignores a column/table it doesn't know about. **Only skip the rollback-migration step if you have specifically confirmed the new migration was purely additive** for that release; when in doubt, roll it back too.
-
-If the upgrade already caused bad data to be written (not just a code-level failure), migration rollback alone is not sufficient — see `DISASTER_RECOVERY_GUIDE.md` for restoring from backup instead.
+If the failed release corrupted or transformed business data incompatibly, code rollback is not enough. Restore the verified backup using `DISASTER_RECOVERY_GUIDE.md`.
 
 ---
 
-## 5. Zero-Downtime Considerations
+## 6. Service-account/token changes
 
-This platform's `app`/`worker` statelessness (`OPERATIONS_GUIDE.md` §4) makes a rolling upgrade possible in principle — bring up new-version containers alongside old ones, shift traffic, then retire the old ones — but `docker-compose.yml` alone does not orchestrate this (no blue/green tooling is wired, per `docs/11_DEPLOYMENT_STANDARD.md` §9's own "philosophy only, no tooling yet" framing). Until that tooling exists, treat every upgrade as a brief, planned maintenance window (§8, `docs/11_DEPLOYMENT_STANDARD.md`'s Change Window), not a zero-downtime event.
+The Gateway's Storefront and Checkout Sanctum tokens are deployment secrets. A release that changes service-role permissions normally only needs `db:seed --force`; the existing account's role relationship remains and the new permission composition is picked up from the role.
+
+Rotate a token when it is exposed, intentionally expired/revoked, or your security policy requires rotation. Issue a new token with the appropriate service-account command, update `.env.production`, and recreate `gateway`. Never commit the plaintext token or print it into CI logs.
+
+---
+
+## 7. Zero-downtime status
+
+The application services are stateless enough to support a blue/green or rolling strategy, but `docker-compose.production.yml` by itself does **not** provide traffic shifting or two-version orchestration. Until a staging/edge deployment mechanism explicitly implements and exercises that strategy, treat upgrades as controlled maintenance-window releases rather than claiming zero downtime.
+
+Database compatibility across the release boundary is the primary requirement for any future rolling deployment; expand/contract migrations in §4 are what make that possible.
