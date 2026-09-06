@@ -1,0 +1,794 @@
+name: chatgpt-cms-backend
+
+on:
+  push:
+    branches: [nexgen-gate1-productization]
+    paths: [.github/workflows/chatgpt-cms-backend.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: nexgen-gate1-productization
+      - name: Add CMS backend core
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p apps/backend/app/Domains/Platform/Cms/{Actions,Authorization,Console/Commands,Http/Controllers,Http/Requests,Http/Resources,Models,Providers}
+
+          cat > apps/backend/database/migrations/2026_09_07_000001_create_cms_pages_tables.php <<'PHP'
+          <?php
+
+          use Illuminate\Database\Migrations\Migration;
+          use Illuminate\Database\Schema\Blueprint;
+          use Illuminate\Support\Facades\Schema;
+
+          return new class extends Migration
+          {
+              public function up(): void
+              {
+                  Schema::create('cms_pages', function (Blueprint $table) {
+                      $table->uuid('id')->primary();
+                      $table->string('tenant_id')->default('default')->index();
+                      $table->uuid('store_id');
+                      $table->string('slug', 160);
+                      $table->string('title', 180);
+                      $table->string('locale', 16)->default('en');
+                      $table->json('content');
+                      $table->string('meta_title', 180)->nullable();
+                      $table->text('meta_description')->nullable();
+                      $table->string('status', 24)->default('draft');
+                      $table->json('published_snapshot')->nullable();
+                      $table->timestamp('published_at')->nullable();
+                      $table->uuid('published_by')->nullable();
+                      $table->unsignedInteger('lock_version')->default(1);
+                      $table->timestamps();
+
+                      $table->unique(['store_id', 'locale', 'slug'], 'cms_pages_store_locale_slug_unique');
+                      $table->index(['store_id', 'status']);
+                      $table->foreign('store_id')->references('id')->on('stores')->cascadeOnDelete();
+                      $table->foreign('published_by')->references('id')->on('users')->nullOnDelete();
+                  });
+
+                  Schema::create('cms_page_revisions', function (Blueprint $table) {
+                      $table->uuid('id')->primary();
+                      $table->uuid('page_id');
+                      $table->json('snapshot');
+                      $table->uuid('created_by')->nullable();
+                      $table->timestamps();
+
+                      $table->index(['page_id', 'created_at']);
+                      $table->foreign('page_id')->references('id')->on('cms_pages')->cascadeOnDelete();
+                      $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
+                  });
+              }
+
+              public function down(): void
+              {
+                  Schema::dropIfExists('cms_page_revisions');
+                  Schema::dropIfExists('cms_pages');
+              }
+          };
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Models/CmsPage.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Models;
+
+          use App\Domains\Platform\Foundation\EventBus\TenantId;
+          use Illuminate\Database\Eloquent\Concerns\HasUuids;
+          use Illuminate\Database\Eloquent\Model;
+          use Illuminate\Database\Eloquent\Relations\HasMany;
+          use Illuminate\Support\Carbon;
+          use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+
+          /**
+           * MODULE:CMS page aggregate. Draft fields are editable; the Storefront
+           * consumes only published_snapshot while status is published, so saving
+           * a draft can never leak an unfinished edit to customers.
+           *
+           * @property string $id
+           * @property string $tenant_id
+           * @property string $store_id
+           * @property string $slug
+           * @property string $title
+           * @property string $locale
+           * @property array<int, array<string, mixed>> $content
+           * @property string|null $meta_title
+           * @property string|null $meta_description
+           * @property string $status
+           * @property array<string, mixed>|null $published_snapshot
+           * @property Carbon|null $published_at
+           * @property string|null $published_by
+           * @property int $lock_version
+           */
+          final class CmsPage extends Model
+          {
+              use HasUuids;
+
+              public const string STATUS_DRAFT = 'draft';
+              public const string STATUS_PUBLISHED = 'published';
+
+              public const array EDITABLE_FIELDS = [
+                  'slug', 'title', 'locale', 'content', 'meta_title', 'meta_description',
+              ];
+
+              protected $fillable = ['store_id', ...self::EDITABLE_FIELDS];
+
+              protected function casts(): array
+              {
+                  return [
+                      'content' => 'array',
+                      'published_snapshot' => 'array',
+                      'published_at' => 'datetime',
+                  ];
+              }
+
+              protected static function booted(): void
+              {
+                  self::creating(function (self $page): void {
+                      $page->tenant_id ??= TenantId::DEFAULT;
+                      $page->status ??= self::STATUS_DRAFT;
+                      $page->lock_version ??= 1;
+                  });
+
+                  self::updating(function (self $page): void {
+                      $page->lock_version = (int) $page->getOriginal('lock_version') + 1;
+                  });
+              }
+
+              /** @return HasMany<CmsPageRevision, $this> */
+              public function revisions(): HasMany
+              {
+                  return $this->hasMany(CmsPageRevision::class, 'page_id')->latest('created_at');
+              }
+
+              public function assertVersionMatches(int $expectedVersion): void
+              {
+                  if ($expectedVersion !== (int) $this->lock_version) {
+                      throw new ConflictHttpException('This page changed since you opened it. Reload and try again.');
+                  }
+              }
+
+              /** @return array<string, mixed> */
+              public function draftSnapshot(): array
+              {
+                  return [
+                      'slug' => $this->slug,
+                      'title' => $this->title,
+                      'locale' => $this->locale,
+                      'content' => $this->content,
+                      'meta_title' => $this->meta_title,
+                      'meta_description' => $this->meta_description,
+                  ];
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Models/CmsPageRevision.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Models;
+
+          use Illuminate\Database\Eloquent\Concerns\HasUuids;
+          use Illuminate\Database\Eloquent\Model;
+          use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+          final class CmsPageRevision extends Model
+          {
+              use HasUuids;
+
+              protected $fillable = ['page_id', 'snapshot', 'created_by'];
+
+              protected function casts(): array
+              {
+                  return ['snapshot' => 'array'];
+              }
+
+              /** @return BelongsTo<CmsPage, $this> */
+              public function page(): BelongsTo
+              {
+                  return $this->belongsTo(CmsPage::class, 'page_id');
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Actions/CreatePageAction.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Actions;
+
+          use App\Domains\Platform\Cms\Models\CmsPage;
+          use Illuminate\Support\Facades\DB;
+
+          final readonly class CreatePageAction
+          {
+              /** @param array<string, mixed> $attributes */
+              public function execute(string $storeId, array $attributes, ?string $actorId): CmsPage
+              {
+                  return DB::transaction(function () use ($storeId, $attributes, $actorId): CmsPage {
+                      $page = CmsPage::query()->create(['store_id' => $storeId, ...$attributes]);
+                      $page->revisions()->create(['snapshot' => $page->draftSnapshot(), 'created_by' => $actorId]);
+
+                      return $page;
+                  });
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Actions/UpdatePageAction.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Actions;
+
+          use App\Domains\Platform\Cms\Models\CmsPage;
+          use Illuminate\Support\Facades\DB;
+
+          final readonly class UpdatePageAction
+          {
+              /** @param array<string, mixed> $changes */
+              public function execute(CmsPage $page, array $changes, int $expectedVersion, ?string $actorId): CmsPage
+              {
+                  return DB::transaction(function () use ($page, $changes, $expectedVersion, $actorId): CmsPage {
+                      $page->assertVersionMatches($expectedVersion);
+                      $page->fill($changes)->save();
+                      $page->revisions()->create(['snapshot' => $page->draftSnapshot(), 'created_by' => $actorId]);
+
+                      return $page->refresh();
+                  });
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Actions/PublishPageAction.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Actions;
+
+          use App\Domains\Platform\Cms\Models\CmsPage;
+          use Illuminate\Support\Facades\DB;
+
+          final readonly class PublishPageAction
+          {
+              public function execute(CmsPage $page, int $expectedVersion, ?string $actorId): CmsPage
+              {
+                  return DB::transaction(function () use ($page, $expectedVersion, $actorId): CmsPage {
+                      $page->assertVersionMatches($expectedVersion);
+                      $page->published_snapshot = $page->draftSnapshot();
+                      $page->status = CmsPage::STATUS_PUBLISHED;
+                      $page->published_at = now();
+                      $page->published_by = $actorId;
+                      $page->save();
+                      $page->revisions()->create(['snapshot' => $page->draftSnapshot(), 'created_by' => $actorId]);
+
+                      return $page->refresh();
+                  });
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Actions/UnpublishPageAction.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Actions;
+
+          use App\Domains\Platform\Cms\Models\CmsPage;
+          use Illuminate\Support\Facades\DB;
+
+          final readonly class UnpublishPageAction
+          {
+              public function execute(CmsPage $page, int $expectedVersion, ?string $actorId): CmsPage
+              {
+                  return DB::transaction(function () use ($page, $expectedVersion, $actorId): CmsPage {
+                      $page->assertVersionMatches($expectedVersion);
+                      $page->status = CmsPage::STATUS_DRAFT;
+                      $page->save();
+                      $page->revisions()->create(['snapshot' => $page->draftSnapshot(), 'created_by' => $actorId]);
+
+                      return $page->refresh();
+                  });
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Actions/RestorePageRevisionAction.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Actions;
+
+          use App\Domains\Platform\Cms\Models\CmsPage;
+          use App\Domains\Platform\Cms\Models\CmsPageRevision;
+          use Illuminate\Support\Facades\DB;
+
+          final readonly class RestorePageRevisionAction
+          {
+              public function execute(CmsPage $page, CmsPageRevision $revision, int $expectedVersion, ?string $actorId): CmsPage
+              {
+                  return DB::transaction(function () use ($page, $revision, $expectedVersion, $actorId): CmsPage {
+                      $page->assertVersionMatches($expectedVersion);
+                      abort_unless($revision->page_id === $page->id, 404);
+                      $page->fill($revision->snapshot)->save();
+                      $page->revisions()->create(['snapshot' => $page->draftSnapshot(), 'created_by' => $actorId]);
+
+                      return $page->refresh();
+                  });
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Authorization/PermissionDefinition.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Authorization;
+
+          final readonly class PermissionDefinition
+          {
+              public function __construct(public string $key, public string $label, public string $module) {}
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Authorization/PermissionRegistry.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Authorization;
+
+          final class PermissionRegistry
+          {
+              /** @return list<PermissionDefinition> */
+              public static function definitions(): array
+              {
+                  return [
+                      new PermissionDefinition('cms.pages.view', 'View CMS drafts, pages, and revision history', 'cms'),
+                      new PermissionDefinition('cms.pages.manage', 'Create and edit CMS pages and drafts', 'cms'),
+                      new PermissionDefinition('cms.pages.publish', 'Publish or unpublish CMS pages', 'cms'),
+                      new PermissionDefinition('cms.published.view', 'Read published CMS content for Storefront composition', 'cms'),
+                  ];
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Console/Commands/SyncPermissionsCommand.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Console\Commands;
+
+          use Database\Seeders\CmsPermissionSeeder;
+          use Illuminate\Console\Command;
+
+          final class SyncPermissionsCommand extends Command
+          {
+              protected $signature = 'cms:sync-permissions';
+              protected $description = "Sync CMS's code-defined permission registry into the database.";
+
+              public function handle(): int
+              {
+                  (new CmsPermissionSeeder)->run();
+                  $this->info('Permissions synced.');
+                  return self::SUCCESS;
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Http/Requests/StorePageRequest.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Http\Requests;
+
+          use Illuminate\Foundation\Http\FormRequest;
+          use Illuminate\Validation\Rule;
+
+          final class StorePageRequest extends FormRequest
+          {
+              public function rules(): array
+              {
+                  $storeId = (string) $this->route('store')?->id;
+                  $locale = (string) $this->input('locale', 'en');
+
+                  return [
+                      'slug' => ['required', 'string', 'max:160', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('cms_pages', 'slug')->where(fn ($q) => $q->where('store_id', $storeId)->where('locale', $locale))],
+                      'title' => ['required', 'string', 'max:180'],
+                      'locale' => ['required', 'string', 'max:16'],
+                      'content' => ['required', 'array', 'max:30'],
+                      'content.*.type' => ['required', 'string', 'max:64'],
+                      'content.*.configuration' => ['required', 'array'],
+                      'content.*.key' => ['nullable', 'string', 'max:100'],
+                      'meta_title' => ['nullable', 'string', 'max:180'],
+                      'meta_description' => ['nullable', 'string', 'max:1000'],
+                  ];
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Http/Requests/UpdatePageRequest.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Http\Requests;
+
+          use Illuminate\Foundation\Http\FormRequest;
+          use Illuminate\Validation\Rule;
+
+          final class UpdatePageRequest extends FormRequest
+          {
+              public function rules(): array
+              {
+                  $storeId = (string) $this->route('store')?->id;
+                  $page = $this->route('page');
+                  $locale = (string) $this->input('locale', $page?->locale ?? 'en');
+
+                  return [
+                      'expected_version' => ['required', 'integer', 'min:1'],
+                      'slug' => ['sometimes', 'required', 'string', 'max:160', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('cms_pages', 'slug')->where(fn ($q) => $q->where('store_id', $storeId)->where('locale', $locale))->ignore($page?->id)],
+                      'title' => ['sometimes', 'required', 'string', 'max:180'],
+                      'locale' => ['sometimes', 'required', 'string', 'max:16'],
+                      'content' => ['sometimes', 'required', 'array', 'max:30'],
+                      'content.*.type' => ['required_with:content', 'string', 'max:64'],
+                      'content.*.configuration' => ['required_with:content', 'array'],
+                      'content.*.key' => ['nullable', 'string', 'max:100'],
+                      'meta_title' => ['sometimes', 'nullable', 'string', 'max:180'],
+                      'meta_description' => ['sometimes', 'nullable', 'string', 'max:1000'],
+                  ];
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Http/Requests/ExpectedVersionRequest.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Http\Requests;
+
+          use Illuminate\Foundation\Http\FormRequest;
+
+          final class ExpectedVersionRequest extends FormRequest
+          {
+              public function rules(): array
+              {
+                  return ['expected_version' => ['required', 'integer', 'min:1']];
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Http/Resources/CmsPageResource.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Http\Resources;
+
+          use Illuminate\Http\Request;
+          use Illuminate\Http\Resources\Json\JsonResource;
+
+          final class CmsPageResource extends JsonResource
+          {
+              public function toArray(Request $request): array
+              {
+                  return [
+                      'id' => $this->id,
+                      'storeId' => $this->store_id,
+                      'slug' => $this->slug,
+                      'title' => $this->title,
+                      'locale' => $this->locale,
+                      'content' => $this->content,
+                      'metaTitle' => $this->meta_title,
+                      'metaDescription' => $this->meta_description,
+                      'status' => $this->status,
+                      'isPublished' => $this->status === 'published' && $this->published_snapshot !== null,
+                      'publishedAt' => $this->published_at?->toIso8601String(),
+                      'lockVersion' => $this->lock_version,
+                      'createdAt' => $this->created_at?->toIso8601String(),
+                      'updatedAt' => $this->updated_at?->toIso8601String(),
+                  ];
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Http/Resources/CmsPublishedPageResource.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Http\Resources;
+
+          use Illuminate\Http\Request;
+          use Illuminate\Http\Resources\Json\JsonResource;
+
+          final class CmsPublishedPageResource extends JsonResource
+          {
+              public function toArray(Request $request): array
+              {
+                  $snapshot = $this->published_snapshot ?? [];
+
+                  return [
+                      'id' => $this->id,
+                      'slug' => $snapshot['slug'] ?? $this->slug,
+                      'title' => $snapshot['title'] ?? $this->title,
+                      'locale' => $snapshot['locale'] ?? $this->locale,
+                      'content' => $snapshot['content'] ?? [],
+                      'metaTitle' => $snapshot['meta_title'] ?? null,
+                      'metaDescription' => $snapshot['meta_description'] ?? null,
+                      'publishedAt' => $this->published_at?->toIso8601String(),
+                  ];
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Http/Resources/CmsPageRevisionResource.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Http\Resources;
+
+          use Illuminate\Http\Request;
+          use Illuminate\Http\Resources\Json\JsonResource;
+
+          final class CmsPageRevisionResource extends JsonResource
+          {
+              public function toArray(Request $request): array
+              {
+                  return [
+                      'id' => $this->id,
+                      'pageId' => $this->page_id,
+                      'snapshot' => $this->snapshot,
+                      'createdBy' => $this->created_by,
+                      'createdAt' => $this->created_at?->toIso8601String(),
+                  ];
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Http/Controllers/CmsPageController.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Http\Controllers;
+
+          use App\Domains\Platform\Cms\Actions\CreatePageAction;
+          use App\Domains\Platform\Cms\Actions\PublishPageAction;
+          use App\Domains\Platform\Cms\Actions\RestorePageRevisionAction;
+          use App\Domains\Platform\Cms\Actions\UnpublishPageAction;
+          use App\Domains\Platform\Cms\Actions\UpdatePageAction;
+          use App\Domains\Platform\Cms\Http\Requests\ExpectedVersionRequest;
+          use App\Domains\Platform\Cms\Http\Requests\StorePageRequest;
+          use App\Domains\Platform\Cms\Http\Requests\UpdatePageRequest;
+          use App\Domains\Platform\Cms\Http\Resources\CmsPageResource;
+          use App\Domains\Platform\Cms\Http\Resources\CmsPageRevisionResource;
+          use App\Domains\Platform\Cms\Http\Resources\CmsPublishedPageResource;
+          use App\Domains\Platform\Cms\Models\CmsPage;
+          use App\Domains\Platform\Cms\Models\CmsPageRevision;
+          use App\Domains\Platform\StoreConfiguration\Models\Store;
+          use Illuminate\Http\Request;
+          use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+          use Illuminate\Http\Response;
+
+          final class CmsPageController
+          {
+              public function __construct(
+                  private readonly CreatePageAction $createPage,
+                  private readonly UpdatePageAction $updatePage,
+                  private readonly PublishPageAction $publishPage,
+                  private readonly UnpublishPageAction $unpublishPage,
+                  private readonly RestorePageRevisionAction $restoreRevision,
+              ) {}
+
+              public function index(Store $store): AnonymousResourceCollection
+              {
+                  return CmsPageResource::collection(CmsPage::query()->where('store_id', $store->id)->orderBy('title')->get());
+              }
+
+              public function store(StorePageRequest $request, Store $store): CmsPageResource
+              {
+                  $page = $this->createPage->execute($store->id, $request->validated(), $request->user()?->id);
+                  return new CmsPageResource($page);
+              }
+
+              public function show(Store $store, CmsPage $page): CmsPageResource
+              {
+                  $this->assertStore($store, $page);
+                  return new CmsPageResource($page);
+              }
+
+              public function update(UpdatePageRequest $request, Store $store, CmsPage $page): CmsPageResource
+              {
+                  $this->assertStore($store, $page);
+                  $updated = $this->updatePage->execute($page, $request->safe()->except('expected_version'), (int) $request->integer('expected_version'), $request->user()?->id);
+                  return new CmsPageResource($updated);
+              }
+
+              public function destroy(ExpectedVersionRequest $request, Store $store, CmsPage $page): Response
+              {
+                  $this->assertStore($store, $page);
+                  $page->assertVersionMatches((int) $request->integer('expected_version'));
+                  $page->delete();
+                  return response()->noContent();
+              }
+
+              public function publish(ExpectedVersionRequest $request, Store $store, CmsPage $page): CmsPageResource
+              {
+                  $this->assertStore($store, $page);
+                  return new CmsPageResource($this->publishPage->execute($page, (int) $request->integer('expected_version'), $request->user()?->id));
+              }
+
+              public function unpublish(ExpectedVersionRequest $request, Store $store, CmsPage $page): CmsPageResource
+              {
+                  $this->assertStore($store, $page);
+                  return new CmsPageResource($this->unpublishPage->execute($page, (int) $request->integer('expected_version'), $request->user()?->id));
+              }
+
+              public function revisions(Store $store, CmsPage $page): AnonymousResourceCollection
+              {
+                  $this->assertStore($store, $page);
+                  return CmsPageRevisionResource::collection($page->revisions()->get());
+              }
+
+              public function restore(ExpectedVersionRequest $request, Store $store, CmsPage $page, CmsPageRevision $revision): CmsPageResource
+              {
+                  $this->assertStore($store, $page);
+                  return new CmsPageResource($this->restoreRevision->execute($page, $revision, (int) $request->integer('expected_version'), $request->user()?->id));
+              }
+
+              public function published(Request $request, Store $store, string $slug): CmsPublishedPageResource
+              {
+                  $locale = (string) $request->query('locale', $store->locale);
+                  $page = CmsPage::query()
+                      ->where('store_id', $store->id)
+                      ->where('locale', $locale)
+                      ->where('slug', $slug)
+                      ->where('status', CmsPage::STATUS_PUBLISHED)
+                      ->whereNotNull('published_snapshot')
+                      ->firstOrFail();
+
+                  return new CmsPublishedPageResource($page);
+              }
+
+              private function assertStore(Store $store, CmsPage $page): void
+              {
+                  abort_unless($page->store_id === $store->id, 404);
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/Providers/CmsServiceProvider.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          namespace App\Domains\Platform\Cms\Providers;
+
+          use App\Domains\Platform\Cms\Console\Commands\SyncPermissionsCommand;
+          use Illuminate\Support\ServiceProvider;
+
+          final class CmsServiceProvider extends ServiceProvider
+          {
+              public function boot(): void
+              {
+                  require __DIR__.'/../routes.php';
+                  if ($this->app->runningInConsole()) {
+                      $this->commands([SyncPermissionsCommand::class]);
+                  }
+              }
+          }
+          PHP
+
+          cat > apps/backend/app/Domains/Platform/Cms/routes.php <<'PHP'
+          <?php
+
+          declare(strict_types=1);
+
+          use App\Domains\Platform\Cms\Http\Controllers\CmsPageController;
+          use Illuminate\Support\Facades\Route;
+
+          Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function (): void {
+              Route::get('stores/{store}/cms/published/{slug}', [CmsPageController::class, 'published'])
+                  ->middleware('permission:cms.published.view')->name('v1.cms.published.show');
+
+              Route::get('stores/{store}/cms/pages', [CmsPageController::class, 'index'])
+                  ->middleware('permission:cms.pages.view')->name('v1.cms.pages.index');
+              Route::post('stores/{store}/cms/pages', [CmsPageController::class, 'store'])
+                  ->middleware('permission:cms.pages.manage')->name('v1.cms.pages.store');
+              Route::get('stores/{store}/cms/pages/{page}', [CmsPageController::class, 'show'])
+                  ->middleware('permission:cms.pages.view')->name('v1.cms.pages.show');
+              Route::patch('stores/{store}/cms/pages/{page}', [CmsPageController::class, 'update'])
+                  ->middleware('permission:cms.pages.manage')->name('v1.cms.pages.update');
+              Route::delete('stores/{store}/cms/pages/{page}', [CmsPageController::class, 'destroy'])
+                  ->middleware('permission:cms.pages.manage')->name('v1.cms.pages.destroy');
+              Route::post('stores/{store}/cms/pages/{page}/publish', [CmsPageController::class, 'publish'])
+                  ->middleware('permission:cms.pages.publish')->name('v1.cms.pages.publish');
+              Route::post('stores/{store}/cms/pages/{page}/unpublish', [CmsPageController::class, 'unpublish'])
+                  ->middleware('permission:cms.pages.publish')->name('v1.cms.pages.unpublish');
+              Route::get('stores/{store}/cms/pages/{page}/revisions', [CmsPageController::class, 'revisions'])
+                  ->middleware('permission:cms.pages.view')->name('v1.cms.pages.revisions');
+              Route::post('stores/{store}/cms/pages/{page}/revisions/{revision}/restore', [CmsPageController::class, 'restore'])
+                  ->middleware('permission:cms.pages.manage')->name('v1.cms.pages.revisions.restore');
+          });
+          PHP
+
+          cat > apps/backend/database/seeders/CmsPermissionSeeder.php <<'PHP'
+          <?php
+
+          namespace Database\Seeders;
+
+          use App\Domains\Platform\Cms\Authorization\PermissionRegistry;
+          use App\Domains\Platform\IdentityAccess\Models\Permission;
+          use Illuminate\Database\Seeder;
+
+          class CmsPermissionSeeder extends Seeder
+          {
+              public function run(): void
+              {
+                  foreach (PermissionRegistry::definitions() as $definition) {
+                      Permission::query()->updateOrCreate(
+                          ['key' => $definition->key],
+                          ['label' => $definition->label, 'module' => $definition->module],
+                      );
+                  }
+              }
+          }
+          PHP
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('apps/backend/bootstrap/providers.php')
+          s = p.read_text()
+          use = 'use App\\Domains\\Platform\\Cms\\Providers\\CmsServiceProvider;\n'
+          if use not in s:
+              s = s.replace('use App\\Domains\\Platform\\Appearance\\Providers\\AppearanceServiceProvider;\n', 'use App\\Domains\\Platform\\Appearance\\Providers\\AppearanceServiceProvider;\n' + use)
+          if '    CmsServiceProvider::class,\n' not in s:
+              s = s.replace('    AppearanceServiceProvider::class,\n', '    AppearanceServiceProvider::class,\n    CmsServiceProvider::class,\n')
+          p.write_text(s)
+
+          p = Path('apps/backend/database/seeders/DatabaseSeeder.php')
+          s = p.read_text()
+          if '            CmsPermissionSeeder::class,\n' not in s:
+              s = s.replace('            AppearancePermissionSeeder::class,\n', '            AppearancePermissionSeeder::class,\n            CmsPermissionSeeder::class,\n')
+          p.write_text(s)
+
+          p = Path('apps/backend/database/seeders/ServiceAccountRoleSeeder.php')
+          s = p.read_text()
+          needle = "            'appearance.branding.view',\n"
+          if "            'cms.published.view',\n" not in s:
+              if needle not in s:
+                  raise SystemExit('service role insertion point not found')
+              s = s.replace(needle, needle + "            'cms.published.view',\n", 1)
+          p.write_text(s)
+          PY
+
+          git rm .github/workflows/chatgpt-cms-backend.yml
+          git config user.name "Md Zahedul Hasan"
+          git config user.email "afzatube@gmail.com"
+          git add apps/backend docs/04_MODULE_ARCHITECTURE.md
+          git commit -m "feat(cms): add page publishing and revision backend"
+          git push origin HEAD:nexgen-gate1-productization
