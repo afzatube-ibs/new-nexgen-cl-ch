@@ -21,31 +21,18 @@ export { listPermissions } from './permissions.js';
 export { assignRole, revokeRole } from './userRoles.js';
 
 export * from './media.js';
-
 export * from './appearance.js';
-
+export * from './cms.js';
 export * from './catalog/index.js';
-
 export * from './inventory/index.js';
-
 export * from './pricing/index.js';
-
 export * from './customers/index.js';
-
 export * from './orders/index.js';
-
 export * from './shipping/index.js';
-
 export * from './fulfillment/index.js';
-
 export * from './returns/index.js';
-
 export * from './localization/index.js';
-
 export * from './payments/index.js';
-
 export * from './notifications/index.js';
-
 export * from './promotions/index.js';
-
 export * from './reviews/index.js';
