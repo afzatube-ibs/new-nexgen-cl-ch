@@ -12,12 +12,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Package source
-        run: tar --exclude=.git -czf /tmp/nexgen-source.tar.gz .
-      - name: Upload source artifact
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install Node dependencies
+        run: npm ci
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, intl, zip, bcmath
+          coverage: none
+          tools: composer:v2
+      - name: Install backend dependencies
+        working-directory: apps/backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Package dependencies
+        run: |
+          tar -czf /tmp/nexgen-deps.tar.gz node_modules apps/backend/vendor
+      - name: Upload dependencies artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexgen-source
-          path: /tmp/nexgen-source.tar.gz
+          name: nexgen-deps
+          path: /tmp/nexgen-deps.tar.gz
           if-no-files-found: error
           retention-days: 1
