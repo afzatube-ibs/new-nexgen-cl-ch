@@ -1,4 +1,4 @@
-name: chatgpt-baseline-export
+name: chatgpt-baseline-smoke
 
 on:
   push:
@@ -6,34 +6,155 @@ on:
       - chatgpt-baseline-run
 
 jobs:
-  export:
+  smoke:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: nexgen
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=8
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=8
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - name: Install Node dependencies
         run: npm ci
+
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, pdo_sqlite, intl, zip, bcmath
+          extensions: mbstring, pdo_mysql, redis, intl, zip, bcmath, opcache, dom, xml
           coverage: none
           tools: composer:v2
       - name: Install backend dependencies
         working-directory: apps/backend
         run: composer install --no-interaction --prefer-dist --no-progress
-      - name: Package dependencies
+
+      - name: Configure backend
+        working-directory: apps/backend
         run: |
-          tar -czf /tmp/nexgen-deps.tar.gz node_modules apps/backend/vendor
-      - name: Upload dependencies artifact
+          cp .env.example .env
+          sed -i 's/^DB_DATABASE=.*/DB_DATABASE=nexgen/' .env
+          sed -i 's/^DB_USERNAME=.*/DB_USERNAME=root/' .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=/' .env
+          sed -i 's/^REDIS_HOST=.*/REDIS_HOST=127.0.0.1/' .env
+          sed -i 's/^APP_URL=.*/APP_URL=http:\/\/127.0.0.1:8080/' .env
+          php artisan key:generate --force
+          php artisan migrate:fresh --seed --force
+          php artisan identity-access:create-admin --name='Baseline Admin' --email='admin@nexgen.local' --password='Baseline!Pass1234'
+          php artisan identity-access:create-service-account storefront-service > /tmp/storefront-token.txt
+          php artisan identity-access:create-service-account checkout-service > /tmp/checkout-token.txt
+          awk '/^[0-9]+\|/{print; exit}' /tmp/storefront-token.txt > /tmp/storefront-token-value.txt
+          awk '/^[0-9]+\|/{print; exit}' /tmp/checkout-token.txt > /tmp/checkout-token-value.txt
+          test -s /tmp/storefront-token-value.txt
+          test -s /tmp/checkout-token-value.txt
+
+      - name: Configure Gateway and frontends
+        run: |
+          cp apps/store-api-gateway/.env.example apps/store-api-gateway/.env
+          STORE_TOKEN=$(cat /tmp/storefront-token-value.txt)
+          CHECKOUT_TOKEN=$(cat /tmp/checkout-token-value.txt)
+          sed -i "s|^BACKEND_SERVICE_TOKEN=.*|BACKEND_SERVICE_TOKEN=$STORE_TOKEN|" apps/store-api-gateway/.env
+          sed -i "s|^BACKEND_CHECKOUT_SERVICE_TOKEN=.*|BACKEND_CHECKOUT_SERVICE_TOKEN=$CHECKOUT_TOKEN|" apps/store-api-gateway/.env
+          sed -i 's|^GUEST_SESSION_SECRET=.*|GUEST_SESSION_SECRET=baseline-guest-session-secret-1234567890|' apps/store-api-gateway/.env
+          sed -i 's|^PREVIEW_TOKEN_SECRET=.*|PREVIEW_TOKEN_SECRET=baseline-preview-token-secret-1234567890|' apps/store-api-gateway/.env
+          cp apps/storefront/.env.example apps/storefront/.env.local
+          cp apps/admin/.env.example apps/admin/.env.local
+
+      - name: Start full stack
+        run: |
+          mkdir -p /tmp/nexgen-logs
+          (cd apps/backend && php artisan serve --host=127.0.0.1 --port=8080 > /tmp/nexgen-logs/backend.log 2>&1 & echo $! > /tmp/backend.pid)
+          (npm run dev -w apps/store-api-gateway > /tmp/nexgen-logs/gateway.log 2>&1 & echo $! > /tmp/gateway.pid)
+          (npm run dev -w apps/storefront -- --hostname 127.0.0.1 --port 3000 > /tmp/nexgen-logs/storefront.log 2>&1 & echo $! > /tmp/storefront.pid)
+          (npm run dev -w apps/admin -- --host 127.0.0.1 --port 5173 > /tmp/nexgen-logs/admin.log 2>&1 & echo $! > /tmp/admin.pid)
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8080 >/dev/null 2>&1 && break || sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:4000/health >/dev/null 2>&1 && break || sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:3000 >/dev/null 2>&1 && break || sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1 && break || sleep 1
+          done
+          echo '--- endpoints ---'
+          curl -sS -o /dev/null -w 'backend %{http_code}\n' http://127.0.0.1:8080
+          curl -sS -o /dev/null -w 'gateway %{http_code}\n' http://127.0.0.1:4000/health
+          curl -sS -o /dev/null -w 'storefront %{http_code}\n' http://127.0.0.1:3000
+          curl -sS -o /dev/null -w 'admin %{http_code}\n' http://127.0.0.1:5173
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke test and screenshots
+        run: |
+          mkdir -p /tmp/nexgen-artifacts
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch({headless:true});
+            const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+            const consoleErrors = [];
+            page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+            let r = await page.goto('http://127.0.0.1:3000', {waitUntil:'networkidle'});
+            console.log('STOREFRONT_STATUS', r && r.status());
+            console.log('STOREFRONT_TITLE', await page.title());
+            console.log('STOREFRONT_TEXT', (await page.locator('body').innerText()).slice(0,2500).replace(/\n+/g,' | '));
+            await page.screenshot({path:'/tmp/nexgen-artifacts/storefront-home.png', fullPage:true});
+
+            r = await page.goto('http://127.0.0.1:5173/login', {waitUntil:'networkidle'});
+            console.log('ADMIN_LOGIN_STATUS', r && r.status());
+            console.log('ADMIN_LOGIN_TITLE', await page.title());
+            await page.screenshot({path:'/tmp/nexgen-artifacts/admin-login.png', fullPage:true});
+            await page.getByLabel('Email').fill('admin@nexgen.local');
+            await page.getByLabel('Password').fill('Baseline!Pass1234');
+            await page.getByRole('button', {name:'Sign in'}).click();
+            await page.waitForTimeout(1500);
+            console.log('ADMIN_AFTER_LOGIN_URL', page.url());
+            console.log('ADMIN_AFTER_LOGIN_TEXT', (await page.locator('body').innerText()).slice(0,2500).replace(/\n+/g,' | '));
+            await page.screenshot({path:'/tmp/nexgen-artifacts/admin-after-login.png', fullPage:true});
+            console.log('CONSOLE_ERRORS', JSON.stringify(consoleErrors));
+            await browser.close();
+          })().catch(e => { console.error(e); process.exit(1); });
+          NODE
+
+      - name: Collect logs
+        if: always()
+        run: |
+          cp -r /tmp/nexgen-logs /tmp/nexgen-artifacts/logs || true
+          printf 'main_sha=1090b6cb1f9e1af5bd0823192b18d87a25919eae\n' > /tmp/nexgen-artifacts/baseline.txt
+
+      - name: Upload smoke artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nexgen-deps
-          path: /tmp/nexgen-deps.tar.gz
-          if-no-files-found: error
+          name: nexgen-baseline-smoke
+          path: /tmp/nexgen-artifacts
+          if-no-files-found: warn
           retention-days: 1
