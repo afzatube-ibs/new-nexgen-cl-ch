@@ -1,0 +1,23 @@
+name: chatgpt-baseline-export
+
+on:
+  push:
+    branches:
+      - chatgpt-baseline-run
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Package source
+        run: tar --exclude=.git -czf /tmp/nexgen-source.tar.gz .
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexgen-source
+          path: /tmp/nexgen-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1
