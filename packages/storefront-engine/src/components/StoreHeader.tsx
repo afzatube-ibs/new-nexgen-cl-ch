@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { forwardRef, useState, type AnchorHTMLAttributes } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -51,12 +51,14 @@ function groupTopLevel(categories: NavCategory[]): { parent: NavCategory; childr
     .map((parent) => ({ parent, children: (byParent.get(parent.id) ?? []).sort((a, b) => a.position - b.position) }));
 }
 
-function NavigationAnchor({ href, className, children }: { href: string; className: string; children: ReactNode }) {
+type NavigationAnchorProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & { href: string };
+
+const NavigationAnchor = forwardRef<HTMLAnchorElement, NavigationAnchorProps>(function NavigationAnchor({ href, ...props }, ref) {
   if (/^https?:\/\//i.test(href)) {
-    return <a href={href} target="_blank" rel="noopener noreferrer" className={className}>{children}</a>;
+    return <a ref={ref} href={href} target="_blank" rel="noopener noreferrer" {...props} />;
   }
-  return <Link href={href} className={className}>{children}</Link>;
-}
+  return <Link ref={ref} href={href} {...props} />;
+});
 
 export function StoreHeader({ categories, branding, navigation }: StoreHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
