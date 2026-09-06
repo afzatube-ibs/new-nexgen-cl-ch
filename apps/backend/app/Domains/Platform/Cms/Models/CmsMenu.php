@@ -30,6 +30,7 @@ final class CmsMenu extends Model
     use HasUuids;
 
     public const string STATUS_DRAFT = 'draft';
+
     public const string STATUS_PUBLISHED = 'published';
 
     protected $fillable = ['store_id', 'handle', 'title', 'items'];
