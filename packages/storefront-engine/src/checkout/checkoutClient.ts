@@ -1,30 +1,17 @@
 'use client';
 
 /**
- * Beta Sprint 5 — the Storefront's own real client for the Gateway's new,
- * real, write-capable Guest Checkout surface (`apps/store-api-gateway/src/
- * routes/checkout.ts` + `routes/orders.ts`). Same `NEXT_PUBLIC_STORE_API_
- * GATEWAY_URL` / direct-browser-call pattern `analytics/trackEvent.ts`
- * already established — a real Gateway route designed for exactly this
- * (CORS + credentials already configured), not a workaround.
- *
- * Deliberately self-contained — no import from `gateway/*.ts` anywhere in
- * this file, matching `client.ts`'s own "genuinely client-only" rule for
- * everything in this package's client-only barrel (see that file's own
- * docblock for the real `next build` failure this rule prevents).
- *
- * Every type below is a direct mirror of the Gateway's own real response
- * shape (`apps/store-api-gateway/src/checkout/types.ts`, re-verified from
- * source, and — for the order/payment shapes — against a real, live
- * response captured while verifying this sprint's end-to-end flow), never
- * invented.
+ * Browser client for the Store API Gateway's guest-checkout surface.
+ * Every method below talks only to Gateway routes intended for shoppers;
+ * backend credentials remain server-side in the Gateway.
  */
-
 const GATEWAY_URL = process.env.NEXT_PUBLIC_STORE_API_GATEWAY_URL;
 const REQUEST_TIMEOUT_MS = 8000;
 
-/** The real backend's only two payment gateways with a working `isAvailable()` in THIS installation (no bKash/Nagad/SSLCommerz credentials are configured) — see this module's own `submitCheckout` docblock. Other `PaymentMethodId`s remain selectable in the UI (they are real, backend-implemented gateways) but will honestly fail at initiation here, exactly like they would on the real backend itself. */
-export const LIVE_PAYMENT_GATEWAYS = ['cod', 'banktransfer'] as const;
+export interface CheckoutPaymentMethod {
+  code: string;
+  label: string;
+}
 
 export interface CheckoutShippingOption {
   id: string;
@@ -33,7 +20,6 @@ export interface CheckoutShippingOption {
   currencyCode: string;
 }
 
-/** `POST /v1/checkout/shipping-options`'s real request shape — a real destination and real cart lines, since the real quote is destination- and weight-aware (see the Gateway's own `checkout/shippingQuotes.ts` docblock). */
 export interface FetchShippingOptionsParams {
   countryCode: string;
   region?: string | null;
@@ -51,7 +37,6 @@ export interface CheckoutSubmitAddress {
   countryCode: string;
 }
 
-/** Field-for-field matched to `apps/store-api-gateway/src/checkout/types.ts`'s own `SubmitCheckoutRequestBody`. */
 export interface SubmitCheckoutRequestBody {
   email: string;
   name: string;
@@ -93,7 +78,6 @@ export interface CheckoutOrderDiscount {
   amount: string;
 }
 
-/** The real, full single-order detail shape `POST /v1/checkout/submit` returns — matches the main barrel's own `Order` (`order/types.js`) field-for-field (deliberately identical, so a `SubmittedOrder` is assignable directly to `OrderConfirmationSummary`'s `order` prop), kept as a separate local type here only so this genuinely client-only module never imports the main barrel (see this file's own docblock). */
 export interface SubmittedOrder {
   id: string;
   orderNumber: string;
@@ -131,16 +115,6 @@ export interface SubmitCheckoutResult {
   paymentError: string | null;
 }
 
-/**
- * The real, LIGHTER shape Guest Order Lookup returns — confirmed live
- * against the real backend (`GET orders?q=` is a collection route: no
- * `items`/`addresses`/`timelineEvents` at all, and its money fields
- * serialize as JSON numbers, not the zero-padded strings the full detail
- * resource above returns) — see the Gateway's own `BackendOrderSummary`
- * docblock for the exact same finding on that side. Never rendered
- * through `OrderConfirmationSummary`, which requires fields this shape
- * genuinely does not have.
- */
 export interface LookedUpOrderSummary {
   id: string;
   orderNumber: string;
@@ -161,7 +135,6 @@ interface GatewayErrorEnvelope {
   meta: { requestId: string };
 }
 
-/** A structured Gateway failure — deliberately a separate, local class from `gateway/errors.ts`'s own `GatewayRequestError`, for the same "no gateway/*.ts import in this genuinely client-only module" reason named in this file's own docblock. */
 export class CheckoutRequestError extends Error {
   readonly status: number;
   readonly code: string;
@@ -186,12 +159,6 @@ function isConfigured(): boolean {
 
 async function gatewayRequest<T>(path: string, init: RequestInit): Promise<T> {
   if (!isConfigured()) {
-    // Same "real capability, honestly absent until configured" pattern
-    // `trackEvent.ts` already established — a Storefront deployment that
-    // has not set `NEXT_PUBLIC_STORE_API_GATEWAY_URL` cannot reach any
-    // Gateway route, checkout included; this is reported as a real,
-    // specific error, never a silent no-op, since (unlike analytics) a
-    // failed checkout submission must never be swallowed.
     throw new CheckoutRequestError(503, {
       error: { code: 'upstream_unavailable', message: 'Checkout is not available in this environment right now.' },
       meta: { requestId: 'unconfigured' },
@@ -212,7 +179,9 @@ async function gatewayRequest<T>(path: string, init: RequestInit): Promise<T> {
     });
   } catch (error) {
     clearTimeout(timeout);
-    const message = error instanceof Error && error.name === 'AbortError' ? 'The request timed out. Please try again.' : 'Could not reach the server. Please check your connection and try again.';
+    const message = error instanceof Error && error.name === 'AbortError'
+      ? 'The request timed out. Please try again.'
+      : 'Could not reach the server. Please check your connection and try again.';
     throw new CheckoutRequestError(0, { error: { code: 'network_error', message }, meta: { requestId: 'network' } });
   }
   clearTimeout(timeout);
@@ -227,15 +196,14 @@ async function gatewayRequest<T>(path: string, init: RequestInit): Promise<T> {
 }
 
 /**
- * `POST /v1/checkout/shipping-options` — real, destination- and
- * weight-aware options composed from Catalog's real per-product weight
- * and Shipping's real, multi-method quote endpoint. Returns an honest
- * empty list (never a thrown error, never a guessed rate) when no real
- * option currently covers this destination/cart — see the Gateway's own
- * `checkout/shippingQuotes.ts` docblock for the full honest-empty
- * rationale, including the named "product has no weight recorded yet"
- * case.
+ * GET /v1/checkout/payment-methods — the backend GatewayRegistry's real,
+ * available-only result. Registered gateways without working credentials
+ * never reach the shopper through this method.
  */
+export async function fetchPaymentMethods(): Promise<CheckoutPaymentMethod[]> {
+  return gatewayRequest<CheckoutPaymentMethod[]>('checkout/payment-methods', { method: 'GET' });
+}
+
 export async function fetchShippingOptions(params: FetchShippingOptionsParams): Promise<CheckoutShippingOption[]> {
   return gatewayRequest<CheckoutShippingOption[]>('checkout/shipping-options', {
     method: 'POST',
@@ -245,14 +213,9 @@ export async function fetchShippingOptions(params: FetchShippingOptionsParams): 
 }
 
 /**
- * `POST /v1/checkout/submit` — the real, orchestrated 8-step Guest
- * Checkout saga. `body.paymentGatewayCode` outside `LIVE_PAYMENT_GATEWAYS`
- * (bKash/Nagad/SSLCommerz — real backend gateways, but not configured with
- * real credentials in this installation) will still create a real Order;
- * only `result.payment` comes back `null` with a real, honest
- * `result.paymentError` explaining why — never thrown as a request
- * failure, since the order itself succeeded (see the Gateway's own
- * `orchestrator.ts` docblock).
+ * POST /v1/checkout/submit — the real orchestrated guest checkout. The UI
+ * now obtains paymentGatewayCode from fetchPaymentMethods rather than a
+ * platform-capability constant, so an unconfigured gateway is not offered.
  */
 export async function submitCheckout(body: SubmitCheckoutRequestBody): Promise<SubmitCheckoutResult> {
   return gatewayRequest<SubmitCheckoutResult>('checkout/submit', {
@@ -262,11 +225,9 @@ export async function submitCheckout(body: SubmitCheckoutRequestBody): Promise<S
   });
 }
 
-/** `GET /v1/orders/lookup` — real Guest Order Lookup; requires an exact order-number + email match (Gateway-side authorization, prevents enumeration — see `routes/orders.ts`'s own docblock). Throws `CheckoutRequestError` with `isNotFound === true` on any mismatch, identical to a genuinely nonexistent order number. */
 export async function lookupOrder(orderNumber: string, email: string): Promise<LookedUpOrderSummary> {
   const query = new URLSearchParams({ orderNumber, email });
   return gatewayRequest<LookedUpOrderSummary>(`orders/lookup?${query.toString()}`, { method: 'GET' });
 }
 
-/** The one `sessionStorage` key `CheckoutForm` writes the real, just-returned `SubmitCheckoutResult` to before redirecting to `/checkout/success` — see that page's own docblock for why `sessionStorage`, not a fetch-by-id route, is the honest mechanism here. */
 export const LAST_ORDER_STORAGE_KEY = 'nx_last_order';

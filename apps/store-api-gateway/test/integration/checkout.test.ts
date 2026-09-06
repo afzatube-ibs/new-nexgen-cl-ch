@@ -11,6 +11,41 @@ describe('routes/checkout (integration — Category B, real backend response sha
     vi.unstubAllGlobals();
   });
 
+  it('GET /v1/checkout/payment-methods returns only backend-available gateways', async () => {
+    stubBackendFetch([
+      {
+        match: 'payments/methods',
+        status: 200,
+        body: {
+          data: [
+            { code: 'cod', label: 'Cash on Delivery', available: true },
+            { code: 'bkash', label: 'bKash', available: false },
+            { code: 'banktransfer', label: 'Bank Transfer', available: true },
+          ],
+        },
+      },
+    ]);
+    const app = await buildTestApp(testEnv());
+    const response = await app.inject({ method: 'GET', url: '/v1/checkout/payment-methods' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual([
+      { code: 'cod', label: 'Cash on Delivery' },
+      { code: 'banktransfer', label: 'Bank Transfer' },
+    ]);
+    await app.close();
+  });
+
+  it('GET /v1/checkout/payment-methods preserves an honest empty availability result', async () => {
+    stubBackendFetch([{ match: 'payments/methods', status: 200, body: { data: [] } }]);
+    const app = await buildTestApp(testEnv());
+    const response = await app.inject({ method: 'GET', url: '/v1/checkout/payment-methods' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual([]);
+    await app.close();
+  });
+
   it('POST /v1/checkout/shipping-options composes a real Catalog weight with a real Shipping quote', async () => {
     stubBackendFetch([
       { match: `products/${PRODUCT_ID}`, status: 200, body: { data: { id: PRODUCT_ID, weightGrams: 500 } } },

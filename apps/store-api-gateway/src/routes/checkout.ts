@@ -1,12 +1,6 @@
 /**
- * Beta Sprint 5 — the Storefront's own real Guest Checkout surface.
- * Every route here writes to the real backend (through the real,
- * separately-credentialed `CheckoutBackendClient` — see that module's
- * own docblock) — this is Category B, the first write-capable Gateway
- * surface this platform has ever shipped, and it is scoped as narrowly
- * as `COMMERCE_ENGINE_ARCHITECTURE_REVIEW.md` §8 named: real guest
- * checkout, no customer authentication guard, no session persistence
- * beyond what one orchestrated request needs.
+ * Storefront Guest Checkout surface. Every route here composes the real
+ * backend through the separately-credentialed CheckoutBackendClient.
  */
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
@@ -44,13 +38,43 @@ const shippingOptionsBodySchema = z.object({
   lines: z.array(z.object({ productId: z.string().uuid(), quantity: z.number().int().positive() })).min(1),
 });
 
+interface BackendPaymentMethod {
+  code: string;
+  label: string;
+  available: boolean;
+}
+
+export interface CheckoutPaymentMethod {
+  code: string;
+  label: string;
+}
+
 export function registerCheckoutRoutes(app: FastifyInstance, checkoutBackend: CheckoutBackendClient, backend: BackendClient, prefix: string): void {
+  /**
+   * Real availability boundary: the backend Payment Gateway Registry is the
+   * sole authority on what can be offered. Its default `payments/methods`
+   * response already excludes registered-but-unconfigured gateways, so this
+   * route never derives availability from frontend constants.
+   */
+  app.get(`${prefix}/checkout/payment-methods`, async (request) => {
+    try {
+      const response = await checkoutBackend.get<{ data: BackendPaymentMethod[] }>({
+        module: 'payments',
+        path: 'payments/methods',
+        correlationId: request.id,
+      });
+
+      return {
+        data: response.data.filter((method) => method.available).map((method) => ({ code: method.code, label: method.label } satisfies CheckoutPaymentMethod)),
+        meta: { requestId: request.id },
+      };
+    } catch (error) {
+      throw toGatewayError(error, 'payments');
+    }
+  });
+
   // Real, destination- and weight-aware shipping options — composed from
-  // Catalog's real per-product weight and Shipping's real, multi-method
-  // quote endpoint. See checkout/shippingQuotes.ts's own docblock for why
-  // this is a POST (it needs a real destination and real cart lines, not
-  // static, parameterless data) and for the honest empty-list behavior
-  // when a real weight isn't available yet.
+  // Catalog's real per-product weight and Shipping's real quote endpoint.
   app.post(`${prefix}/checkout/shipping-options`, async (request) => {
     const body = shippingOptionsBodySchema.parse(request.body);
 
@@ -68,8 +92,7 @@ export function registerCheckoutRoutes(app: FastifyInstance, checkoutBackend: Ch
     }
   });
 
-  // The real, orchestrated Guest Checkout submission — see
-  // checkout/orchestrator.ts's own docblock for the full real sequence.
+  // Real, orchestrated Guest Checkout submission.
   app.post(`${prefix}/checkout/submit`, async (request) => {
     const body = submitBodySchema.parse(request.body);
 
