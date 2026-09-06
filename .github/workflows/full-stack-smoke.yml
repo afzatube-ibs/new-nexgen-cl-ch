@@ -91,7 +91,7 @@ jobs:
           STORE_TOKEN="$(cat /tmp/storefront-token-value.txt)"
           CHECKOUT_TOKEN="$(cat /tmp/checkout-token-value.txt)"
           {
-            echo 'BACKEND_BASE_URL=http://127.0.0.1:8080'
+            echo 'BACKEND_BASE_URL=http://127.0.0.1:8080/api/v1'
             echo "BACKEND_SERVICE_TOKEN=$STORE_TOKEN"
             echo "BACKEND_CHECKOUT_SERVICE_TOKEN=$CHECKOUT_TOKEN"
             echo 'REDIS_URL=redis://127.0.0.1:6379'
