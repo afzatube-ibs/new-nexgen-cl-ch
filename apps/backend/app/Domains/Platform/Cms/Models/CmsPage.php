@@ -38,6 +38,7 @@ final class CmsPage extends Model
     use HasUuids;
 
     public const string STATUS_DRAFT = 'draft';
+
     public const string STATUS_PUBLISHED = 'published';
 
     public const array EDITABLE_FIELDS = [
