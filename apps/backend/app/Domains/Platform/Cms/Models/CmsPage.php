@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domains\Platform\Cms\Models;
 
+use App\Domains\Platform\Cms\Exceptions\ConcurrencyConflictException;
 use App\Domains\Platform\Foundation\EventBus\TenantId;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * MODULE:CMS page aggregate. Draft fields are editable; the Storefront
@@ -77,8 +77,9 @@ final class CmsPage extends Model
 
     public function assertVersionMatches(int $expectedVersion): void
     {
-        if ($expectedVersion !== (int) $this->lock_version) {
-            throw new ConflictHttpException('This page changed since you opened it. Reload and try again.');
+        $actualVersion = (int) $this->lock_version;
+        if ($expectedVersion !== $actualVersion) {
+            throw new ConcurrencyConflictException('CMS page', $this->id, $expectedVersion, $actualVersion);
         }
     }
 
