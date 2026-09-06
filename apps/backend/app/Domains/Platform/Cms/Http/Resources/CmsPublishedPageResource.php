@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domains\Platform\Cms\Http\Resources;
 
+use App\Domains\Platform\Cms\Models\CmsPage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin CmsPage */
 final class CmsPublishedPageResource extends JsonResource
 {
+    /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
         $snapshot = $this->published_snapshot ?? [];
