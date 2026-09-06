@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             StoreConfigurationPermissionSeeder::class,
             MediaPermissionSeeder::class,
             AppearancePermissionSeeder::class,
+            CmsPermissionSeeder::class,
             CatalogPermissionSeeder::class,
             InventoryPermissionSeeder::class,
             LocalizationPermissionSeeder::class,

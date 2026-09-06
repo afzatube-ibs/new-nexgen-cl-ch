@@ -72,6 +72,7 @@ class ServiceAccountRoleSeeder extends Seeder
             'catalog.tags.view',
             'search.products.view',
             'appearance.branding.view',
+            'cms.published.view',
             // Milestone 2 (Pricing → Storefront) — the real, narrow
             // permission the Gateway's own `pricing/lookup-many`
             // composition needs. This is the one line this fix actually
