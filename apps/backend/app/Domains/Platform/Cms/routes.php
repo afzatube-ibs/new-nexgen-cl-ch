@@ -6,6 +6,8 @@ use App\Domains\Platform\Cms\Http\Controllers\CmsPageController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function (): void {
+    Route::get('stores/{store}/cms/published', [CmsPageController::class, 'publishedIndex'])
+        ->middleware('permission:cms.published.view')->name('v1.cms.published.index');
     Route::get('stores/{store}/cms/published/{slug}', [CmsPageController::class, 'published'])
         ->middleware('permission:cms.published.view')->name('v1.cms.published.show');
 
