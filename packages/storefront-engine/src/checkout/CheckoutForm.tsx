@@ -3,11 +3,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, MapPin, Package, Truck as TruckIcon, Wallet, ShieldCheck, ShoppingBag } from 'lucide-react';
+import { Mail, MapPin, Truck as TruckIcon, Wallet, ShieldCheck, ShoppingBag } from 'lucide-react';
 import { Alert, Button, Card, CardContent, CardHeader, CardTitle, Icon, Input, Text } from '@nexgen/ui';
 import { AddressSelector, type AddressSelectorValue } from '../components/AddressSelector.js';
 import { BANGLADESH_DIVISIONS } from '../components/bdDivisions.js';
-import { CourierSelector, type CourierId } from '../components/CourierBadge.js';
 import { CartLineItemRow } from '../cart/CartLineItemRow.js';
 import { CartSummary } from '../cart/CartSummary.js';
 import { useCart } from '../cart/useCart.js';
@@ -33,8 +32,8 @@ function isPaymentMethodId(code: string): code is PaymentMethodId {
 
 /**
  * Real Bangladesh-first guest checkout. Shipping and payment choices come
- * from the Gateway/backend at runtime: no rate or accepted-payment claim is
- * inferred from what the codebase merely knows how to integrate with.
+ * from the Gateway/backend at runtime: no rate, courier, or accepted-payment
+ * claim is inferred from what the codebase merely knows how to integrate.
  */
 export function CheckoutForm() {
   const router = useRouter();
@@ -44,7 +43,6 @@ export function CheckoutForm() {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState<CheckoutAddress>(emptyCheckoutAddress());
   const [addressSelector, setAddressSelector] = useState<AddressSelectorValue>({ divisionId: null, districtId: null, upazilaId: null });
-  const [preferredCourier, setPreferredCourier] = useState<CourierId | undefined>(undefined);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodId[]>([]);
   const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true);
@@ -269,14 +267,6 @@ export function CheckoutForm() {
                 </div>
               )}
               {errors.shippingOption && <Text as="p" variant="caption" role="alert" className="text-feedback-danger">{errors.shippingOption}</Text>}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-xl shadow-none">
-            <CardHeader className="flex-row items-center gap-2 p-5"><Icon icon={Package} className="text-brand" /><CardTitle>Preferred courier (optional)</CardTitle></CardHeader>
-            <CardContent className="flex flex-col gap-3 p-5 pt-0">
-              <Text as="p" variant="caption" className="text-text-secondary">A preference only — the courier that actually ships your order is confirmed after your order is placed.</Text>
-              <CourierSelector couriers={['pathao', 'steadfast', 'redx', 'paperfly', 'sundarban']} value={preferredCourier} onChange={setPreferredCourier} />
             </CardContent>
           </Card>
 
