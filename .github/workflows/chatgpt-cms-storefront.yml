@@ -1,0 +1,168 @@
+name: chatgpt-cms-storefront
+
+on:
+  push:
+    branches: [nexgen-gate1-productization]
+    paths: [.github/workflows/chatgpt-cms-storefront.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: nexgen-gate1-productization
+      - name: Wire CMS to Gateway and Storefront
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('apps/store-api-gateway/src/server.ts')
+          s = p.read_text()
+          if "import { registerContentRoutes } from './routes/content.js';" not in s:
+              s = s.replace("import { registerBrandingRoutes } from './routes/branding.js';\n", "import { registerBrandingRoutes } from './routes/branding.js';\nimport { registerContentRoutes } from './routes/content.js';\n", 1)
+          if '    registerContentRoutes(versionedApp, services, prefix);\n' not in s:
+              s = s.replace('    registerBrandingRoutes(versionedApp, services, prefix);\n', '    registerBrandingRoutes(versionedApp, services, prefix);\n    registerContentRoutes(versionedApp, services, prefix);\n', 1)
+          p.write_text(s)
+
+          p = Path('packages/storefront-engine/src/theme/types.ts')
+          s = p.read_text()
+          if "  | 'RichText'\n" not in s:
+              s = s.replace("  | 'Hero'\n", "  | 'Hero'\n  | 'RichText'\n", 1)
+          p.write_text(s)
+
+          p = Path('packages/storefront-engine/src/engine/primitiveRegistry.ts')
+          s = p.read_text()
+          if "import { RichText } from '../primitives/RichText.js';" not in s:
+              s = s.replace("import { ProductGrid } from '../primitives/ProductGrid.js';\n", "import { ProductGrid } from '../primitives/ProductGrid.js';\nimport { RichText } from '../primitives/RichText.js';\n", 1)
+          if 'const richTextConfigSchema' not in s:
+              marker = "const heroConfigSchema = z.object({\n  heading: z.string().min(1).optional(),\n  subheading: z.string().optional(),\n  cta: z.object({ label: z.string().min(1), href: z.string().min(1) }).optional(),\n});\n"
+              addition = marker + "\nconst richTextConfigSchema = z.object({\n  heading: z.string().min(1).max(180).optional(),\n  body: z.string().min(1).max(50000),\n});\n"
+              if marker not in s:
+                  raise SystemExit('hero schema marker not found')
+              s = s.replace(marker, addition, 1)
+          if '  RichText: entry(RichText, richTextConfigSchema),\n' not in s:
+              s = s.replace('  Hero: entry(Hero, heroConfigSchema),\n', '  Hero: entry(Hero, heroConfigSchema),\n  RichText: entry(RichText, richTextConfigSchema),\n', 1)
+          p.write_text(s)
+
+          p = Path('packages/storefront-engine/src/index.ts')
+          s = p.read_text()
+          if "export * from './gateway/content.js';\n" not in s:
+              s = s.replace("export * from './gateway/catalog.js';\n", "export * from './gateway/catalog.js';\nexport * from './gateway/content.js';\n", 1)
+          if "export * from './primitives/RichText.js';\n" not in s:
+              s = s.replace("export * from './primitives/Hero.js';\n", "export * from './primitives/Hero.js';\nexport * from './primitives/RichText.js';\n", 1)
+          p.write_text(s)
+          PY
+
+          cat > packages/storefront-engine/src/gateway/content.ts <<'TS'
+          import 'server-only';
+          import { gatewayFetch, type GatewayFetchOptions } from './client.js';
+          import type { Section } from '../theme/types.js';
+
+          export interface PublishedContentPage {
+            id: string;
+            slug: string;
+            title: string;
+            locale: string;
+            content: Section[];
+            metaTitle: string | null;
+            metaDescription: string | null;
+            publishedAt: string | null;
+          }
+
+          /** Published-only CMS read. The Gateway itself has no path to drafts. */
+          export function getContentPage(slug: string, options: GatewayFetchOptions & { locale?: string } = {}): Promise<PublishedContentPage> {
+            return gatewayFetch<PublishedContentPage>(`/v1/content/pages/${encodeURIComponent(slug)}`, {
+              query: { locale: options.locale },
+              revalidateSeconds: 60,
+              tags: ['cms', `cms:page:${slug}`],
+              ...options,
+            });
+          }
+          TS
+
+          cat > packages/storefront-engine/src/primitives/RichText.tsx <<'TSX'
+          import { Text } from '@nexgen/ui';
+
+          export interface RichTextProps {
+            heading?: string;
+            body: string;
+          }
+
+          /**
+           * Safe CMS text primitive. Merchant content is rendered as React text,
+           * never `dangerouslySetInnerHTML`; blank-line groups become paragraphs.
+           * This deliberately supports policy/about/contact prose before any future
+           * rich HTML/editor capability is allowed to expand the XSS surface.
+           */
+          export function RichText({ heading, body }: RichTextProps) {
+            const paragraphs = body.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
+
+            return (
+              <section className="mx-auto flex w-full max-w-3xl flex-col gap-5 py-4">
+                {heading && <Text as="h1" variant="display">{heading}</Text>}
+                <div className="flex flex-col gap-4">
+                  {paragraphs.map((paragraph, index) => (
+                    <Text key={`${index}-${paragraph.slice(0, 24)}`} as="p" variant="body" className="whitespace-pre-line leading-7 text-text-secondary">
+                      {paragraph}
+                    </Text>
+                  ))}
+                </div>
+              </section>
+            );
+          }
+          TSX
+
+          mkdir -p 'apps/storefront/src/app/pages/[slug]'
+          cat > 'apps/storefront/src/app/pages/[slug]/page.tsx' <<'TSX'
+          import type { Metadata } from 'next';
+          import { notFound } from 'next/navigation';
+          import { GatewayRequestError, getContentPage, resolveSections } from '@nexgen/storefront-engine';
+
+          interface PageProps {
+            params: Promise<{ slug: string }>;
+          }
+
+          async function loadPage(slug: string) {
+            try {
+              return await getContentPage(slug);
+            } catch (error) {
+              if (error instanceof GatewayRequestError && error.isNotFound) notFound();
+              throw error;
+            }
+          }
+
+          export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+            const { slug } = await params;
+            const page = await loadPage(slug);
+            return {
+              title: page.metaTitle ?? page.title,
+              description: page.metaDescription ?? undefined,
+              alternates: { canonical: `/pages/${page.slug}` },
+            };
+          }
+
+          export default async function ContentPage({ params }: PageProps) {
+            const { slug } = await params;
+            const page = await loadPage(slug);
+            const sections = resolveSections({ sections: page.content });
+
+            return (
+              <article className="flex flex-col gap-12">
+                {sections.map(({ key, Component, props }) => <Component key={key} {...props} />)}
+              </article>
+            );
+          }
+          TSX
+
+          git rm .github/workflows/chatgpt-cms-storefront.yml
+          git config user.name "Md Zahedul Hasan"
+          git config user.email "afzatube@gmail.com"
+          git add apps/store-api-gateway packages/storefront-engine apps/storefront
+          git commit -m "feat(cms): render published content pages through Storefront"
+          git push origin HEAD:nexgen-gate1-productization
