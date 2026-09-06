@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { FileText, Home } from 'lucide-react';
+import { FileText, Home, Menu } from 'lucide-react';
 import { registerModule } from '../../registry/moduleRegistry.js';
 
 registerModule({
@@ -19,6 +19,13 @@ registerModule({
       path: '/content/pages',
       permissions: ['cms.pages.view'],
     },
+    {
+      id: 'navigation',
+      label: 'Navigation',
+      icon: Menu,
+      path: '/content/navigation',
+      permissions: ['cms.menus.view'],
+    },
   ],
   routes: [
     {
@@ -32,6 +39,12 @@ registerModule({
       element: lazy(() => import('./CmsPagesPage.js').then((module) => ({ default: module.CmsPagesPage }))),
       breadcrumb: 'Pages',
       permissions: ['cms.pages.view'],
+    },
+    {
+      path: 'content/navigation',
+      element: lazy(() => import('./CmsMenusPage.js').then((module) => ({ default: module.CmsMenusPage }))),
+      breadcrumb: 'Navigation',
+      permissions: ['cms.menus.view'],
     },
   ],
 });
