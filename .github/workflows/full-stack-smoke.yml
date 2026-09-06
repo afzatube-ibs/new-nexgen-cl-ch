@@ -84,39 +84,22 @@ jobs:
           test -s /tmp/storefront-token-value.txt
           test -s /tmp/checkout-token-value.txt
 
-      - name: Configure runtime environment
+      - name: Configure production-like runtime environment
         run: |
-          cp apps/store-api-gateway/.env.example apps/store-api-gateway/.env
           cp apps/storefront/.env.example apps/storefront/.env.local
           cp apps/admin/.env.example apps/admin/.env.local
-          export STORE_TOKEN="$(cat /tmp/storefront-token-value.txt)"
-          export CHECKOUT_TOKEN="$(cat /tmp/checkout-token-value.txt)"
-          python3 <<'PY'
-          import os
-          from pathlib import Path
-
-          path = Path('apps/store-api-gateway/.env')
-          replacements = {
-              'BACKEND_SERVICE_TOKEN': os.environ['STORE_TOKEN'],
-              'BACKEND_CHECKOUT_SERVICE_TOKEN': os.environ['CHECKOUT_TOKEN'],
-              'GUEST_SESSION_SECRET': 'gate0-smoke-guest-session-secret-1234567890',
-              'PREVIEW_TOKEN_SECRET': 'gate0-smoke-preview-token-secret-1234567890',
-          }
-          lines = path.read_text().splitlines()
-          out = []
-          seen = set()
-          for line in lines:
-              key = line.split('=', 1)[0] if '=' in line else None
-              if key in replacements:
-                  out.append(f'{key}={replacements[key]}')
-                  seen.add(key)
-              else:
-                  out.append(line)
-          for key, value in replacements.items():
-              if key not in seen:
-                  out.append(f'{key}={value}')
-          path.write_text('\n'.join(out) + '\n')
-          PY
+          STORE_TOKEN="$(cat /tmp/storefront-token-value.txt)"
+          CHECKOUT_TOKEN="$(cat /tmp/checkout-token-value.txt)"
+          {
+            echo 'BACKEND_BASE_URL=http://127.0.0.1:8080'
+            echo "BACKEND_SERVICE_TOKEN=$STORE_TOKEN"
+            echo "BACKEND_CHECKOUT_SERVICE_TOKEN=$CHECKOUT_TOKEN"
+            echo 'REDIS_URL=redis://127.0.0.1:6379'
+            echo 'GUEST_SESSION_SECRET=gate0-smoke-guest-session-secret-1234567890'
+            echo 'PREVIEW_TOKEN_SECRET=gate0-smoke-preview-token-secret-1234567890'
+            echo 'PUBLIC_BASE_URL=http://127.0.0.1:4000'
+            echo 'CORS_ALLOWED_ORIGINS=http://127.0.0.1:3000,http://127.0.0.1:5173'
+          } >> "$GITHUB_ENV"
 
       - name: Build Gateway and Admin
         run: |
