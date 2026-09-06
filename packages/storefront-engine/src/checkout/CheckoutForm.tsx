@@ -16,96 +16,25 @@ import { PaymentMethodSelector } from './PaymentMethodSelector.js';
 import { emptyCheckoutAddress, type CheckoutAddress } from './types.js';
 import {
   submitCheckout,
+  fetchPaymentMethods,
   fetchShippingOptions,
   CheckoutRequestError,
   LAST_ORDER_STORAGE_KEY,
   type CheckoutShippingOption,
   type SubmitCheckoutRequestBody,
 } from './checkoutClient.js';
-import { PaymentMethodsRow, REAL_BACKEND_PAYMENT_METHODS, type PaymentMethodId } from '../components/PaymentMethodBadge.js';
+import { PAYMENT_METHOD_LABELS, PaymentMethodsRow, type PaymentMethodId } from '../components/PaymentMethodBadge.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function isPaymentMethodId(code: string): code is PaymentMethodId {
+  return code in PAYMENT_METHOD_LABELS;
+}
+
 /**
- * Beta Sprint 3 — Checkout Engine. As real as this Storefront can
- * honestly be today, built exactly to the boundary
- * `COMMERCE_ENGINE_ARCHITECTURE_REVIEW.md` §7/§8 names precisely:
- *
- * **Real**: every field, every selector, every validation rule matches
- * the real backend's own `CheckoutSession` contract (`checkout/types.ts`'s
- * own docblock) and reads the real cart (`useCart()`). `trackEvent({name:
- * 'checkout_started'})` fires once, on mount, against the real,
- * already-registered Gateway event — the same real analytics pipeline
- * `cartStore.ts` already uses.
- *
- * **Beta Sprint 5 — real past this point too.** `handleSubmit` now calls
- * the real, orchestrated `POST /v1/checkout/submit` on the Gateway
- * (`checkoutClient.js`), which composes the real backend's own 8-step
- * Checkout saga (Start → add items → addresses → shipping option →
- * review → submit → initiate payment) and returns a real `Order`. On a
- * real success, the result is handed to `/checkout/success` via
- * `sessionStorage` (see that page's own docblock for why not a
- * fetch-by-id route) and the cart is cleared. A real 422 from the
- * Gateway surfaces the real, field-level messages it returns; any other
- * failure (network, 503, an unsupported payment gateway with a
- * `paymentError` — see `checkoutClient.ts`'s own docblock) is shown
- * honestly, never silently retried or hidden.
- *
- * `city` has no dedicated input in `AddressSelector` (District/Upazila
- * are real but unwired here — no `districtsByDivision` data source is
- * supplied, `AddressSelector.tsx`'s own docblock names this as the
- * caller's responsibility), so a plain, honest "City" text field is
- * collected directly — the real backend's own `SetCheckoutAddressRequest`
- * requires a non-empty `city`, and leaving it unset would make every real
- * submission fail 422 regardless of how correct the rest of this form is.
- *
- * **UX refinement pass (Sprint 5, post-wiring)** — every section is now a
- * real `Card` with an icon-labeled title (the same `@nexgen/ui` pieces
- * every other polished Storefront/Admin screen already uses — `Alert`,
- * `Card`, `Icon` — not a bespoke look), the order summary is sticky on
- * desktop so it stays visible through a long form, and a real `Button
- * loading` spinner replaces the earlier manual "Placing order…" text
- * swap. Zero business logic, validation rule, or field changed — this is
- * a presentation-only pass over the exact form Sprint 5 already wired.
- *
- * **Experience Polish Sprint 1 — Checkout Experience Refinement** (a
- * presentation-only pass, no business rule, validation, payment flow,
- * shipping calculation, or order-submission logic touched):
- * - **Visual hierarchy via elevation, not decoration**: the four form
- *   Cards (Contact/Shipping/Courier/Payment) are now deliberately flat
- *   (`shadow-none`, `rounded-xl`) — calm, uniform, never competing for
- *   attention — while the Order Summary alone carries real elevation
- *   (`shadow-elevation-2`), reading as the one destination the eye should
- *   return to, per `NEXGEN_STOREFRONT_DESIGN_DNA.md` §4's "premium via
- *   restraint" and §15 rule #3 (exactly one dominant surface).
- * - **Order summary prominence + CTA emphasis**: "Place order" is now
- *   full-width (`className="w-full"`) inside its own now-more-prominent
- *   card — previously an inline-width button in the widest, most
- *   important card on the page.
- * - **Trust presentation**: a real `PaymentMethodsRow` (the exact same
- *   shared component and `REAL_BACKEND_PAYMENT_METHODS` data already used
- *   on the Product Detail page and `StoreFooter` — never a new or
- *   duplicated trust component) now sits beneath the "Secure checkout"
- *   line, reinforcing at the literal moment of decision that the payment
- *   method just chosen above is one of the platform's real, working
- *   gateways — not a new claim, the same real list rendered once more,
- *   exactly where it reassures most.
- * - **Spacing**: every Card's header/content padding increased (`p-5`)
- *   for more generous whitespace, and the page header gained more room
- *   to breathe (`gap-6` → `gap-8`) — `NEXGEN_STOREFRONT_DESIGN_DNA.md`
- *   §4's "whitespace does the persuading" applied to the platform's own
- *   highest-trust page.
- *
- * **neXgen Overnight Sprint — Milestone 1, Objective 1 (Checkout →
- * Shipping Integration).** `shippingOptionId` is no longer the hardcoded
- * literal `'standard'` — a real "Shipping method" Card now fetches real,
- * destination- and weight-aware options from the Gateway
- * (`fetchShippingOptions`, composed from real Catalog weight + real
- * Shipping rates) the moment a Division is selected, and the shopper must
- * choose one before submitting, exactly like payment method. An honest
- * empty state ("No shipping options are available for this address yet")
- * renders when the real composition returns nothing — never a fabricated
- * fallback rate.
+ * Real Bangladesh-first guest checkout. Shipping and payment choices come
+ * from the Gateway/backend at runtime: no rate or accepted-payment claim is
+ * inferred from what the codebase merely knows how to integrate with.
  */
 export function CheckoutForm() {
   const router = useRouter();
@@ -117,6 +46,9 @@ export function CheckoutForm() {
   const [addressSelector, setAddressSelector] = useState<AddressSelectorValue>({ divisionId: null, districtId: null, upazilaId: null });
   const [preferredCourier, setPreferredCourier] = useState<CourierId | undefined>(undefined);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodId[]>([]);
+  const [paymentMethodsLoading, setPaymentMethodsLoading] = useState(true);
+  const [paymentMethodsError, setPaymentMethodsError] = useState<string | null>(null);
   const [shippingOptions, setShippingOptions] = useState<CheckoutShippingOption[]>([]);
   const [shippingOptionId, setShippingOptionId] = useState<string | null>(null);
   const [shippingOptionsLoading, setShippingOptionsLoading] = useState(false);
@@ -131,10 +63,33 @@ export function CheckoutForm() {
     setStartedTracked(true);
   }
 
-  // A real destination (Division → `region`) plus real cart lines is
-  // everything the real quote needs — refetches whenever either changes,
-  // so switching Division re-quotes rather than silently keeping a stale
-  // price for the wrong destination.
+  useEffect(() => {
+    let cancelled = false;
+    setPaymentMethodsLoading(true);
+    setPaymentMethodsError(null);
+
+    fetchPaymentMethods()
+      .then((methods) => {
+        if (cancelled) return;
+        const available = methods.map((method) => method.code).filter(isPaymentMethodId);
+        setPaymentMethods(available);
+        setPaymentMethod((current) => (current && available.includes(current) ? current : null));
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setPaymentMethods([]);
+        setPaymentMethod(null);
+        setPaymentMethodsError(error instanceof Error ? error.message : 'Could not load payment methods. Please try again.');
+      })
+      .finally(() => {
+        if (!cancelled) setPaymentMethodsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const linesKey = activeLines.map((line) => `${line.productId}:${line.quantity}`).join(',');
 
   useEffect(() => {
@@ -171,7 +126,7 @@ export function CheckoutForm() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `linesKey` is the intentional, stable stand-in for `activeLines` (a new array reference every render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- linesKey intentionally represents the active cart-line values.
   }, [address.region, address.countryCode, linesKey]);
 
   function updateAddress<K extends keyof CheckoutAddress>(key: K, value: CheckoutAddress[K]) {
@@ -180,9 +135,6 @@ export function CheckoutForm() {
 
   function handleAddressSelectorChange(next: AddressSelectorValue) {
     setAddressSelector(next);
-    // Maps the real Division/District/Upazila selection down into the
-    // real backend's own generic `region`/`city` fields — see `types.ts`'s
-    // own docblock for why this mapping, not a richer contract, is honest.
     const divisionName = BANGLADESH_DIVISIONS.find((division) => division.id === next.divisionId)?.name ?? null;
     updateAddress('region', divisionName);
   }
@@ -197,7 +149,7 @@ export function CheckoutForm() {
     if (!address.city.trim()) next.city = 'City is required.';
     if (!addressSelector.divisionId) next.division = 'Division is required.';
     if (!shippingOptionId) next.shippingOption = 'Select a shipping method.';
-    if (!paymentMethod) next.paymentMethod = 'Select a payment method.';
+    if (!paymentMethod || !paymentMethods.includes(paymentMethod)) next.paymentMethod = 'Select an available payment method.';
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -205,24 +157,12 @@ export function CheckoutForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError(null);
-    if (!validate() || !paymentMethod || !shippingOptionId) return;
+    if (!validate() || !paymentMethod || !paymentMethods.includes(paymentMethod) || !shippingOptionId) return;
 
     setSubmitting(true);
     const body: SubmitCheckoutRequestBody = {
       email: email.trim(),
-      // No separate "your name" field exists in this form — the guest's
-      // own contact name is the recipient name they entered, an honest
-      // reuse rather than an invented second field.
       name: address.recipientName.trim(),
-      // Hardcoded, deliberately — not `DEFAULT_CURRENCY` (`storeContext.ts`,
-      // `'USD'`), which governs general multi-currency browsing. This
-      // form is already Bangladesh-only (`countryCode: 'BD'` below, a
-      // BD-only Division/District/Upazila selector, BD couriers), and the
-      // real backend's only provisioned `PriceList` today is BDT
-      // (Beta Sprint 5's own provisioning) — submitting any other
-      // currency would make the real backend's own price resolution fail
-      // for every real product. Scoped to this form, not a platform-wide
-      // change.
       currencyCode: 'BDT',
       address: {
         recipientName: address.recipientName.trim(),
@@ -234,10 +174,6 @@ export function CheckoutForm() {
         postalCode: address.postalCode,
         countryCode: address.countryCode,
       },
-      // A real Operations\Shipping ShippingMethod id the shopper chose
-      // from the real, destination-aware options fetched above — the
-      // Gateway re-resolves and verifies this quote itself before
-      // submitting (see `checkout/orchestrator.ts`'s own docblock).
       shippingOptionId,
       paymentGatewayCode: paymentMethod,
       lines: activeLines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
@@ -247,18 +183,14 @@ export function CheckoutForm() {
     try {
       const result = await submitCheckout(body);
       trackEvent({ name: 'checkout_completed', properties: { orderId: result.order.id, orderNumber: result.order.orderNumber } });
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(LAST_ORDER_STORAGE_KEY, JSON.stringify(result));
-      }
+      if (typeof window !== 'undefined') window.sessionStorage.setItem(LAST_ORDER_STORAGE_KEY, JSON.stringify(result));
       clearCart();
       router.push('/checkout/success');
     } catch (error) {
       setSubmitting(false);
       if (error instanceof CheckoutRequestError && error.status === 422 && error.details) {
         const fieldErrors: Record<string, string> = {};
-        for (const detail of error.details) {
-          fieldErrors[detail.field] = detail.message;
-        }
+        for (const detail of error.details) fieldErrors[detail.field] = detail.message;
         setErrors((current) => ({ ...current, ...fieldErrors }));
         setSubmitError('Please fix the highlighted fields and try again.');
         return;
@@ -273,15 +205,9 @@ export function CheckoutForm() {
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-subtle text-text-secondary">
           <ShoppingBag className="size-6" aria-hidden="true" />
         </span>
-        <Text as="h1" variant="heading">
-          Your cart is empty
-        </Text>
-        <Text as="p" variant="body" className="max-w-sm text-text-secondary">
-          Add something to your cart before checking out.
-        </Text>
-        <Button asChild className="mt-2">
-          <Link href="/">Continue shopping</Link>
-        </Button>
+        <Text as="h1" variant="heading">Your cart is empty</Text>
+        <Text as="p" variant="body" className="max-w-sm text-text-secondary">Add something to your cart before checking out.</Text>
+        <Button asChild className="mt-2"><Link href="/">Continue shopping</Link></Button>
       </div>
     );
   }
@@ -289,190 +215,115 @@ export function CheckoutForm() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1.5">
-        <Text as="h1" variant="heading">
-          Checkout
-        </Text>
+        <Text as="h1" variant="heading">Checkout</Text>
         <Text as="p" variant="body" className="text-text-secondary">
           {activeLines.length} {activeLines.length === 1 ? 'item' : 'items'} · Complete your details below to place your order.
         </Text>
       </div>
 
-      {/*
-        `noValidate` — a real bug found live via this component's own test
-        suite: the `required` attribute below (kept for its real
-        accessibility value) otherwise triggers the browser's own native
-        constraint validation on submit, which silently blocks the `submit`
-        event — and this component's own custom `validate()` — from ever
-        running when a required field is empty, so the specific, styled
-        `error` messages below never appeared at all. `noValidate` hands
-        gating entirely to `validate()`, the one real, consistent
-        validation path this form actually uses.
-      */}
       <form onSubmit={handleSubmit} noValidate className="grid items-start gap-6 lg:grid-cols-[1fr_360px]">
         <div className="flex flex-col gap-6">
           <Card className="rounded-xl shadow-none">
-            <CardHeader className="flex-row items-center gap-2 p-5">
-              <Icon icon={Mail} className="text-brand" />
-              <CardTitle>Contact</CardTitle>
-            </CardHeader>
+            <CardHeader className="flex-row items-center gap-2 p-5"><Icon icon={Mail} className="text-brand" /><CardTitle>Contact</CardTitle></CardHeader>
             <CardContent className="flex flex-col gap-4 p-5 pt-0">
               <Input type="email" label="Email address" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} required />
             </CardContent>
           </Card>
 
           <Card className="rounded-xl shadow-none">
-            <CardHeader className="flex-row items-center gap-2 p-5">
-              <Icon icon={MapPin} className="text-brand" />
-              <CardTitle>Shipping address</CardTitle>
-            </CardHeader>
+            <CardHeader className="flex-row items-center gap-2 p-5"><Icon icon={MapPin} className="text-brand" /><CardTitle>Shipping address</CardTitle></CardHeader>
             <CardContent className="flex flex-col gap-4 p-5 pt-0">
               <Input label="Recipient name" value={address.recipientName} onChange={(e) => updateAddress('recipientName', e.target.value)} error={errors.recipientName} required />
               <Input label="Phone" type="tel" value={address.phone} onChange={(e) => updateAddress('phone', e.target.value)} error={errors.phone} required />
-              <Input
-                label="Street address"
-                value={address.addressLine1}
-                onChange={(e) => updateAddress('addressLine1', e.target.value)}
-                error={errors.addressLine1}
-                required
-              />
-              <Input
-                label="Apartment, floor, etc. (optional)"
-                value={address.addressLine2 ?? ''}
-                onChange={(e) => updateAddress('addressLine2', e.target.value || null)}
-              />
+              <Input label="Street address" value={address.addressLine1} onChange={(e) => updateAddress('addressLine1', e.target.value)} error={errors.addressLine1} required />
+              <Input label="Apartment, floor, etc. (optional)" value={address.addressLine2 ?? ''} onChange={(e) => updateAddress('addressLine2', e.target.value || null)} />
               <AddressSelector value={addressSelector} onChange={handleAddressSelectorChange} />
-              {errors.division && (
-                <Text as="p" variant="caption" role="alert" className="text-feedback-danger">
-                  {errors.division}
-                </Text>
-              )}
-              {/* No real District data source is wired into AddressSelector above (see this component's own docblock) — a plain City field is the honest way to collect the one field the real backend actually requires. */}
+              {errors.division && <Text as="p" variant="caption" role="alert" className="text-feedback-danger">{errors.division}</Text>}
               <Input label="City" value={address.city} onChange={(e) => updateAddress('city', e.target.value)} error={errors.city} required />
-              <Input
-                label="Postal code (optional)"
-                value={address.postalCode ?? ''}
-                onChange={(e) => updateAddress('postalCode', e.target.value || null)}
-              />
+              <Input label="Postal code (optional)" value={address.postalCode ?? ''} onChange={(e) => updateAddress('postalCode', e.target.value || null)} />
             </CardContent>
           </Card>
 
           <Card className="rounded-xl shadow-none">
-            <CardHeader className="flex-row items-center gap-2 p-5">
-              <Icon icon={TruckIcon} className="text-brand" />
-              <CardTitle>Shipping method</CardTitle>
-            </CardHeader>
+            <CardHeader className="flex-row items-center gap-2 p-5"><Icon icon={TruckIcon} className="text-brand" /><CardTitle>Shipping method</CardTitle></CardHeader>
             <CardContent className="flex flex-col gap-3 p-5 pt-0">
               {!address.region ? (
-                <Text as="p" variant="caption" className="text-text-secondary">
-                  Select your division above to see real shipping options and rates.
-                </Text>
+                <Text as="p" variant="caption" className="text-text-secondary">Select your division above to see real shipping options and rates.</Text>
               ) : shippingOptionsLoading ? (
-                <Text as="p" variant="caption" className="text-text-secondary">
-                  Loading shipping options…
-                </Text>
+                <Text as="p" variant="caption" className="text-text-secondary">Loading shipping options…</Text>
               ) : shippingOptionsError ? (
-                <Alert variant="danger" role="alert">
-                  {shippingOptionsError}
-                </Alert>
+                <Alert variant="danger" role="alert">{shippingOptionsError}</Alert>
               ) : shippingOptions.length === 0 ? (
-                <Text as="p" variant="caption" className="text-text-secondary">
-                  No shipping options are available for this address yet.
-                </Text>
+                <Text as="p" variant="caption" className="text-text-secondary">No shipping options are available for this address yet.</Text>
               ) : (
                 <div role="radiogroup" aria-label="Shipping method" className="flex flex-col gap-2">
                   {shippingOptions.map((option) => (
-                    <label
-                      key={option.id}
-                      className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border p-3 has-[:checked]:border-brand has-[:checked]:bg-surface-subtle"
-                    >
+                    <label key={option.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-border p-3 has-[:checked]:border-brand has-[:checked]:bg-surface-subtle">
                       <span className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="shippingOptionId"
-                          value={option.id}
-                          checked={shippingOptionId === option.id}
-                          onChange={() => setShippingOptionId(option.id)}
-                        />
-                        <Text as="span" variant="body">
-                          {option.label}
-                        </Text>
+                        <input type="radio" name="shippingOptionId" value={option.id} checked={shippingOptionId === option.id} onChange={() => setShippingOptionId(option.id)} />
+                        <Text as="span" variant="body">{option.label}</Text>
                       </span>
-                      <Text as="span" variant="body-strong">
-                        {option.amount} {option.currencyCode}
-                      </Text>
+                      <Text as="span" variant="body-strong">{option.amount} {option.currencyCode}</Text>
                     </label>
                   ))}
                 </div>
               )}
-              {errors.shippingOption && (
-                <Text as="p" variant="caption" role="alert" className="text-feedback-danger">
-                  {errors.shippingOption}
-                </Text>
-              )}
+              {errors.shippingOption && <Text as="p" variant="caption" role="alert" className="text-feedback-danger">{errors.shippingOption}</Text>}
             </CardContent>
           </Card>
 
           <Card className="rounded-xl shadow-none">
-            <CardHeader className="flex-row items-center gap-2 p-5">
-              <Icon icon={Package} className="text-brand" />
-              <CardTitle>Preferred courier (optional)</CardTitle>
-            </CardHeader>
+            <CardHeader className="flex-row items-center gap-2 p-5"><Icon icon={Package} className="text-brand" /><CardTitle>Preferred courier (optional)</CardTitle></CardHeader>
             <CardContent className="flex flex-col gap-3 p-5 pt-0">
-              <Text as="p" variant="caption" className="text-text-secondary">
-                A preference only — the courier that actually ships your order is confirmed after your order is placed.
-              </Text>
+              <Text as="p" variant="caption" className="text-text-secondary">A preference only — the courier that actually ships your order is confirmed after your order is placed.</Text>
               <CourierSelector couriers={['pathao', 'steadfast', 'redx', 'paperfly', 'sundarban']} value={preferredCourier} onChange={setPreferredCourier} />
             </CardContent>
           </Card>
 
           <Card className="rounded-xl shadow-none">
-            <CardHeader className="flex-row items-center gap-2 p-5">
-              <Icon icon={Wallet} className="text-brand" />
-              <CardTitle>Payment method</CardTitle>
-            </CardHeader>
+            <CardHeader className="flex-row items-center gap-2 p-5"><Icon icon={Wallet} className="text-brand" /><CardTitle>Payment method</CardTitle></CardHeader>
             <CardContent className="flex flex-col gap-3 p-5 pt-0">
-              <PaymentMethodSelector value={paymentMethod} onChange={setPaymentMethod} />
-              {errors.paymentMethod && (
-                <Text as="p" variant="caption" role="alert" className="text-feedback-danger">
-                  {errors.paymentMethod}
-                </Text>
+              {paymentMethodsLoading ? (
+                <Text as="p" variant="caption" className="text-text-secondary">Loading payment methods…</Text>
+              ) : paymentMethodsError ? (
+                <Alert variant="danger" role="alert">{paymentMethodsError}</Alert>
+              ) : paymentMethods.length === 0 ? (
+                <Alert variant="warning">No payment methods are available right now. Please contact the store before placing an order.</Alert>
+              ) : (
+                <PaymentMethodSelector methods={paymentMethods} value={paymentMethod} onChange={setPaymentMethod} />
               )}
+              {errors.paymentMethod && <Text as="p" variant="caption" role="alert" className="text-feedback-danger">{errors.paymentMethod}</Text>}
             </CardContent>
           </Card>
         </div>
 
         <Card className="rounded-xl shadow-elevation-2 lg:sticky lg:top-6">
-          <CardHeader className="p-5">
-            <CardTitle>Order summary</CardTitle>
-          </CardHeader>
+          <CardHeader className="p-5"><CardTitle>Order summary</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-4 p-5 pt-0">
             <div className="flex flex-col divide-y divide-border">
-              {activeLines.map((line) => (
-                <CartLineItemRow key={line.id} line={line} onQuantityChange={updateQuantity} onRemove={removeItem} />
-              ))}
+              {activeLines.map((line) => <CartLineItemRow key={line.id} line={line} onQuantityChange={updateQuantity} onRemove={removeItem} />)}
             </div>
             <CartSummary lines={cart.lines} />
-            {submitError && (
-              <Alert variant="danger" role="alert">
-                {submitError}
-              </Alert>
-            )}
-            {/* Disabled while a real submission is in flight — prevents a double click from placing two real orders (the Gateway's own idempotency key protects a retried *identical* request, but a second click generates a NEW key by design, so this button, not the key, is what prevents a real duplicate order here). */}
-            <Button type="submit" size="lg" loading={submitting} disabled={submitting} className="w-full">
+            {submitError && <Alert variant="danger" role="alert">{submitError}</Alert>}
+            <Button
+              type="submit"
+              size="lg"
+              loading={submitting}
+              disabled={submitting || paymentMethodsLoading || paymentMethods.length === 0}
+              className="w-full"
+            >
               Place order
             </Button>
             <div className="flex items-center justify-center gap-1.5 text-text-secondary">
               <Icon icon={ShieldCheck} size="inline" />
-              <Text as="span" variant="caption">
-                Secure checkout — your details are protected
-              </Text>
+              <Text as="span" variant="caption">Secure checkout — your details are protected</Text>
             </div>
-            <div className="flex flex-col items-center gap-2 border-t border-border pt-4">
-              <Text as="p" variant="caption" className="text-text-secondary">
-                Accepted payment methods
-              </Text>
-              <PaymentMethodsRow methods={REAL_BACKEND_PAYMENT_METHODS} className="justify-center" />
-            </div>
+            {paymentMethods.length > 0 && (
+              <div className="flex flex-col items-center gap-2 border-t border-border pt-4">
+                <Text as="p" variant="caption" className="text-text-secondary">Accepted payment methods</Text>
+                <PaymentMethodsRow methods={paymentMethods} className="justify-center" />
+              </div>
+            )}
           </CardContent>
         </Card>
       </form>
