@@ -73,7 +73,7 @@ jobs:
           SESSION_DRIVER: redis
           QUEUE_CONNECTION: redis
         run: |
-          cp .env.ci .env
+          cp .env.example .env
           php artisan key:generate --force
           php artisan migrate:fresh --seed --force
           php artisan identity-access:create-admin --name='Smoke Admin' --email='admin@nexgen.local' --password='Smoke!Pass1234'
