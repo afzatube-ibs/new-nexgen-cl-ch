@@ -25,6 +25,7 @@
  */
 export type StorefrontPrimitiveName =
   | 'Hero'
+  | 'RichText'
   | 'Banner'
   | 'ProductGrid'
   | 'CategoryGrid'

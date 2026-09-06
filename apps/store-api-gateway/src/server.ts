@@ -38,6 +38,7 @@ import { registerRecommendationsPlugin } from './plugins/recommendations.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerCatalogRoutes } from './routes/catalog.js';
 import { registerBrandingRoutes } from './routes/branding.js';
+import { registerContentRoutes } from './routes/content.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerRecommendationRoutes } from './routes/recommendations.js';
 import { registerPreviewRoutes } from './routes/preview.js';
@@ -160,6 +161,7 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
   registerVersionedRoutes(app, CURRENT_VERSION, (versionedApp, prefix) => {
     registerCatalogRoutes(versionedApp, services, prefix);
     registerBrandingRoutes(versionedApp, services, prefix);
+    registerContentRoutes(versionedApp, services, prefix);
     registerEventRoutes(versionedApp, prefix);
     registerRecommendationRoutes(versionedApp, prefix, env);
     registerPreviewRoutes(versionedApp, prefix);
