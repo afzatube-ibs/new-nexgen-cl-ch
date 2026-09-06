@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domains\Platform\Cms\Models;
 
+use App\Domains\Platform\Cms\Exceptions\ConcurrencyConflictException;
 use App\Domains\Platform\Foundation\EventBus\TenantId;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * @property string $id
@@ -59,8 +59,9 @@ final class CmsMenu extends Model
 
     public function assertVersionMatches(int $expectedVersion): void
     {
-        if ($expectedVersion !== (int) $this->lock_version) {
-            throw new ConflictHttpException('This menu changed since you opened it. Reload and try again.');
+        $actualVersion = (int) $this->lock_version;
+        if ($expectedVersion !== $actualVersion) {
+            throw new ConcurrencyConflictException('CMS menu', $this->id, $expectedVersion, $actualVersion);
         }
     }
 
