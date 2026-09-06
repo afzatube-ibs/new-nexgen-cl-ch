@@ -78,8 +78,10 @@ jobs:
           cp apps/store-api-gateway/.env.example apps/store-api-gateway/.env
           STORE_TOKEN=$(cat /tmp/storefront-token-value.txt)
           CHECKOUT_TOKEN=$(cat /tmp/checkout-token-value.txt)
-          sed -i "s|^BACKEND_SERVICE_TOKEN=.*|BACKEND_SERVICE_TOKEN=$STORE_TOKEN|" apps/store-api-gateway/.env
-          sed -i "s|^BACKEND_CHECKOUT_SERVICE_TOKEN=.*|BACKEND_CHECKOUT_SERVICE_TOKEN=$CHECKOUT_TOKEN|" apps/store-api-gateway/.env
+          grep -v '^BACKEND_SERVICE_TOKEN=' apps/store-api-gateway/.env > /tmp/gw.env
+          printf 'BACKEND_SERVICE_TOKEN=%s\n' "$STORE_TOKEN" >> /tmp/gw.env
+          grep -v '^BACKEND_CHECKOUT_SERVICE_TOKEN=' /tmp/gw.env > apps/store-api-gateway/.env
+          printf 'BACKEND_CHECKOUT_SERVICE_TOKEN=%s\n' "$CHECKOUT_TOKEN" >> apps/store-api-gateway/.env
           sed -i 's|^GUEST_SESSION_SECRET=.*|GUEST_SESSION_SECRET=baseline-guest-session-secret-1234567890|' apps/store-api-gateway/.env
           sed -i 's|^PREVIEW_TOKEN_SECRET=.*|PREVIEW_TOKEN_SECRET=baseline-preview-token-secret-1234567890|' apps/store-api-gateway/.env
           cp apps/storefront/.env.example apps/storefront/.env.local
