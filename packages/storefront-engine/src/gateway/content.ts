@@ -13,6 +13,14 @@ export interface PublishedContentPage {
   publishedAt: string | null;
 }
 
+export interface PublishedContentMenu {
+  id: string;
+  handle: string;
+  title: string;
+  items: Array<{ id: string; label: string; href: string }>;
+  publishedAt: string | null;
+}
+
 /** Published-only CMS reads. The Gateway itself has no path to drafts. */
 export function getContentPages(options: GatewayFetchOptions & { locale?: string } = {}): Promise<PublishedContentPage[]> {
   return gatewayFetch<PublishedContentPage[]>('/v1/content/pages', {
@@ -28,6 +36,14 @@ export function getContentPage(slug: string, options: GatewayFetchOptions & { lo
     query: { locale: options.locale },
     revalidateSeconds: 60,
     tags: ['cms', `cms:page:${slug}`],
+    ...options,
+  });
+}
+
+export function getContentMenu(handle: string, options: GatewayFetchOptions = {}): Promise<PublishedContentMenu> {
+  return gatewayFetch<PublishedContentMenu>(`/v1/content/menus/${encodeURIComponent(handle)}`, {
+    revalidateSeconds: 60,
+    tags: ['cms', `cms:menu:${handle}`],
     ...options,
   });
 }
