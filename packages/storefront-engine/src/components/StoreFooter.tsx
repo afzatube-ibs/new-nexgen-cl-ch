@@ -22,11 +22,10 @@ export function StoreFooter({ categories, categoryHref, branding }: StoreFooterP
   const social = branding.social;
   const hasSocial = social.facebookUrl || social.instagramUrl || social.youtubeUrl || social.messengerUrl;
   const whatsappHref = social.whatsappNumber ? `https://wa.me/${social.whatsappNumber.replace(/[^\d]/g, '')}` : null;
-  const hasContact = branding.supportEmail || branding.supportPhone || whatsappHref || hasSocial;
 
   return (
     <footer className="border-t border-border bg-surface-subtle">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2">
         <div className="flex flex-col gap-3">
           <Text as="p" variant="body-strong">
             {branding.storeName}
@@ -68,18 +67,13 @@ export function StoreFooter({ categories, categoryHref, branding }: StoreFooterP
               )}
             </div>
           )}
-          {!hasContact && (
-            <Text as="p" variant="caption" className="text-text-secondary">
-              Store contact details can be added from Admin → Appearance → Branding.
-            </Text>
-          )}
           <Text as="p" variant="caption" className="mt-1 text-text-secondary">
             © {new Date().getFullYear()} {branding.storeName}. All rights reserved.
           </Text>
         </div>
 
         {topLevel.length > 0 && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:justify-self-end sm:text-right">
             <Text as="p" variant="caption" className="font-medium uppercase tracking-wide text-text-secondary">
               Shop
             </Text>
