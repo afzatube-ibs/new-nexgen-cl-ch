@@ -40,12 +40,14 @@ final class CmsPageController
     public function store(StorePageRequest $request, Store $store): CmsPageResource
     {
         $page = $this->createPage->execute($store->id, $request->validated(), $request->user()?->id);
+
         return new CmsPageResource($page);
     }
 
     public function show(Store $store, CmsPage $page): CmsPageResource
     {
         $this->assertStore($store, $page);
+
         return new CmsPageResource($page);
     }
 
@@ -53,6 +55,7 @@ final class CmsPageController
     {
         $this->assertStore($store, $page);
         $updated = $this->updatePage->execute($page, $request->safe()->except('expected_version'), (int) $request->integer('expected_version'), $request->user()?->id);
+
         return new CmsPageResource($updated);
     }
 
@@ -61,31 +64,50 @@ final class CmsPageController
         $this->assertStore($store, $page);
         $page->assertVersionMatches((int) $request->integer('expected_version'));
         $page->delete();
+
         return response()->noContent();
     }
 
     public function publish(ExpectedVersionRequest $request, Store $store, CmsPage $page): CmsPageResource
     {
         $this->assertStore($store, $page);
+
         return new CmsPageResource($this->publishPage->execute($page, (int) $request->integer('expected_version'), $request->user()?->id));
     }
 
     public function unpublish(ExpectedVersionRequest $request, Store $store, CmsPage $page): CmsPageResource
     {
         $this->assertStore($store, $page);
+
         return new CmsPageResource($this->unpublishPage->execute($page, (int) $request->integer('expected_version'), $request->user()?->id));
     }
 
     public function revisions(Store $store, CmsPage $page): AnonymousResourceCollection
     {
         $this->assertStore($store, $page);
+
         return CmsPageRevisionResource::collection($page->revisions()->get());
     }
 
     public function restore(ExpectedVersionRequest $request, Store $store, CmsPage $page, CmsPageRevision $revision): CmsPageResource
     {
         $this->assertStore($store, $page);
+
         return new CmsPageResource($this->restoreRevision->execute($page, $revision, (int) $request->integer('expected_version'), $request->user()?->id));
+    }
+
+    public function publishedIndex(Request $request, Store $store): AnonymousResourceCollection
+    {
+        $locale = (string) $request->query('locale', $store->locale);
+        $pages = CmsPage::query()
+            ->where('store_id', $store->id)
+            ->where('locale', $locale)
+            ->where('status', CmsPage::STATUS_PUBLISHED)
+            ->whereNotNull('published_snapshot')
+            ->orderBy('title')
+            ->get();
+
+        return CmsPublishedPageResource::collection($pages);
     }
 
     public function published(Request $request, Store $store, string $slug): CmsPublishedPageResource
