@@ -4,20 +4,25 @@ declare(strict_types=1);
 
 namespace App\Domains\Platform\Cms\Http\Requests;
 
+use App\Domains\Platform\Cms\Models\CmsPage;
+use App\Domains\Platform\StoreConfiguration\Models\Store;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 final class UpdatePageRequest extends FormRequest
 {
+    /** @return array<string, mixed> */
     public function rules(): array
     {
-        $storeId = (string) $this->route('store')?->id;
+        /** @var Store $store */
+        $store = $this->route('store');
+        /** @var CmsPage $page */
         $page = $this->route('page');
-        $locale = (string) $this->input('locale', $page?->locale ?? 'en');
+        $locale = (string) $this->input('locale', $page->locale);
 
         return [
             'expected_version' => ['required', 'integer', 'min:1'],
-            'slug' => ['sometimes', 'required', 'string', 'max:160', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('cms_pages', 'slug')->where(fn ($q) => $q->where('store_id', $storeId)->where('locale', $locale))->ignore($page?->id)],
+            'slug' => ['sometimes', 'required', 'string', 'max:160', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('cms_pages', 'slug')->where(fn ($query) => $query->where('store_id', $store->id)->where('locale', $locale))->ignore($page->id)],
             'title' => ['sometimes', 'required', 'string', 'max:180'],
             'locale' => ['sometimes', 'required', 'string', 'max:16'],
             'content' => ['sometimes', 'required', 'array', 'max:30'],
