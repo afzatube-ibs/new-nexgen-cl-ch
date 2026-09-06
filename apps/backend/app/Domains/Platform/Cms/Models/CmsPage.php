@@ -30,6 +30,8 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
  * @property Carbon|null $published_at
  * @property string|null $published_by
  * @property int $lock_version
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 final class CmsPage extends Model
 {
