@@ -56,8 +56,6 @@ jobs:
           BACKEND_CHECKOUT_SERVICE_TOKEN=
           EOF
 
-          # .env files use the last occurrence of a key. Assert no unresolved
-          # REPLACE_* placeholder survives in an effective required value.
           docker compose --env-file .env.production -f docker-compose.production.yml config --quiet
 
       - name: Build production images
@@ -66,6 +64,16 @@ jobs:
         run: |
           docker compose --env-file .env.production -f docker-compose.production.yml build \
             backend-nginx app gateway admin storefront
+
+      - name: Gateway refuses unprovisioned bootstrap credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          if docker compose --env-file .env.production -f docker-compose.production.yml \
+            run --rm --no-deps gateway; then
+            echo 'Gateway unexpectedly started with bootstrap token placeholders.' >&2
+            exit 1
+          fi
 
       - name: Start bootstrap services
         run: |
