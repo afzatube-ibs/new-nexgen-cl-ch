@@ -13,26 +13,16 @@
  *
  * This module owns NO business logic — Rules §1: "Gateway orchestrates.
  * Commerce owns business logic." It only knows how to call the real
- * Catalog/Search endpoints and shape their response envelopes; every
- * price, stock figure, and discount decision remains entirely the real
- * backend's own.
+ * Catalog/Search/CMS read endpoints and shape their response envelopes;
+ * every commerce or publishing decision remains entirely the real backend's
+ * own.
  */
 import type { FastifyBaseLogger } from 'fastify';
 import { CircuitBreaker } from '../lib/circuitBreaker.js';
 import { BackendUpstreamError } from '../lib/errors.js';
 import type { BackendItemResponse, BackendListResponse } from './types.js';
 
-// `branding` added Beta Experience Pack 1 — the real `stores`/`appearance`
-// read this Gateway now performs (`routes/branding.ts`), isolated in its
-// own circuit breaker for the same reason every other module already is:
-// a struggling Appearance read should never trip Catalog's own breaker,
-// or vice versa. `pricing` added Milestone 2 — the real, batched
-// `pricing/lookup-many` composition (`composition/pricing.ts`), on its
-// own breaker for the identical reason: a struggling Pricing read should
-// never trip Catalog's. `reviews` added Milestone 11 — the real, public
-// `reviews`/`reviews/summary` reads (`routes/reviews.ts`), on its own
-// breaker for the same reason.
-export type BackendModule = 'catalog' | 'search' | 'branding' | 'pricing' | 'reviews';
+export type BackendModule = 'catalog' | 'search' | 'branding' | 'pricing' | 'reviews' | 'cms';
 
 export interface BackendClientOptions {
   baseUrl: string;
