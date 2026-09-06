@@ -18,6 +18,14 @@ export interface PublishedContentPage {
   publishedAt: string | null;
 }
 
+export interface PublishedContentMenu {
+  id: string;
+  handle: string;
+  title: string;
+  items: Array<{ id: string; label: string; href: string }>;
+  publishedAt: string | null;
+}
+
 async function resolveStoreId(services: GatewayServices, correlationId: string): Promise<string> {
   const stores = await services.backend.getList<BackendStoreListItem>({ module: 'cms', path: 'stores', correlationId });
   const store = stores.data[0];
@@ -27,7 +35,7 @@ async function resolveStoreId(services: GatewayServices, correlationId: string):
 
 /**
  * Customer-facing CMS read boundary. Resolves the same active store as
- * Branding, then asks MODULE:CMS only for its published snapshots using the
+ * Branding, then asks MODULE:CMS only for published snapshots using the
  * storefront-service's narrow `cms.published.view` permission. Draft CMS
  * endpoints are never called by this Gateway.
  */
@@ -46,12 +54,7 @@ export function registerContentRoutes(app: FastifyInstance, services: GatewaySer
       async () => {
         try {
           const storeId = await resolveStoreId(services, request.id);
-          const pages = await backend.getList<PublishedContentPage>({
-            module: 'cms',
-            path: `stores/${storeId}/cms/published`,
-            query: { locale },
-            correlationId: request.id,
-          });
+          const pages = await backend.getList<PublishedContentPage>({ module: 'cms', path: `stores/${storeId}/cms/published`, query: { locale }, correlationId: request.id });
           return { data: pages.data };
         } catch (error) {
           if (error instanceof GatewayError) throw error;
@@ -74,13 +77,30 @@ export function registerContentRoutes(app: FastifyInstance, services: GatewaySer
       async () => {
         try {
           const storeId = await resolveStoreId(services, request.id);
-          const page = await backend.getItem<PublishedContentPage>({
-            module: 'cms',
-            path: `stores/${storeId}/cms/published/${encodeURIComponent(slug)}`,
-            query: { locale },
-            correlationId: request.id,
-          });
+          const page = await backend.getItem<PublishedContentPage>({ module: 'cms', path: `stores/${storeId}/cms/published/${encodeURIComponent(slug)}`, query: { locale }, correlationId: request.id });
           return { data: page.data };
+        } catch (error) {
+          if (error instanceof GatewayError) throw error;
+          throw toGatewayError(error, 'cms');
+        }
+      },
+    );
+  });
+
+  app.get<{ Params: { handle: string } }>(`${prefix}/content/menus/:handle`, async (request, reply) => {
+    const { handle } = request.params;
+    const cacheKey = buildCacheKey('content-menu', { handle });
+
+    await serveCacheable(
+      request,
+      reply,
+      cache,
+      { key: cacheKey, ttlSeconds: 60, staleWhileRevalidateSeconds: 300, browserMaxAgeSeconds: 30, tags: ['cms', `cms:menu:${handle}`] },
+      async () => {
+        try {
+          const storeId = await resolveStoreId(services, request.id);
+          const menu = await backend.getItem<PublishedContentMenu>({ module: 'cms', path: `stores/${storeId}/cms/published-menus/${encodeURIComponent(handle)}`, correlationId: request.id });
+          return { data: menu.data };
         } catch (error) {
           if (error instanceof GatewayError) throw error;
           throw toGatewayError(error, 'cms');
