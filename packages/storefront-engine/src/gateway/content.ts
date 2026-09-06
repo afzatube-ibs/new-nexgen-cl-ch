@@ -13,7 +13,16 @@ export interface PublishedContentPage {
   publishedAt: string | null;
 }
 
-/** Published-only CMS read. The Gateway itself has no path to drafts. */
+/** Published-only CMS reads. The Gateway itself has no path to drafts. */
+export function getContentPages(options: GatewayFetchOptions & { locale?: string } = {}): Promise<PublishedContentPage[]> {
+  return gatewayFetch<PublishedContentPage[]>('/v1/content/pages', {
+    query: { locale: options.locale },
+    revalidateSeconds: 60,
+    tags: ['cms'],
+    ...options,
+  });
+}
+
 export function getContentPage(slug: string, options: GatewayFetchOptions & { locale?: string } = {}): Promise<PublishedContentPage> {
   return gatewayFetch<PublishedContentPage>(`/v1/content/pages/${encodeURIComponent(slug)}`, {
     query: { locale: options.locale },
