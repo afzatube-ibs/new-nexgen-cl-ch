@@ -1,22 +1,18 @@
 import type { MetadataRoute } from 'next';
-import { buildIdSlugSegment, getBrands, getCategories, getProducts } from '@nexgen/storefront-engine';
+import { buildIdSlugSegment, getBrands, getCategories, getContentPages, getProducts } from '@nexgen/storefront-engine';
 
 /**
- * `STORE_FRONTEND_ARCHITECTURE.md` §5 — "generated at build/revalidation
- * time from the BFF's own paginated product/category/CMS-page listing,
- * never hand-maintained." No CMS Pages exist yet (M2) to include.
- *
- * Fetches one real page per entity (the Gateway's own default `per_page`)
- * — genuinely correct for this milestone's real catalog size; a store
- * with enough products to need multi-page sitemap generation is real,
- * future work (Next.js's own `generateSitemaps` multi-file convention is
- * the documented mechanism for that, not invented here) named rather than
- * silently capped without comment.
+ * The sitemap is merchant/catalog runtime state and must not couple an
+ * immutable Storefront image build to a live Gateway. It is generated when
+ * requested, from the same published data customers can actually browse.
  */
+export const dynamic = 'force-dynamic';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
-  const [categories, brands, products] = await Promise.all([getCategories(), getBrands(), getProducts()]);
+  const [categories, brands, products, pages] = await Promise.all([getCategories(), getBrands(), getProducts(), getContentPages()]);
+  const pageSlugs = [...new Set(pages.map((page) => page.slug).filter((slug) => slug !== 'home'))];
 
   return [
     { url: siteUrl, changeFrequency: 'daily', priority: 1 },
@@ -34,6 +30,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${siteUrl}/products/${buildIdSlugSegment(product.id, product.name)}`,
       changeFrequency: 'weekly' as const,
       priority: 0.8,
+    })),
+    ...pageSlugs.map((slug) => ({
+      url: `${siteUrl}/pages/${encodeURIComponent(slug)}`,
+      changeFrequency: 'weekly' as const,
+      priority: 0.5,
     })),
   ];
 }
