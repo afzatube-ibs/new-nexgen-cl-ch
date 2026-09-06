@@ -1,5 +1,16 @@
 import type { Metadata } from 'next';
-import { BackToTop, GatewayRequestError, getBranding, getCategories, getContentPages, StoreFooter, StoreHeader, type PublishedContentPage } from '@nexgen/storefront-engine';
+import {
+  BackToTop,
+  GatewayRequestError,
+  getBranding,
+  getCategories,
+  getContentMenu,
+  getContentPages,
+  StoreFooter,
+  StoreHeader,
+  type PublishedContentMenu,
+  type PublishedContentPage,
+} from '@nexgen/storefront-engine';
 import { CartDrawerProvider } from '@nexgen/storefront-engine/client';
 import { categoryHref } from '@/lib/hrefs';
 import './globals.css';
@@ -19,23 +30,34 @@ async function getFooterPages(): Promise<PublishedContentPage[]> {
   try {
     return await getContentPages({ revalidateSeconds: 60 });
   } catch (error) {
-    // A brand-new installation may legitimately have no Store/CMS pages
-    // yet. That is an empty footer state, not a reason to fail every route.
     if (error instanceof GatewayRequestError && error.isNotFound) return [];
     throw error;
   }
 }
 
+async function getMainNavigation(): Promise<PublishedContentMenu | null> {
+  try {
+    return await getContentMenu('main-navigation', { revalidateSeconds: 60 });
+  } catch (error) {
+    // Until a merchant publishes a main-navigation menu, categories remain
+    // the honest fallback. A missing CMS menu must never break the store.
+    if (error instanceof GatewayRequestError && error.isNotFound) return null;
+    throw error;
+  }
+}
+
 /**
- * Root app shell. Store identity comes from published Appearance, product
- * navigation from the real category tree, and information/legal links from
- * published CMS pages. Draft content can never enter this customer shell.
+ * Root app shell. Store identity comes from published Appearance, legal/info
+ * links from published CMS pages, and the header uses a published merchant
+ * menu when present. The real category tree remains the safe fallback for a
+ * fresh installation with no CMS navigation yet.
  */
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [categories, branding, pages] = await Promise.all([
+  const [categories, branding, pages, mainNavigation] = await Promise.all([
     getCategories({ revalidateSeconds: 300 }),
     getBranding({ revalidateSeconds: 60 }),
     getFooterPages(),
+    getMainNavigation(),
   ]);
   const navCategories = categories.data.map((category) => ({ ...category, href: categoryHref(category) }));
 
@@ -46,7 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           Skip to content
         </a>
         <CartDrawerProvider>
-          <StoreHeader categories={navCategories} branding={branding} />
+          <StoreHeader categories={navCategories} branding={branding} navigation={mainNavigation?.items} />
           <main id="main-content" className="mx-auto max-w-6xl px-4 py-8">
             {children}
           </main>
