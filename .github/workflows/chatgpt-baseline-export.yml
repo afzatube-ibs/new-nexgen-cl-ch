@@ -60,6 +60,7 @@ jobs:
           sed -i 's/^DB_DATABASE=.*/DB_DATABASE=nexgen/' .env
           sed -i 's/^DB_USERNAME=.*/DB_USERNAME=root/' .env
           sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=/' .env
+          printf '\nDB_CHARSET=utf8\nDB_COLLATION=utf8_unicode_ci\n' >> .env
           sed -i 's/^REDIS_HOST=.*/REDIS_HOST=127.0.0.1/' .env
           sed -i 's/^APP_URL=.*/APP_URL=http:\/\/127.0.0.1:8080/' .env
           php artisan key:generate --force
@@ -86,23 +87,15 @@ jobs:
 
       - name: Start full stack
         run: |
-          mkdir -p /tmp/nexgen-logs
+          mkdir -p /tmp/nexgen-logs /tmp/nexgen-artifacts
           (cd apps/backend && php artisan serve --host=127.0.0.1 --port=8080 > /tmp/nexgen-logs/backend.log 2>&1 & echo $! > /tmp/backend.pid)
           (npm run dev -w apps/store-api-gateway > /tmp/nexgen-logs/gateway.log 2>&1 & echo $! > /tmp/gateway.pid)
           (npm run dev -w apps/storefront -- --hostname 127.0.0.1 --port 3000 > /tmp/nexgen-logs/storefront.log 2>&1 & echo $! > /tmp/storefront.pid)
           (npm run dev -w apps/admin -- --host 127.0.0.1 --port 5173 > /tmp/nexgen-logs/admin.log 2>&1 & echo $! > /tmp/admin.pid)
-          for i in $(seq 1 60); do
-            curl -fsS http://127.0.0.1:8080 >/dev/null 2>&1 && break || sleep 1
-          done
-          for i in $(seq 1 60); do
-            curl -fsS http://127.0.0.1:4000/health >/dev/null 2>&1 && break || sleep 1
-          done
-          for i in $(seq 1 60); do
-            curl -fsS http://127.0.0.1:3000 >/dev/null 2>&1 && break || sleep 1
-          done
-          for i in $(seq 1 60); do
-            curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1 && break || sleep 1
-          done
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:8080 >/dev/null 2>&1 && break || sleep 1; done
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:4000/health >/dev/null 2>&1 && break || sleep 1; done
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:3000 >/dev/null 2>&1 && break || sleep 1; done
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1 && break || sleep 1; done
           echo '--- endpoints ---'
           curl -sS -o /dev/null -w 'backend %{http_code}\n' http://127.0.0.1:8080
           curl -sS -o /dev/null -w 'gateway %{http_code}\n' http://127.0.0.1:4000/health
@@ -114,7 +107,6 @@ jobs:
 
       - name: Browser smoke test and screenshots
         run: |
-          mkdir -p /tmp/nexgen-artifacts
           node <<'NODE'
           const { chromium } = require('playwright');
           (async () => {
@@ -127,7 +119,6 @@ jobs:
             console.log('STOREFRONT_TITLE', await page.title());
             console.log('STOREFRONT_TEXT', (await page.locator('body').innerText()).slice(0,2500).replace(/\n+/g,' | '));
             await page.screenshot({path:'/tmp/nexgen-artifacts/storefront-home.png', fullPage:true});
-
             r = await page.goto('http://127.0.0.1:5173/login', {waitUntil:'networkidle'});
             console.log('ADMIN_LOGIN_STATUS', r && r.status());
             console.log('ADMIN_LOGIN_TITLE', await page.title());
@@ -147,8 +138,9 @@ jobs:
       - name: Collect logs
         if: always()
         run: |
+          mkdir -p /tmp/nexgen-artifacts
           cp -r /tmp/nexgen-logs /tmp/nexgen-artifacts/logs || true
-          printf 'main_sha=1090b6cb1f9e1af5bd0823192b18d87a25919eae\n' > /tmp/nexgen-artifacts/baseline.txt
+          printf 'main_sha=1090b6cb1f9e1af5bd0823192b18d87a25919eae\nworkaround=DB_CHARSET=utf8 only to bypass current utf8mb4 notification_templates migration key-length failure\n' > /tmp/nexgen-artifacts/baseline.txt
 
       - name: Upload smoke artifacts
         if: always()
