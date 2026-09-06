@@ -4,18 +4,23 @@ declare(strict_types=1);
 
 namespace App\Domains\Platform\Cms\Http\Requests;
 
+use App\Domains\Platform\StoreConfiguration\Models\Store;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 final class StorePageRequest extends FormRequest
 {
+    /** @return array<string, mixed> */
     public function rules(): array
     {
-        $storeId = (string) $this->route('store')?->id;
+        $routeStore = $this->route('store');
+        /** @var Store $store */
+        $store = $routeStore;
+        $storeId = $store->id;
         $locale = (string) $this->input('locale', 'en');
 
         return [
-            'slug' => ['required', 'string', 'max:160', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('cms_pages', 'slug')->where(fn ($q) => $q->where('store_id', $storeId)->where('locale', $locale))],
+            'slug' => ['required', 'string', 'max:160', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('cms_pages', 'slug')->where(fn ($query) => $query->where('store_id', $storeId)->where('locale', $locale))],
             'title' => ['required', 'string', 'max:180'],
             'locale' => ['required', 'string', 'max:16'],
             'content' => ['required', 'array', 'max:30'],
