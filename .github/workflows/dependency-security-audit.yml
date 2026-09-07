@@ -70,19 +70,23 @@ jobs:
           try { audit = JSON.parse(fs.readFileSync(path, 'utf8')); } catch {}
           const counts = audit?.metadata?.vulnerabilities || {};
           const vulns = audit?.vulnerabilities || {};
+          const order = ['critical','high','moderate','low','info','unknown'];
           const rows = Object.entries(vulns)
-            .map(([name, v]) => ({
-              name,
-              severity: v.severity || 'unknown',
-              direct: Boolean(v.isDirect),
-              fix: v.fixAvailable === true ? 'yes' : (v.fixAvailable ? 'upgrade' : 'no'),
-            }))
-            .sort((a, b) => ['critical','high','moderate','low','info','unknown'].indexOf(a.severity) - ['critical','high','moderate','low','info','unknown'].indexOf(b.severity));
+            .map(([name, v]) => {
+              const fix = v.fixAvailable;
+              const target = fix === true ? 'compatible update' : (fix && typeof fix === 'object' ? `${fix.name || name}@${fix.version || '?'}${fix.isSemVerMajor ? ' (major)' : ''}` : 'none');
+              const advisory = (v.via || []).filter(x => x && typeof x === 'object').map(x => x.title || x.source).filter(Boolean).join('; ') || 'transitive';
+              return { name, severity: v.severity || 'unknown', direct: Boolean(v.isDirect), range: v.range || '?', target, advisory };
+            })
+            .sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
           let md = '# npm audit\n\n';
           md += `Counts: critical=${counts.critical || 0}, high=${counts.high || 0}, moderate=${counts.moderate || 0}, low=${counts.low || 0}, total=${counts.total || 0}\n\n`;
           if (rows.length) {
-            md += '| Package | Severity | Direct | Fix available |\n|---|---|---:|---|\n';
-            for (const r of rows) md += `| ${r.name} | ${r.severity} | ${r.direct ? 'yes' : 'no'} | ${r.fix} |\n`;
+            md += '| Package | Severity | Direct | Affected range | npm target | Advisory |\n|---|---|---:|---|---|---|\n';
+            for (const r of rows) {
+              const advisory = String(r.advisory).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+              md += `| ${r.name} | ${r.severity} | ${r.direct ? 'yes' : 'no'} | ${r.range} | ${r.target} | ${advisory} |\n`;
+            }
           } else {
             md += 'No npm advisories reported.\n';
           }
@@ -103,13 +107,19 @@ jobs:
           rows = []
           for package, items in advisories.items():
               for item in items or []:
-                  rows.append((package, item.get('advisoryId') or item.get('cve') or 'advisory', item.get('title') or 'Security advisory'))
+                  rows.append((
+                      package,
+                      item.get('advisoryId') or item.get('cve') or 'advisory',
+                      item.get('affectedVersions') or '?',
+                      item.get('title') or 'Security advisory',
+                  ))
           lines = ['# Composer audit', '', f'Advisories: {len(rows)}', '']
           if rows:
-              lines += ['| Package | Advisory | Title |', '|---|---|---|']
-              for package, advisory, title in rows:
+              lines += ['| Package | Advisory | Affected versions | Title |', '|---|---|---|---|']
+              for package, advisory, affected, title in rows:
                   title = str(title).replace('|', '\\|').replace('\n', ' ')
-                  lines.append(f'| {package} | {advisory} | {title} |')
+                  affected = str(affected).replace('|', '\\|').replace('\n', ' ')
+                  lines.append(f'| {package} | {advisory} | {affected} | {title} |')
           else:
               lines.append('No Composer advisories reported.')
           with open(out, 'w', encoding='utf-8') as f:
