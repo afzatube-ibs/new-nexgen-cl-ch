@@ -15,6 +15,15 @@ import { CartDrawerProvider } from '@nexgen/storefront-engine/client';
 import { categoryHref } from '@/lib/hrefs';
 import './globals.css';
 
+/**
+ * Merchant identity/navigation are runtime state, not image-build inputs.
+ * Keeping the root shell dynamic means an immutable Storefront image can be
+ * built in CI with no live Gateway/database, then resolve the current store
+ * after deployment. The Gateway's own Redis cache remains the cross-request
+ * caching boundary for these reads.
+ */
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getBranding({ revalidateSeconds: 60 });
   return {

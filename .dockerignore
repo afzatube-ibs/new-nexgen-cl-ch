@@ -1,0 +1,34 @@
+# neXgen Core — root Docker build context
+# Keep production images reproducible and prevent local state/secrets from
+# ever entering a Node/edge image built from the monorepo root.
+
+.git
+.github
+.idea
+.vscode
+
+**/.env
+**/.env.*
+!**/.env.example
+!.env.production.example
+
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/playwright-report
+**/test-results
+
+apps/backend/vendor
+apps/backend/storage/logs/*
+apps/backend/storage/framework/cache/*
+apps/backend/storage/framework/sessions/*
+apps/backend/storage/framework/views/*
+
+*.log
+*.zip
+*.tar
+*.tar.gz
+.DS_Store
+Thumbs.db

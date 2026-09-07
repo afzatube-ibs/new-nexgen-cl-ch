@@ -31,6 +31,10 @@ use Illuminate\Support\Str;
  * CHECKOUT_SERVICE_TOKEN` (for `checkout-service`), per that service's
  * own `.env.example`.
  *
+ * Automation may use `--token-only` to receive exactly the issued token
+ * and no human-readable status prose. This exists specifically so
+ * bootstrap/deployment tooling never has to scrape console formatting.
+ *
  * Safe to re-run against an environment that already has a real service
  * account for a given role: it reuses the existing User (matched by
  * email) rather than creating a duplicate, and issues one additional
@@ -47,7 +51,8 @@ final class CreateServiceAccountCommand extends Command
         {role : The service role name (storefront-service or checkout-service — must already exist; run `php artisan db:seed` first)}
         {--email= : Email identifying the service account (defaults to "{role}@service.local")}
         {--name= : Display name for the service account (defaults to a title-cased version of the role name)}
-        {--token-name=gateway : Name recorded on the issued Sanctum token, for later identification in an audit or revocation}';
+        {--token-name=gateway : Name recorded on the issued Sanctum token, for later identification in an audit or revocation}
+        {--token-only : Output only the newly-issued plain-text token, for deployment automation}';
 
     protected $description = 'Provision a real Store API Gateway service account (or reuse an existing one) and issue a real Sanctum token to put in the Gateway\'s own .env.';
 
@@ -62,6 +67,7 @@ final class CreateServiceAccountCommand extends Command
             return self::FAILURE;
         }
 
+        $tokenOnly = (bool) $this->option('token-only');
         $email = $this->option('email') ?? "{$roleName}@service.local";
         $name = $this->option('name') ?? Str::headline($roleName);
 
@@ -74,8 +80,11 @@ final class CreateServiceAccountCommand extends Command
             // NOT NULL constraint without this command ever needing to
             // invent or store one anyone could actually use to log in.
             $user = $registerUserAction->execute($name, $email, Str::random(40), actorId: null);
-            $this->info("Created service account user: {$user->email}");
-        } else {
+
+            if (! $tokenOnly) {
+                $this->info("Created service account user: {$user->email}");
+            }
+        } elseif (! $tokenOnly) {
             $this->info("Reusing existing service account user: {$user->email}");
         }
 
@@ -83,6 +92,12 @@ final class CreateServiceAccountCommand extends Command
 
         $tokenName = (string) $this->option('token-name');
         $plainTextToken = $user->createToken($tokenName)->plainTextToken;
+
+        if ($tokenOnly) {
+            $this->line($plainTextToken);
+
+            return self::SUCCESS;
+        }
 
         $this->newLine();
         $this->info("Real Sanctum token issued for role \"{$roleName}\" — shown once, copy it now:");
