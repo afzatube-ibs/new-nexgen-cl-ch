@@ -120,6 +120,11 @@ jobs:
           printf '\n' >> "$GITHUB_STEP_SUMMARY"
           cat "$RUNNER_TEMP/nexgen-security-audit/composer-summary.md" >> "$GITHUB_STEP_SUMMARY"
 
+          echo '--- sanitized npm audit summary ---'
+          cat "$RUNNER_TEMP/nexgen-security-audit/npm-summary.md"
+          echo '--- sanitized Composer audit summary ---'
+          cat "$RUNNER_TEMP/nexgen-security-audit/composer-summary.md"
+
       - name: Upload dependency audit evidence
         uses: actions/upload-artifact@v4
         with:
