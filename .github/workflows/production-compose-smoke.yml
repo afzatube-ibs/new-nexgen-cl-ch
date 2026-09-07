@@ -96,10 +96,10 @@ jobs:
           set -euo pipefail
           COMPOSE='docker compose --env-file .env.production -f docker-compose.production.yml'
 
-          STORE_TOKEN="$($COMPOSE exec -T app php artisan identity-access:create-service-account storefront-service | awk '/^[0-9]+\|/{print; exit}')"
-          CHECKOUT_TOKEN="$($COMPOSE exec -T app php artisan identity-access:create-service-account checkout-service | awk '/^[0-9]+\|/{print; exit}')"
-          test -n "$STORE_TOKEN"
-          test -n "$CHECKOUT_TOKEN"
+          STORE_TOKEN="$($COMPOSE exec -T app php artisan identity-access:create-service-account storefront-service --token-only)"
+          CHECKOUT_TOKEN="$($COMPOSE exec -T app php artisan identity-access:create-service-account checkout-service --token-only)"
+          [[ "$STORE_TOKEN" =~ ^[0-9]+\|[^[:space:]]+$ ]]
+          [[ "$CHECKOUT_TOKEN" =~ ^[0-9]+\|[^[:space:]]+$ ]]
 
           export STORE_TOKEN CHECKOUT_TOKEN
           python3 <<'PY'
