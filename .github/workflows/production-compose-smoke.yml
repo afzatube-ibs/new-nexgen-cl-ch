@@ -157,7 +157,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/nexgen-production-smoke
-          docker compose --env-file .env.production -f docker-compose.production.yml ps \
+          docker compose --env-file .env.production -f docker-compose.production.yml ps -a \
             > /tmp/nexgen-production-smoke/compose-ps.txt 2>&1 || true
           docker compose --env-file .env.production -f docker-compose.production.yml logs --no-color \
             > /tmp/nexgen-production-smoke/compose.log 2>&1 || true
