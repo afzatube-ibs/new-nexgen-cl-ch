@@ -18,6 +18,7 @@ use Database\Seeders\SearchPermissionSeeder;
 use Database\Seeders\ServiceAccountRoleSeeder;
 use Database\Seeders\ShippingPermissionSeeder;
 use Database\Seeders\StoreConfigurationPermissionSeeder;
+use Illuminate\Support\Facades\Artisan;
 
 it('syncs every registry-declared permission into the database, idempotently', function () {
     $this->artisan('identity-access:sync-permissions')->assertSuccessful();
@@ -150,6 +151,22 @@ it('provisions a real service account and issues a real Sanctum token once the r
     expect($user->roles()->whereKey($role->id)->exists())->toBeTrue();
     expect($user->tokens()->count())->toBe(1);
     expect($user->hasPermission('pricing.lookup.view'))->toBeTrue();
+});
+
+it('outputs exactly one machine-readable token when token-only mode is requested', function () {
+    $this->seed([CatalogPermissionSeeder::class, SearchPermissionSeeder::class, PricingPermissionSeeder::class, AppearancePermissionSeeder::class, StoreConfigurationPermissionSeeder::class]);
+    $this->seed(ServiceAccountRoleSeeder::class);
+
+    $exitCode = Artisan::call('identity-access:create-service-account', [
+        'role' => 'storefront-service',
+        '--token-only' => true,
+    ]);
+    $output = trim(Artisan::output());
+
+    expect($exitCode)->toBe(0);
+    expect($output)->toMatch('/^\d+\|\S+$/');
+    expect($output)->not->toContain('Created service account user');
+    expect($output)->not->toContain('Real Sanctum token issued');
 });
 
 it('reuses the existing service account user on a second run, rather than creating a duplicate', function () {
