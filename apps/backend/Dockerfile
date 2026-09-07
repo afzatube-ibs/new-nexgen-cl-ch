@@ -82,7 +82,11 @@ RUN addgroup -g 1000 nexgen && adduser -G nexgen -u 1000 -D nexgen \
 COPY --chown=nexgen:nexgen . .
 COPY --from=vendor --chown=nexgen:nexgen /app/vendor ./vendor
 
-RUN php artisan package:discover --ansi || true
+# The image must not depend on executable-bit preservation by a ZIP export,
+# source checkout, or Docker build context. ENTRYPOINT is executed directly
+# by the kernel, so make the permission part of the immutable image contract.
+RUN chmod 0755 /var/www/html/docker/entrypoint.sh \
+    && php artisan package:discover --ansi || true
 
 USER nexgen
 
