@@ -85,8 +85,8 @@ COPY --from=vendor --chown=nexgen:nexgen /app/vendor ./vendor
 # The image must not depend on executable-bit preservation by a ZIP export,
 # source checkout, or Docker build context. ENTRYPOINT is executed directly
 # by the kernel, so make the permission part of the immutable image contract.
-RUN chmod 0755 /var/www/html/docker/entrypoint.sh \
-    && php artisan package:discover --ansi || true
+RUN chmod 0755 /var/www/html/docker/entrypoint.sh
+RUN php artisan package:discover --ansi || true
 
 USER nexgen
 
