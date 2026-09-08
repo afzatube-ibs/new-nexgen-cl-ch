@@ -46,8 +46,8 @@ jobs:
 
       - name: Install Composer dependencies
         working-directory: apps/backend
-        run: composer install --no-interaction --prefer-dist --no-progress --no-audit
+        run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Enforce zero Composer advisories
         working-directory: apps/backend
-        run: composer audit --locked
+        run: composer audit
