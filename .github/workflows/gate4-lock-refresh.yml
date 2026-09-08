@@ -6,6 +6,10 @@ on:
       - nexgen-gate4-security-hardening
     paths:
       - '.github/workflows/gate4-lock-refresh.yml'
+      - 'package.json'
+      - 'apps/*/package.json'
+      - 'packages/*/package.json'
+      - 'apps/backend/composer.json'
   workflow_dispatch:
 
 permissions:
@@ -33,10 +37,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # npm 10's Arborist can crash while reconciling this monorepo's stale
-          # workspace graph after coordinated security-floor changes. Generate a
-          # clean deterministic lock from the manifests, then let normal `npm ci`
-          # workflows validate that the resulting lock is complete and usable.
           rm -f package-lock.json
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 
@@ -63,6 +63,7 @@ jobs:
             'node_modules/vite': '6.4.3',
             'node_modules/vitest': '4.1.11',
             'node_modules/@fastify/swagger-ui': '6.1.1',
+            'node_modules/@vitejs/plugin-react': '4.4.1',
           };
           for (const [key, floor] of Object.entries(checks)) {
             const version = lock.packages?.[key]?.version;
