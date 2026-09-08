@@ -10,7 +10,6 @@ import {
   ProductGrid,
   ProductListRow,
   ProductToolbar,
-  PromotionBanner,
   RecentlyViewedRail,
   buildBreadcrumbSchema,
   extractIdFromSegment,
@@ -53,24 +52,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 /**
- * Category listing archetype — `STORE_FRONTEND_ARCHITECTURE.md` §1.1's
- * `/categories/[slug]` route, amended per the Change Log to the composite
- * `{id}-{slug}` segment (`routing/idSlug.ts`'s own docblock explains why).
- *
- * **Beta Milestone 2 — rebuilt to the milestone brief's own "Professional
- * Category Page" spec**: Toolbar (result count, sort, grid/list toggle),
- * Filter Sidebar (desktop) + Filter Drawer (mobile) — real Category
- * (sibling/child navigation) and Brand (`?brand_id=`) filters only, per
- * `FilterSidebar.tsx`'s own "two real filter dimensions today" scoping —
- * Breadcrumb, real Pagination, active-filter chips, empty/loading states
- * (`ProductGrid`'s own real empty state), and full URL synchronization
- * (`?brand_id=&sort=&direction=&page=&per_page=&view=`) — every filter
- * combination here is a real, bookmarkable, shareable URL, never
- * client-only state.
- *
- * Deliberately does not forward the request's Cookie header — see
- * `app/page.tsx`'s own docblock for why (real SSG/ISR eligibility fix,
- * found live via `next build`).
+ * Real category listing backed by Catalog/Gateway data. Filtering, sorting,
+ * pagination, category navigation, and brand filtering stay URL-addressable;
+ * merchandising copy is not invented when the merchant has not published it.
  */
 export default async function CategoryPage({ params, searchParams }: PageProps) {
   const { idSlug } = await params;
@@ -147,15 +131,15 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     { name: category.name, url: `${siteUrl}/categories/${idSlug}` },
   ]);
 
+  const emptyTitle = 'No published products match this category';
+  const emptyDescription = 'Try another category or remove a filter to see other available products.';
+
   return (
     <div className="flex flex-col gap-6">
-      {/* server-built JSON-LD, not user input */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
 
       <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: category.name }]} />
       <CategoryBanner name={category.name} description={category.description} image={category.image} productCount={productsResult.pagination?.total} />
-
-      <PromotionBanner heading={`Shop the full ${category.name} range`} description="New arrivals added every week." tone="subtle" />
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <aside className="hidden w-56 shrink-0 lg:block">
@@ -176,11 +160,11 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
               products={productsResult.data}
               buildHref={productHref}
               columns={4}
-              emptyTitle="No products in this category yet"
-              emptyDescription="Check back soon — this category is still being stocked."
+              emptyTitle={emptyTitle}
+              emptyDescription={emptyDescription}
             />
           ) : productsResult.data.length === 0 ? (
-            <ProductGrid products={[]} buildHref={productHref} emptyTitle="No products in this category yet" emptyDescription="Check back soon — this category is still being stocked." />
+            <ProductGrid products={[]} buildHref={productHref} emptyTitle={emptyTitle} emptyDescription={emptyDescription} />
           ) : (
             <div className="flex flex-col gap-3">
               {productsResult.data.map((product) => (
@@ -195,7 +179,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
         </div>
       </div>
 
-      {trending.length > 0 && <ProductGrid products={trending} buildHref={productHref} columns={4} heading="Recommended for you" />}
+      {trending.length > 0 && <ProductGrid products={trending} buildHref={productHref} columns={4} heading="Explore more products" />}
       <RecentlyViewedRail />
     </div>
   );

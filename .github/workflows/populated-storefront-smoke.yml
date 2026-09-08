@@ -1,0 +1,258 @@
+name: populated-storefront-smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  populated-storefront:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: nexgen_demo
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=8
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=8
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Clean Node install
+        run: npm ci
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, pdo_mysql, redis, intl, zip, bcmath, opcache, dom, xml, zlib
+          coverage: none
+          tools: composer:v2
+
+      - name: Install backend dependencies
+        working-directory: apps/backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Build explicit populated demo database
+        working-directory: apps/backend
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: nexgen_demo
+          DB_USERNAME: root
+          DB_PASSWORD: ""
+          REDIS_HOST: 127.0.0.1
+          CACHE_STORE: redis
+          SESSION_DRIVER: redis
+          QUEUE_CONNECTION: redis
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          php artisan key:generate --force
+          php artisan migrate:fresh --seed --force
+          php artisan db:seed --class=DemoStoreSeeder --force
+          php artisan storage:link
+          php artisan identity-access:create-service-account storefront-service > /tmp/storefront-token.txt
+          php artisan identity-access:create-service-account checkout-service > /tmp/checkout-token.txt
+          awk '/^[0-9]+\|/{print; exit}' /tmp/storefront-token.txt > /tmp/storefront-token-value.txt
+          awk '/^[0-9]+\|/{print; exit}' /tmp/checkout-token.txt > /tmp/checkout-token-value.txt
+          test -s /tmp/storefront-token-value.txt
+          test -s /tmp/checkout-token-value.txt
+          php artisan tinker --execute="throw_unless(\\App\\Domains\\Commerce\\Catalog\\Models\\Product::query()->where('status', 'active')->count() >= 6);"
+          php artisan tinker --execute="throw_unless(\\App\\Domains\\Commerce\\Pricing\\Models\\PriceList::query()->where('currency_code', 'BDT')->where('is_default', true)->exists());"
+          php artisan tinker --execute="throw_unless(\\App\\Domains\\Platform\\Cms\\Models\\CmsPage::query()->where('slug', 'home')->where('status', 'published')->exists());"
+
+      - name: Configure Bangladesh demo runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          STORE_TOKEN="$(cat /tmp/storefront-token-value.txt)"
+          CHECKOUT_TOKEN="$(cat /tmp/checkout-token-value.txt)"
+          {
+            echo 'BACKEND_BASE_URL=http://127.0.0.1:8080/api/v1'
+            echo "BACKEND_SERVICE_TOKEN=$STORE_TOKEN"
+            echo "BACKEND_CHECKOUT_SERVICE_TOKEN=$CHECKOUT_TOKEN"
+            echo 'REDIS_URL=redis://127.0.0.1:6379'
+            echo 'GUEST_SESSION_SECRET=gate5-demo-guest-session-secret-1234567890'
+            echo 'PREVIEW_TOKEN_SECRET=gate5-demo-preview-token-secret-1234567890'
+            echo 'PUBLIC_BASE_URL=http://127.0.0.1:4000'
+            echo 'CORS_ALLOWED_ORIGINS=http://127.0.0.1:3000'
+            echo 'DEFAULT_LOCALE=en-BD'
+            echo 'SUPPORTED_LOCALES=en-BD,en'
+            echo 'DEFAULT_CURRENCY=BDT'
+            echo 'NEXT_PUBLIC_MEDIA_ORIGIN=http://127.0.0.1:8080'
+            echo 'NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3000'
+          } >> "$GITHUB_ENV"
+
+      - name: Build Gateway
+        run: npm run build -w apps/store-api-gateway
+
+      - name: Start Backend and Gateway
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: nexgen_demo
+          DB_USERNAME: root
+          DB_PASSWORD: ""
+          REDIS_HOST: 127.0.0.1
+          CACHE_STORE: redis
+          SESSION_DRIVER: redis
+          QUEUE_CONNECTION: redis
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/nexgen-demo/logs /tmp/nexgen-demo/screenshots
+          (cd apps/backend && php artisan serve --host=127.0.0.1 --port=8080 > /tmp/nexgen-demo/logs/backend.log 2>&1 &)
+          (cd apps/store-api-gateway && npm start > /tmp/nexgen-demo/logs/gateway.log 2>&1 &)
+          for i in $(seq 1 60); do
+            curl -sS http://127.0.0.1:8080 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:4000/health >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:4000/health
+          curl -fsS 'http://127.0.0.1:4000/v1/homepage?currency=BDT' > /tmp/nexgen-demo/homepage.json
+          grep -q 'Baobaohao A10 Baby Stroller' /tmp/nexgen-demo/homepage.json
+          grep -q '"currencyCode":"BDT"' /tmp/nexgen-demo/homepage.json
+
+      - name: Build and start Storefront
+        run: |
+          set -euo pipefail
+          npm run build -w apps/storefront
+          (npm run start -w apps/storefront -- --hostname 127.0.0.1 --port 3000 > /tmp/nexgen-demo/logs/storefront.log 2>&1 &)
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:3000 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS -o /dev/null -w 'storefront=%{http_code}\n' http://127.0.0.1:3000
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify populated Storefront in Chromium
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+
+          function requireText(body, text, surface) {
+            if (!body.includes(text)) throw new Error(`${surface} missing required text: ${text}`);
+          }
+
+          function forbidText(body, text, surface) {
+            if (body.includes(text)) throw new Error(`${surface} contains unsupported claim: ${text}`);
+          }
+
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+            const consoleErrors = [];
+            const failedImages = [];
+
+            page.on('console', (message) => {
+              if (message.type() === 'error') consoleErrors.push(message.text());
+            });
+            page.on('response', (response) => {
+              if (response.request().resourceType() === 'image' && response.status() >= 400) {
+                failedImages.push(`${response.status()} ${response.url()}`);
+              }
+            });
+
+            let response = await page.goto('http://127.0.0.1:3000', { waitUntil: 'networkidle' });
+            if (!response || response.status() !== 200) throw new Error(`Homepage returned ${response?.status()}`);
+            const homeBody = await page.locator('body').innerText();
+            requireText(homeBody, 'neXgen Baby Store', 'Homepage');
+            requireText(homeBody, 'Baobaohao A10 Baby Stroller', 'Homepage');
+            requireText(homeBody, 'Strollers', 'Homepage');
+            requireText(homeBody, 'Featured baby essentials', 'Homepage');
+            forbidText(homeBody, 'In Stock', 'Homepage');
+            forbidText(homeBody, 'Nationwide shipping across Bangladesh', 'Homepage');
+            const productLinks = page.locator('a[href^="/products/"]');
+            const categoryLinks = page.locator('a[href^="/categories/"]');
+            if ((await productLinks.count()) < 1) throw new Error('Homepage rendered no real product links');
+            if ((await categoryLinks.count()) < 1) throw new Error('Homepage rendered no real category links');
+            if ((await page.locator('img').count()) < 1) throw new Error('Homepage rendered no real product images');
+            await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-populated-home.png', fullPage: true });
+
+            const productHref = await productLinks.first().getAttribute('href');
+            if (!productHref) throw new Error('First product link has no href');
+            response = await page.goto(`http://127.0.0.1:3000${productHref}`, { waitUntil: 'networkidle' });
+            if (!response || response.status() !== 200) throw new Error(`PDP returned ${response?.status()}`);
+            const productBody = await page.locator('body').innerText();
+            requireText(productBody, 'Baobaohao A10 Baby Stroller', 'PDP');
+            requireText(productBody, 'Payment options', 'PDP');
+            requireText(productBody, 'Delivery options', 'PDP');
+            for (const forbidden of [
+              'In Stock',
+              'Nationwide delivery',
+              'bKash',
+              'Nagad',
+              'SSLCommerz',
+              'Pathao',
+              'Steadfast',
+              'RedX',
+              'Paperfly',
+              'Sundarban Courier',
+            ]) forbidText(productBody, forbidden, 'PDP');
+            await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-product.png', fullPage: true });
+
+            await page.goto('http://127.0.0.1:3000', { waitUntil: 'networkidle' });
+            const strollersLink = page.locator('a[href^="/categories/"]', { hasText: 'Strollers' }).first();
+            const categoryHref = await strollersLink.getAttribute('href');
+            if (!categoryHref) throw new Error('Strollers category link has no href');
+            response = await page.goto(`http://127.0.0.1:3000${categoryHref}`, { waitUntil: 'networkidle' });
+            if (!response || response.status() !== 200) throw new Error(`Category page returned ${response?.status()}`);
+            const categoryBody = await page.locator('body').innerText();
+            requireText(categoryBody, 'Strollers', 'Category page');
+            requireText(categoryBody, 'Baobaohao A10 Baby Stroller', 'Category page');
+            forbidText(categoryBody, 'New arrivals added every week.', 'Category page');
+            forbidText(categoryBody, 'Recommended for you', 'Category page');
+            forbidText(categoryBody, 'In Stock', 'Category page');
+            await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-category.png', fullPage: true });
+
+            console.log('BROWSER_CONSOLE_ERRORS', JSON.stringify(consoleErrors));
+            console.log('FAILED_IMAGES', JSON.stringify(failedImages));
+            if (consoleErrors.length) throw new Error(`Browser console errors: ${JSON.stringify(consoleErrors)}`);
+            if (failedImages.length) throw new Error(`Failed product images: ${JSON.stringify(failedImages)}`);
+
+            await browser.close();
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Upload populated Storefront evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexgen-populated-storefront-${{ github.sha }}
+          path: /tmp/nexgen-demo
+          if-no-files-found: warn
+          retention-days: 14

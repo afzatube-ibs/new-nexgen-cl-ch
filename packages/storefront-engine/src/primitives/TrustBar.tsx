@@ -3,20 +3,16 @@ import { TrustBadge } from '../components/TrustBadge.js';
 import type { TrustBarProps } from './types.js';
 
 /**
- * `STOREFRONT_COMPONENT_ENGINE.md` §2's `TrustBar` primitive — this
- * milestone's own Homepage "Trust Features" build item. The four default
- * items below are **generic ecommerce trust signals, not claims about
- * this specific store's own real policies** (no Store Settings/Shipping-
- * policy/Return-policy backend exists yet to source real per-store copy
- * from — `MISSING_ECOMMERCE_FEATURES_AUDIT.md` names this gap). A future
- * real policy backend replaces the `items` default with real, merchant-
- * configured values through this same prop, not a rewrite.
+ * Generic Storefront guidance only. Defaults deliberately avoid promising
+ * merchant-specific delivery coverage, return windows, payment providers,
+ * or support SLAs because those facts are not published by a policy/settings
+ * backend yet. A merchant-configured source can replace these items later.
  */
 const DEFAULT_ITEMS: NonNullable<TrustBarProps['items']> = [
-  { icon: Truck, label: 'Fast delivery', description: 'Nationwide shipping across Bangladesh' },
-  { icon: RotateCcw, label: 'Easy returns', description: 'Hassle-free return window' },
-  { icon: ShieldCheck, label: 'Secure payments', description: 'Your payment details stay protected' },
-  { icon: Headset, label: 'Dedicated support', description: "We're here if you need help" },
+  { icon: Truck, label: 'Delivery options', description: 'Rates and availability are confirmed at checkout' },
+  { icon: RotateCcw, label: 'Return information', description: 'Check the store policy or contact the store before ordering' },
+  { icon: ShieldCheck, label: 'Payment options', description: 'Available methods are shown at checkout' },
+  { icon: Headset, label: 'Store support', description: 'Use the store contact details when you need help' },
 ];
 
 export function TrustBar({ items = DEFAULT_ITEMS }: TrustBarProps) {
