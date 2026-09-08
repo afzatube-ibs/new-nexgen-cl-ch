@@ -1,19 +1,10 @@
 /**
- * Shapes real backend DTOs (src/backend/types.ts, confirmed against the
- * real Catalog Http\Resources) into the Storefront Component Engine's own
- * already-Accepted contracts (STOREFRONT_COMPONENT_ENGINE.md §2's
- * `ProductSummary`/`CategorySummary`/`BrandSummary`). This is the entire
- * meaning of "Gateway performs composition only" — every field below is
- * either passed through unchanged or reshaped (camelCase already matches;
- * image URLs go through lib/imageUrl.ts); nothing is computed, priced, or
- * decided here.
- *
- * KNOWN GAP (found this slice, not invented): the real `CategoryResource`
- * has no image field at all — Catalog's own Category model carries no
- * media reference. `CategorySummary.image` is therefore always `null`
- * today; documented in the Slice 1 report, not silently hidden.
+ * Shapes real backend DTOs into the Storefront Component Engine's contracts.
+ * Every commerce field is passed through from an owning backend module or
+ * reshaped for transport; Gateway does not invent catalog, price or stock.
  */
 import { buildResponsiveImageOrNull, type ResponsiveImage } from '../lib/imageUrl.js';
+import type { ComposedAvailability } from './availability.js';
 import type { ComposedPrice } from './pricing.js';
 import type { BackendBrand, BackendCategory, BackendCollection, BackendProduct, BackendProductImage, BackendSearchResult } from '../backend/types.js';
 
@@ -23,16 +14,7 @@ export interface CategorySummary {
   slug: string;
   description: string | null;
   image: ResponsiveImage | null;
-  /**
-   * Real backend field (`BackendCategory.parentId`), added for Beta
-   * Milestone 2: a mega-menu needs real category hierarchy to group
-   * children under a top-level parent — this field already existed on the
-   * backend DTO but was never mapped through until a real consumer
-   * (the Storefront's own navigation) needed it. `null` for a top-level
-   * category.
-   */
   parentId: string | null;
-  /** Real backend field (`BackendCategory.position`) — the merchant's own configured display order, used for nav/menu ordering rather than an arbitrary id/name sort. */
   position: number;
 }
 
@@ -44,15 +26,6 @@ export interface BrandSummary {
   logo: ResponsiveImage | null;
 }
 
-/**
- * `Collection` has no image field either (same real gap as `Category`,
- * confirmed by the same direct code read of `CollectionResource`). Its
- * member products are a separate call — `GET /v1/products?collection_id=`,
- * backed by `ProductController::index()`'s own real `collection_id` filter
- * (neXgen Production Sprint, Milestone 2 completion, mirroring the
- * existing `category_id` filter exactly) — not carried on this summary
- * type itself.
- */
 export interface CollectionSummary {
   id: string;
   name: string;
@@ -70,16 +43,9 @@ export interface ProductSummary {
   visibility: string;
   brandId: string | null;
   image: ResponsiveImage | null;
-  /**
-   * Milestone 2 — real, composed from Pricing (`composition/pricing.ts`),
-   * `null` when no real price is configured for this SKU yet (never a
-   * fabricated figure — `PriceBlock`'s own honest "Price coming soon"
-   * state on the Storefront). Every caller of `toProductSummary` below
-   * that has not been updated to pass a real price still compiles —
-   * `price` defaults to `null`, the same honest "not composed here"
-   * signal, never silently omitted from the type.
-   */
   price: ComposedPrice | null;
+  /** Real Inventory composition; null means Inventory could not establish a truthful answer. */
+  availability: ComposedAvailability | null;
 }
 
 export interface ProductDetail extends ProductSummary {
@@ -104,7 +70,7 @@ export function toCategorySummary(category: BackendCategory): CategorySummary {
     name: category.name,
     slug: category.slug,
     description: category.description,
-    image: null, // see docblock — real backend has no Category image field
+    image: null,
     parentId: category.parentId,
     position: category.position,
   };
@@ -129,7 +95,11 @@ export function toBrandSummary(brand: BackendBrand): BrandSummary {
   };
 }
 
-export function toProductSummary(product: BackendProduct, price: ComposedPrice | null = null): ProductSummary {
+export function toProductSummary(
+  product: BackendProduct,
+  price: ComposedPrice | null = null,
+  availability: ComposedAvailability | null = null,
+): ProductSummary {
   return {
     id: product.id,
     name: product.name,
@@ -141,29 +111,29 @@ export function toProductSummary(product: BackendProduct, price: ComposedPrice |
     brandId: product.brandId,
     image: primaryImage(product.images),
     price,
+    availability,
   };
 }
 
-export function toProductDetail(product: BackendProduct, price: ComposedPrice | null = null): ProductDetail {
+export function toProductDetail(
+  product: BackendProduct,
+  price: ComposedPrice | null = null,
+  availability: ComposedAvailability | null = null,
+): ProductDetail {
   return {
-    ...toProductSummary(product, price),
+    ...toProductSummary(product, price, availability),
     description: product.description,
     productType: product.productType,
     metaTitle: product.metaTitle,
     metaDescription: product.metaDescription,
-    images: (product.images ?? []).map((image) => buildResponsiveImageOrNull(image.url, image.altText)).filter((image): image is ResponsiveImage => image !== null),
+    images: (product.images ?? [])
+      .map((image) => buildResponsiveImageOrNull(image.url, image.altText))
+      .filter((image): image is ResponsiveImage => image !== null),
     categories: (product.categories ?? []).map(toCategorySummary),
     publishedAt: product.publishedAt,
   };
 }
 
-/**
- * The real `ProductSearchResultResource` exposes no `slug`, `status`, or
- * `visibility` (confirmed, backend/types.ts docblock) — this shape is
- * therefore intentionally narrower than `ProductSummary`, not a
- * short-cut. `id` here is the search index's own `productId`, the real
- * UUID a Storefront links to via this Gateway's `:id`-based product route.
- */
 export interface SearchResultSummary {
   id: string;
   name: string;
@@ -171,11 +141,15 @@ export interface SearchResultSummary {
   brandId: string | null;
   publishedAt: string | null;
   relevanceScore: number | null;
-  /** Milestone 2 — see `ProductSummary.price`'s own docblock; identical honest-null default. */
   price: ComposedPrice | null;
+  availability: ComposedAvailability | null;
 }
 
-export function toSearchResultSummary(result: BackendSearchResult, price: ComposedPrice | null = null): SearchResultSummary {
+export function toSearchResultSummary(
+  result: BackendSearchResult,
+  price: ComposedPrice | null = null,
+  availability: ComposedAvailability | null = null,
+): SearchResultSummary {
   return {
     id: result.productId,
     name: result.name,
@@ -184,5 +158,6 @@ export function toSearchResultSummary(result: BackendSearchResult, price: Compos
     publishedAt: result.publishedAt,
     relevanceScore: result.relevanceScore ?? null,
     price,
+    availability,
   };
 }
