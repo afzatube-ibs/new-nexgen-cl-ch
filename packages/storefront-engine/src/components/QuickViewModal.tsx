@@ -8,17 +8,6 @@ import { PriceBlock, type Money } from './PriceBlock.js';
 import { StockBadge } from './StockBadge.js';
 import type { ProductSummary } from '../gateway/types.js';
 
-/**
- * Store Components library — Beta Milestone 2.5's own "Quick View" build
- * item, built as a real, fully-functional feature rather than an inert
- * placeholder: every field shown here is real data the calling page
- * already fetched for the grid (`ProductSummary` plus the same optional
- * `brandName`/`price`/`compareAtPrice` `ProductCard` accepts) — no second
- * fetch, no fabricated content. **Beta Sprint 3 — Cart Engine**: "Add to
- * cart" is now real (`AddToCartButton`), adding to the same real
- * `localStorage` cart every other Add-to-cart control on this storefront
- * shares.
- */
 export interface QuickViewModalProps {
   product: ProductSummary | null;
   href: string;
@@ -30,6 +19,10 @@ export interface QuickViewModalProps {
 }
 
 export function QuickViewModal({ product, href, brandName, price, compareAtPrice, open, onOpenChange }: QuickViewModalProps) {
+  const unavailable = product
+    ? product.status !== 'active' || product.availability?.isAvailable === false
+    : true;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent size="lg" aria-describedby={undefined}>
@@ -48,26 +41,27 @@ export function QuickViewModal({ product, href, brandName, price, compareAtPrice
                   {brandName}
                 </Text>
               )}
-              <Text as="h2" variant="heading">
-                {product.name}
-              </Text>
-              <StockBadge status={product.status} className="w-fit" />
+              <Text as="h2" variant="heading">{product.name}</Text>
+              <StockBadge
+                status={product.status}
+                isAvailable={product.availability?.isAvailable ?? null}
+                className="w-fit"
+              />
               <PriceBlock price={price} compareAtPrice={compareAtPrice} size="lg" />
               {product.shortDescription && (
-                <Text as="p" variant="body" className="text-text-secondary">
-                  {product.shortDescription}
-                </Text>
+                <Text as="p" variant="body" className="text-text-secondary">{product.shortDescription}</Text>
               )}
               <div className="mt-2 flex flex-col gap-2">
                 <AddToCartButton
                   productId={product.id}
+                  sku={product.sku}
                   name={product.name}
                   href={href}
                   imageSrc={product.image?.src ?? null}
                   unitPrice={price ? price.amountMinor / 100 : null}
                   currencyCode={price?.currencyCode ?? null}
-                  disabled={product.status !== 'active'}
-                  disabledReason="Unavailable"
+                  disabled={unavailable}
+                  disabledReason={product.availability?.isAvailable === false ? 'Out of stock' : 'Unavailable'}
                 />
                 <Link
                   href={href}
