@@ -29,8 +29,16 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Regenerate npm lockfile only
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Regenerate npm lockfile from manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          # npm 10's Arborist can crash while reconciling this monorepo's stale
+          # workspace graph after coordinated security-floor changes. Generate a
+          # clean deterministic lock from the manifests, then let normal `npm ci`
+          # workflows validate that the resulting lock is complete and usable.
+          rm -f package-lock.json
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
 
       - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
