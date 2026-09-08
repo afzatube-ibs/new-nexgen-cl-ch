@@ -68,11 +68,6 @@ export interface ComposedPrice {
   isSaleActive: boolean;
 }
 
-/**
- * Real Inventory-owned availability. `null` on a Product means the Gateway
- * could not establish a truthful answer (for example, Inventory was down);
- * it never means "in stock".
- */
 export interface ComposedAvailability {
   isAvailable: boolean;
 }
@@ -88,7 +83,8 @@ export interface ProductSummary {
   brandId: string | null;
   image: ResponsiveImage | null;
   price: ComposedPrice | null;
-  availability: ComposedAvailability | null;
+  /** Present on current Gateway responses; optional keeps older local/test fixtures safely interpreted as unknown. */
+  availability?: ComposedAvailability | null;
 }
 
 export interface ProductDetail extends ProductSummary {
@@ -109,7 +105,7 @@ export interface SearchResultSummary {
   publishedAt: string | null;
   relevanceScore: number | null;
   price: ComposedPrice | null;
-  availability: ComposedAvailability | null;
+  availability?: ComposedAvailability | null;
 }
 
 export function toProductSummaryFromSearchResult(result: SearchResultSummary): ProductSummary {
@@ -124,7 +120,7 @@ export function toProductSummaryFromSearchResult(result: SearchResultSummary): P
     brandId: result.brandId,
     image: null,
     price: result.price,
-    availability: result.availability,
+    availability: result.availability ?? null,
   };
 }
 
