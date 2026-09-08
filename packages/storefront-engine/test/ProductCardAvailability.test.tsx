@@ -19,12 +19,14 @@ describe('ProductCard inventory availability', () => {
   it('shows a real in-stock badge for positive Inventory availability', () => {
     render(<ProductCard product={{ ...baseProduct, availability: { isAvailable: true } }} href="/products/p1" />);
     expect(screen.getByText('In Stock')).toBeInTheDocument();
+    expect(screen.getByText('COD available')).toBeInTheDocument();
   });
 
-  it('shows out-of-stock and disables quick add for zero Inventory availability', () => {
+  it('shows out-of-stock, blocks quick add, and does not advertise COD for an unsellable item', () => {
     render(<ProductCard product={{ ...baseProduct, availability: { isAvailable: false } }} href="/products/p1" />);
     expect(screen.getByText('Out of stock')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add to cart/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Widget — Out of stock' })).toBeDisabled();
+    expect(screen.queryByText('COD available')).not.toBeInTheDocument();
   });
 
   it('makes no stock claim when Inventory is unknown', () => {
