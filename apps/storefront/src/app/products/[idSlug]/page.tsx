@@ -59,12 +59,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-/**
- * Product detail composition backed only by current Gateway data. Provider,
- * courier, inventory, shipping-coverage, and return-policy claims are not
- * inferred from platform capability; customer-facing specifics appear only
- * where the Storefront has authoritative data for them.
- */
 export default async function ProductPage({ params }: PageProps) {
   const { idSlug } = await params;
   const product = await loadProduct(idSlug);
@@ -89,6 +83,9 @@ export default async function ProductPage({ params }: PageProps) {
   const productSchema = buildProductSchema(product, productUrl);
   const galleryImages = product.images.length > 0 ? product.images : product.image ? [product.image] : [];
   const { price, compareAtPrice } = toMoney(product.price);
+  const isAvailable = product.availability?.isAvailable ?? null;
+  const unavailable = product.status !== 'active' || isAvailable === false;
+  const unavailableReason = isAvailable === false ? 'Out of stock' : 'Unavailable';
 
   return (
     <div className="flex flex-col gap-10 pb-20 lg:pb-0">
@@ -111,23 +108,17 @@ export default async function ProductPage({ params }: PageProps) {
           <div className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-6 shadow-elevation-1">
             <div>
               {brand && (
-                <Text as="p" variant="caption" className="uppercase tracking-wide text-text-secondary">
-                  {brand.name}
-                </Text>
+                <Text as="p" variant="caption" className="uppercase tracking-wide text-text-secondary">{brand.name}</Text>
               )}
-              <Text as="h1" variant="display">
-                {product.name}
-              </Text>
-              <Text variant="caption" className="mt-1 text-text-secondary">
-                SKU: {product.sku}
-              </Text>
+              <Text as="h1" variant="display">{product.name}</Text>
+              <Text variant="caption" className="mt-1 text-text-secondary">SKU: {product.sku}</Text>
             </div>
 
             <PriceBlock size="lg" price={price} compareAtPrice={compareAtPrice} />
             {product.shortDescription && <Text variant="body-strong">{product.shortDescription}</Text>}
 
             <div className="flex items-center gap-3">
-              <StockBadge status={product.status} />
+              <StockBadge status={product.status} isAvailable={isAvailable} />
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -139,8 +130,8 @@ export default async function ProductPage({ params }: PageProps) {
                 imageSrc={product.image?.src ?? null}
                 unitPrice={price ? price.amountMinor / 100 : null}
                 currencyCode={price?.currencyCode ?? null}
-                disabled={product.status !== 'active'}
-                disabledReason="Unavailable"
+                disabled={unavailable}
+                disabledReason={unavailableReason}
                 size="lg"
                 className="w-full sm:w-auto"
               />
@@ -152,8 +143,8 @@ export default async function ProductPage({ params }: PageProps) {
                 imageSrc={product.image?.src ?? null}
                 unitPrice={price ? price.amountMinor / 100 : null}
                 currencyCode={price?.currencyCode ?? null}
-                disabled={product.status !== 'active'}
-                disabledReason="Unavailable"
+                disabled={unavailable}
+                disabledReason={unavailableReason}
                 emphasis="secondary"
                 size="lg"
                 className="w-full sm:w-auto"
@@ -165,53 +156,33 @@ export default async function ProductPage({ params }: PageProps) {
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 rounded-xl border border-border p-5">
-              <TrustBadge
-                icon={ShieldCheck}
-                label="Payment options"
-                description="Available methods are confirmed at checkout"
-              />
-              <TrustBadge
-                icon={TruckIcon}
-                label="Delivery options"
-                description="Rates and availability are confirmed at checkout"
-              />
+              <TrustBadge icon={ShieldCheck} label="Payment options" description="Available methods are confirmed at checkout" />
+              <TrustBadge icon={TruckIcon} label="Delivery options" description="Rates and availability are confirmed at checkout" />
             </div>
 
             <div className="flex flex-col gap-2 rounded-xl border border-dashed border-border bg-surface-subtle p-4">
               <div className="flex items-center gap-2 text-text-secondary">
                 <PackageSearch className="h-4 w-4" aria-hidden="true" />
-                <Text as="p" variant="caption" className="font-medium uppercase tracking-wide">
-                  More ways to buy
-                </Text>
+                <Text as="p" variant="caption" className="font-medium uppercase tracking-wide">More ways to buy</Text>
               </div>
               <Text as="p" variant="caption" className="text-text-secondary">
-                Bundle deals, frequently-bought-together sets, and cross-sell picks are coming soon — no real
-                bundling or co-purchase backend exists yet. &ldquo;Related products&rdquo; and &ldquo;You may also
-                like&rdquo; below use today&apos;s real recommendation data instead.
+                Bundle deals, frequently-bought-together sets, and cross-sell picks are coming soon — no real bundling or co-purchase backend exists yet. Related products below use today&apos;s real recommendation data instead.
               </Text>
             </div>
 
-            <div className="flex items-center gap-2">
-              <ShareButton title={product.name} />
-            </div>
+            <div className="flex items-center gap-2"><ShareButton title={product.name} /></div>
           </div>
 
           <div className="flex flex-col gap-4 border-t border-border pt-8">
             {product.categories.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {product.categories.map((category) => (
-                  <Link key={category.id} href={categoryHref(category)}>
-                    <Badge variant="outline">{category.name}</Badge>
-                  </Link>
+                  <Link key={category.id} href={categoryHref(category)}><Badge variant="outline">{category.name}</Badge></Link>
                 ))}
               </div>
             )}
 
-            {product.description && (
-              <Text variant="body" className="whitespace-pre-line text-text-secondary">
-                {product.description}
-              </Text>
-            )}
+            {product.description && <Text variant="body" className="whitespace-pre-line text-text-secondary">{product.description}</Text>}
 
             <div className="flex flex-col divide-y divide-border">
               <details className="group py-3">
@@ -252,17 +223,11 @@ export default async function ProductPage({ params }: PageProps) {
       </div>
 
       {related.length > 0 && <ProductGrid products={related} buildHref={productHref} columns={4} heading="Related products" />}
-      {recommended.length > 0 && (
-        <ProductGrid products={recommended} buildHref={productHref} columns={4} heading="You may also like" />
-      )}
+      {recommended.length > 0 && <ProductGrid products={recommended} buildHref={productHref} columns={4} heading="You may also like" />}
 
       <div className="flex flex-col gap-6">
         <SectionHeader eyebrow="Reviews" heading="Ratings & reviews" />
-        <RatingSummary
-          averageRating={reviewSummary.averageRating}
-          totalCount={reviewSummary.totalCount}
-          distribution={reviewSummary.distribution}
-        />
+        <RatingSummary averageRating={reviewSummary.averageRating} totalCount={reviewSummary.totalCount} distribution={reviewSummary.distribution} />
         <ReviewList reviews={reviewsResult.data} />
         <ReviewForm productId={product.id} className="max-w-xl" />
       </div>
@@ -280,6 +245,7 @@ export default async function ProductPage({ params }: PageProps) {
         href={productUrl.replace(siteUrl, '')}
         imageSrc={product.image?.src ?? null}
         status={product.status}
+        isAvailable={isAvailable}
         price={price}
         compareAtPrice={compareAtPrice}
       />
