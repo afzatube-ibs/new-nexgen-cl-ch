@@ -151,7 +151,7 @@ export default async function ProductPage({ params }: PageProps) {
               />
             </div>
 
-            <CodAvailableBadge />
+            {isAvailable !== false && <CodAvailableBadge />}
           </div>
 
           <div className="flex flex-col gap-4">
