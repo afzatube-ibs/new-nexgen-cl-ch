@@ -140,7 +140,7 @@ jobs:
           curl -fsS http://127.0.0.1:4000/health
           curl -fsS 'http://127.0.0.1:4000/v1/homepage?currency=BDT' > /tmp/nexgen-demo/homepage.json
           grep -q 'Baobaohao A10 Baby Stroller' /tmp/nexgen-demo/homepage.json
-          grep -q '"currency":"BDT"' /tmp/nexgen-demo/homepage.json
+          grep -q '"currencyCode":"BDT"' /tmp/nexgen-demo/homepage.json
 
       - name: Build and start Storefront
         run: |
