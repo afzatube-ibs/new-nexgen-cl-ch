@@ -33,12 +33,20 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Regenerate npm lockfile from manifests
+      - name: Regenerate npm lockfile with npm 11
         shell: bash
         run: |
           set -euo pipefail
           rm -f package-lock.json
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npx --yes npm@11 install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Verify generated lock with runtime npm 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --version
+          test "$(npm --version | cut -d. -f1)" = "10"
+          npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
