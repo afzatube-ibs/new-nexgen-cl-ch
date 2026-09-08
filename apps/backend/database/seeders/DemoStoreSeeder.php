@@ -118,8 +118,8 @@ final class DemoStoreSeeder extends Seeder
     }
 
     /**
-     * @param array<string, Category> $categories
-     * @param array<string, Brand> $brands
+     * @param  array<string, Category>  $categories
+     * @param  array<string, Brand>  $brands
      * @return array<int, Product>
      */
     private function seedProducts(array $categories, array $brands): array
