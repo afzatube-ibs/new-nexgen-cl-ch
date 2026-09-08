@@ -240,10 +240,21 @@ jobs:
             const zeroStockBody = await page.locator('body').innerText();
             requireText(zeroStockBody, 'WarmSteps Baby Socks Set', 'Zero-stock PDP');
             requireText(zeroStockBody, 'Out of stock', 'Zero-stock PDP');
-            const addButton = page.getByRole('button', { name: /add to cart/i }).first();
-            const buyButton = page.getByRole('button', { name: /buy now/i }).first();
-            if (!(await addButton.isDisabled())) throw new Error('Zero-stock Add to cart is not disabled');
-            if (!(await buyButton.isDisabled())) throw new Error('Zero-stock Buy now is not disabled');
+
+            // Disabled purchase controls intentionally change their visible and
+            // accessible label to the real disabled reason. Prove every
+            // out-of-stock purchase affordance is non-interactive instead of
+            // searching for the labels used only while a product is sellable.
+            const blockedPurchaseControls = page.locator('button[title="Out of stock"]');
+            const blockedCount = await blockedPurchaseControls.count();
+            if (blockedCount < 2) throw new Error(`Expected at least two out-of-stock purchase controls, found ${blockedCount}`);
+            for (let index = 0; index < blockedCount; index += 1) {
+              if (!(await blockedPurchaseControls.nth(index).isDisabled())) {
+                throw new Error(`Out-of-stock purchase control ${index + 1} is not disabled`);
+              }
+            }
+            forbidText(zeroStockBody, 'Add to cart', 'Zero-stock PDP');
+            forbidText(zeroStockBody, 'Buy now', 'Zero-stock PDP');
             await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-product-out-of-stock.png', fullPage: true });
 
             await page.goto('http://127.0.0.1:3000', { waitUntil: 'networkidle' });
