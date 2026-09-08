@@ -18,20 +18,21 @@ const baseProduct = {
 describe('ProductCard inventory availability', () => {
   it('shows a real in-stock badge for positive Inventory availability', () => {
     render(<ProductCard product={{ ...baseProduct, availability: { isAvailable: true } }} href="/products/p1" />);
-    expect(screen.getByText('In Stock')).toBeInTheDocument();
-    expect(screen.getByText('COD available')).toBeInTheDocument();
+    expect(screen.getByText('In Stock')).not.toBeNull();
+    expect(screen.getByText('COD available')).not.toBeNull();
   });
 
   it('shows out-of-stock, blocks quick add, and does not advertise COD for an unsellable item', () => {
     render(<ProductCard product={{ ...baseProduct, availability: { isAvailable: false } }} href="/products/p1" />);
-    expect(screen.getByText('Out of stock')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Widget — Out of stock' })).toBeDisabled();
-    expect(screen.queryByText('COD available')).not.toBeInTheDocument();
+    expect(screen.getByText('Out of stock')).not.toBeNull();
+    const blockedButton = screen.getByRole('button', { name: 'Widget — Out of stock' }) as HTMLButtonElement;
+    expect(blockedButton.disabled).toBe(true);
+    expect(screen.queryByText('COD available')).toBeNull();
   });
 
   it('makes no stock claim when Inventory is unknown', () => {
     render(<ProductCard product={{ ...baseProduct, availability: null }} href="/products/p1" />);
-    expect(screen.queryByText('In Stock')).not.toBeInTheDocument();
-    expect(screen.queryByText('Out of stock')).not.toBeInTheDocument();
+    expect(screen.queryByText('In Stock')).toBeNull();
+    expect(screen.queryByText('Out of stock')).toBeNull();
   });
 });
