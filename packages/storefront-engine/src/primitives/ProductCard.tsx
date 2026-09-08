@@ -81,7 +81,7 @@ export function ProductCard({ product, href, brandName, price, compareAtPrice }:
         {brandName && <p className="text-caption uppercase tracking-wide text-text-secondary">{brandName}</p>}
         <p className="line-clamp-2 text-body-strong text-text-primary">{product.name}</p>
         <PriceBlock price={price} compareAtPrice={compareAtPrice} className="mt-auto pt-1" />
-        <CodAvailableBadge />
+        {product.availability?.isAvailable !== false && <CodAvailableBadge />}
       </Link>
     </div>
   );
