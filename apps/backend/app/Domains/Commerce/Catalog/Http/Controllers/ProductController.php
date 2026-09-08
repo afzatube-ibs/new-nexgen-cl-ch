@@ -37,7 +37,11 @@ final class ProductController
 
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Product::query()->orderBy('name');
+        // Product list responses are customer-facing inputs to homepage,
+        // category, brand and search-adjacent Storefront compositions. Keep
+        // their relationship shape consistent with `show()` so primary media,
+        // categories and variants are not silently dropped in list context.
+        $query = Product::query()->with(self::EAGER_LOAD)->orderBy('name');
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
