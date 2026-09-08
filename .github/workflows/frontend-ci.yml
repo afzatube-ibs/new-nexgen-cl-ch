@@ -1,0 +1,32 @@
+name: frontend-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gateway-and-storefront-engine:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Clean Node install
+        run: npm ci
+
+      - name: Gateway typecheck and tests
+        run: |
+          npm run typecheck -w apps/store-api-gateway
+          npm run test -w apps/store-api-gateway
+
+      - name: Storefront engine typecheck and tests
+        run: |
+          npm run typecheck -w packages/storefront-engine
+          npm run test -w packages/storefront-engine
