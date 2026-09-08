@@ -31,5 +31,10 @@
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "4.62.4",
     "@rollup/rollup-linux-x64-musl": "4.62.4"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.23"
+    }
   }
 }
