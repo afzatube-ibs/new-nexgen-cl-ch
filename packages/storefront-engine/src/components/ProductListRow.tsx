@@ -6,12 +6,6 @@ import { StockBadge } from './StockBadge.js';
 import type { ProductSummary } from '../gateway/types.js';
 import type { Money } from './PriceBlock.js';
 
-/**
- * Store Components library — the Category page's own "List view" row
- * (this milestone's own "Grid/List toggle" build item). A real,
- * independent layout, not `ProductCard` squeezed sideways — the same
- * honest data contract (`StockBadge`/`PriceBlock`, real gaps included).
- */
 export interface ProductListRowProps {
   product: ProductSummary;
   href: string;
@@ -43,7 +37,7 @@ export function ProductListRow({ product, href, brandName, price, compareAtPrice
         {product.shortDescription && <p className="line-clamp-1 text-caption text-text-secondary">{product.shortDescription}</p>}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <StockBadge status={product.status} />
+        <StockBadge status={product.status} isAvailable={product.availability?.isAvailable ?? null} />
         <PriceBlock price={price} compareAtPrice={compareAtPrice} />
       </div>
     </Link>
