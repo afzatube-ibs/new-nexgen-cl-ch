@@ -5,15 +5,12 @@ import { PackageSearch, ShieldCheck, Truck as TruckIcon } from 'lucide-react';
 import {
   Breadcrumb,
   CodAvailableBadge,
-  CourierBadge,
   GatewayRequestError,
-  PaymentMethodsRow,
   PriceBlock,
   ProductGallery,
   ProductGrid,
   QASection,
   RatingSummary,
-  REAL_BACKEND_PAYMENT_METHODS,
   RecentlyViewedRail,
   ReviewList,
   SectionHeader,
@@ -30,15 +27,12 @@ import {
   getReviews,
   getReviewSummary,
   toMoney,
-  type CourierId,
 } from '@nexgen/storefront-engine';
 import { AddToCartButton, BuyNowButton, ReviewForm } from '@nexgen/storefront-engine/client';
 import { Badge, Text } from '@nexgen/ui';
 import { ShareButton } from '@/components/ShareButton';
 import { ViewTracker } from '@/components/ViewTracker';
 import { categoryHref, productHref } from '@/lib/hrefs';
-
-const REAL_COURIERS: CourierId[] = ['pathao', 'steadfast', 'redx', 'paperfly', 'sundarban'];
 
 interface PageProps {
   params: Promise<{ idSlug: string }>;
@@ -66,201 +60,33 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 /**
- * Product Detail archetype (`CUSTOMER_EXPERIENCE_ARCHITECTURE.md` §5) —
- * composed directly here rather than through the generic Section engine
- * (`engine/renderSections.ts`), a deliberate choice: that engine earns its
- * keep for a *repeated, swappable-per-theme* arrangement of primitives
- * (Home/Category/Brand's own grids); a single Product Detail page's own
- * gallery+description+meta layout is not itself a list of interchangeable
- * Sections in this milestone (no CMS-authored product page content exists
- * to arrange yet) — real, honest composition now, not a forced abstraction
- * for a case this milestone doesn't actually have two ways to arrange.
- *
- * **Experience Polish Sprint 1, Pack 5 — "PDP Polish"** (on top of Beta
- * Experience Pack 1's own v3 Buy Box), per
- * `EXPERIENCE_POLISH_SPRINT_1_IMPLEMENTATION_ROADMAP.md` and
- * `NEXGEN_STOREFRONT_DESIGN_DNA.md` §2's choice-architecture principle —
- * every change below is presentation/composition only; no business logic,
- * cart mechanism, Buy Now flow, checkout flow, Gateway call, or
- * recommendation algorithm changed:
- * - **5.1 — CTA hierarchy**: `BuyNowButton` now renders first and carries
- *   `Button`'s own default `primary` (dominant) treatment; `AddToCartButton`
- *   follows with `emphasis="secondary"` — exactly one dominant purchase
- *   action per `NEXGEN_STOREFRONT_DESIGN_DNA.md` §15 rule #3, fixing the
- *   "two equal-weight buttons" friction named in
- *   `EXPERIENCE_POLISH_SPRINT_1_AUDIT.md` item 19.
- * - **5.2 — Stock prominence**: `StockBadge` moved from above the price to
- *   immediately above the CTA row — the real, existing signal now sits
- *   where it's actually decision-relevant, right before the buy decision.
- * - **5.3 — Visual rhythm**: the info column is now three explicit bands —
- *   **Decide** (identity, price, stock, the two real CTAs, COD), **Reassure**
- *   (trust badges, payment methods, couriers, the honest "more ways to buy"
- *   state, share), **Learn** (category context, description, FAQ/shipping/
- *   returns disclosures) — separated by a real `border-t` rule and spacing
- *   change, not just an unbroken column, per
- *   `NEXGEN_STOREFRONT_DESIGN_DNA.md` §2's "choice architecture" and §6's
- *   "Decide → Reassure → Learn" rhythm.
- * - **5.4 — Honest placeholder refinement**: the "More ways to buy" state
- *   now uses the same dashed-border, muted-surface treatment this
- *   platform's own `PromoCodePlaceholder` already established for a
- *   deliberate "coming soon" state — reads as intentional, not as an
- *   unfinished feature. Copy and meaning unchanged.
- * - **5.5 — see `StickyMobileBuyBar.tsx`'s own docblock** — Buy Now now
- *   reaches the sticky mobile bar too.
- *
- * **Experience Polish Sprint 1, Pack 5.5 — "PDP Premium Refinement"**
- * (a distinct follow-up sub-pack, not roadmap item 5.5 above) — a
- * presentation-only pass on top of Pack 5, per the Product Owner's own
- * "transform into a premium, high-converting experience, remaining
- * completely truthful" direction. No business rule, cart mechanism, Buy
- * Now flow, checkout flow, or Gateway call changed:
- * - The **Decide** band is now a real, boxed "Buy Box" card
- *   (`rounded-xl border shadow-elevation-1`) — a distinct, elevated
- *   surface beside the gallery, the clear focal point of the page, per
- *   `NEXGEN_STOREFRONT_DESIGN_DNA.md` §4's "premium" personality trait.
- * - `BuyNowButton` and `AddToCartButton` now share the exact same
- *   `size="lg"` height — a real, previously-unnoticed mismatch (Buy Now
- *   had no `size` prop at all and always rendered 4px shorter than Add to
- *   Cart) is fixed (`BuyNowButton.tsx`'s own docblock).
- * - `ProductGallery`'s main image and thumbnails, the trust card, and the
- *   "more ways to buy" placeholder all now share one consistent
- *   `rounded-xl`/`rounded-lg` corner language with the new Buy Box card
- *   and `ProductCard` v4, plus a resting elevation shadow on the gallery
- *   ("product photography on a pedestal," `NEXGEN_STOREFRONT_DESIGN_DNA.md`
- *   §1.1's Apple/Shopify reference).
- * - `PaymentMethodBadge`/`CourierBadge` (shared components, also used in
- *   `StoreFooter`) now lead with a small, honest, **generic category
- *   icon** (cash / mobile financial service / secure gateway / bank /
- *   delivery truck) — never a brand mark, never implying more integration
- *   than the label itself already claims.
- * - Gallery-to-info-column spacing increased (`lg:gap-12`) for more
- *   generous whitespace, and the Reassure band's redundant top rule was
- *   removed now that the Buy Box's own card edge already separates it.
- *
- * A field-by-field accounting of the v2 brief's own checklist, against
- * what the real Gateway `ProductDetail` actually carries:
- * - Gallery/Zoom/Thumbnail rail/Sticky image ✅ `ProductGallery`.
- * - Sticky buy section ✅ (`lg:sticky` on the info column — "buy" itself
- *   is Checkout, out of this milestone's scope; this is the info column
- *   staying in view while the gallery/description scroll).
- * - Breadcrumb ✅ `Breadcrumb`, built from `product.categories` (real).
- * - Brand ✅ resolved via `getBrand(product.brandId)` when present — the
- *   Gateway returns only the id on `ProductDetail`, same as `ProductCard`.
- * - Category ✅ `product.categories` (real, already on `ProductDetail`).
- * - SKU ✅ real. Availability ✅ `StockBadge` (see its own docblock for
- *   the real publish-state-vs-true-stock gap).
- * - Description ✅ real. **Specifications/Features** ❌ — the real
- *   `ProductDetail` has no attribute-value/specification field at all
- *   (Milestone 1's own scope: General+SEO fields only, confirmed against
- *   `gateway/types.ts`) — not rendered, named in
- *   `MISSING_ECOMMERCE_FEATURES_AUDIT.md`, not faked with empty rows.
- * - Downloads ❌ no such field/backend exists — omitted.
- * - Related Products / Recommended ✅ real, via `getRecommendations`
- *   (Gateway Slice 1.5, `related`/`recommended` slots — see that client's
- *   own docblock for exactly which real algorithm backs each today).
- * - Recently Viewed ❌ the Gateway's own `recently-viewed` slot is
- *   honestly empty today (no CDP view-history wiring) — not rendered
- *   rather than shown as a permanently-empty section.
- * - Cross-sell/Upsell ❌ no distinct real signal exists beyond what
- *   `related`/`recommended` already surface — not duplicated under a
- *   different label.
- * - FAQ/Shipping/Return ✅ real, working, keyboard-accessible native
- *   `<details>` disclosures — generic informational copy, not a
- *   fabricated claim about this store's own real policy (no Store
- *   Settings/policy backend exists yet, same honest-generic treatment as
- *   `TrustBar`'s own default items).
- * - Share ✅ real, fully functional (`ShareButton` — Web Share API with a
- *   real clipboard-copy fallback, not a backend-dependent feature).
- * - Structured Data ✅ `buildProductSchema`/`buildBreadcrumbSchema`
- *   (unchanged from Milestone 1). Image optimization ✅ `next/image`
- *   throughout (`ProductGallery`).
- * - **No price shown by default** — `PriceBlock`'s own honest empty
- *   state ("Price coming soon" as of Pack 2), since the Gateway still has
- *   no pricing route.
- *
- * Deliberately does not forward the request's Cookie header — see
- * `app/page.tsx`'s own docblock for why.
- *
- * **Beta Milestone 2.5 additions**: `StickyMobileBuyBar` (real, mobile-
- * only, keeps price/stock/a real inert Add-to-cart in thumb reach —
- * `pb-20 lg:pb-0` on this page's own root reserves the space it occupies
- * so it never overlaps the FAQ disclosures), `RecentlyViewedRail` (real,
- * `localStorage`-backed, excludes this product), `ViewTracker` (records
- * this real view), fullscreen gallery zoom (`ProductGallery.tsx`'s own
- * docblock), and `BackToTop`.
- *
- * **Beta Milestone 2.6 additions** — Commerce Readiness Layer, "Review
- * Foundation" and "Shipping Presentation" areas wired live:
- * - `ShippingCalculator` ✅ real working form nested inside the existing
- *   "Shipping information" disclosure — submitting shows an honest "not
- *   available yet" result (`Newsletter.tsx`'s own established pattern),
- *   never a fabricated shipping cost.
- * - **Deliberately not wired here**: `VariantSelector` (`ProductDetail`
- *   carries no variant data at all yet), real per-product delivery
- *   estimates/urgency counts (no real per-SKU inventory-count or
- *   order-velocity data is composed to the Storefront yet — inventing
- *   either would violate `NEXGEN_STOREFRONT_DESIGN_DNA.md` §0's
- *   anti-fabrication refusal).
- *
- * **Production Completion Plan v2, Milestone 11 (Reviews Foundation) —
- * real reviews now wired, replacing Beta Milestone 2.6's honestly-empty
- * placeholder**: `RatingSummary`/`ReviewList` render the real
- * `getReviewSummary`/`getReviews` composition (approved reviews only,
- * per the Gateway's own `routes/reviews.ts` docblock) — a genuinely
- * unreviewed product still shows the identical honest "No reviews yet"
- * empty state these components always had, now backed by a real,
- * verified absence of data rather than a hardcoded one. `ReviewForm`
- * (`@nexgen/storefront-engine/client`) is the real submission path,
- * customer-authenticated only — deliberately never gated by a
- * server-computed "is this visitor signed in" prop here, since reading
- * the session cookie on this route would force the whole PDP out of
- * static generation (see `app/page.tsx`'s own "deliberately does not
- * forward the incoming request's Cookie header" rule, which applies
- * identically here). `ReviewForm` itself discovers a signed-out caller
- * from its own submission attempt's real 401 response and switches to a
- * "sign in to review" prompt at that point — the PDP itself stays fully
- * cacheable. `QASection` is left
- * exactly as Beta Milestone 2.6 shipped it (`questions={[]}`): no Q&A
- * backend exists anywhere in this platform, and Reviews Foundation's own
- * scope is ratings/reviews only, never conflated with a distinct,
- * unbuilt Q&A capability. `ReviewFilters`/`ReviewSort` remain unwired for
- * the same reason as before — real data now exists, but adding
- * client-side filter/sort state to this Server Component page is a
- * separate, deliberately-scoped follow-up, not silently bundled into
- * this milestone's own backend-and-submission-path objective.
- *
- * **Beta Sprint 3 — Cart Engine**: a real `AddToCartButton` sits in the
- * desktop info column and `StickyMobileBuyBar` takes the real
- * `productId`/`name`/`href`/`imageSrc` it needs to add a real line.
- * `unitPrice` is passed as `null` — this page still fetches no
- * `price`/`compareAtPrice` at all (no Gateway pricing route exists), so
- * the cart line is honestly priceless, exactly like `PriceBlock`'s own
- * empty state above it.
+ * Product detail composition backed only by current Gateway data. Provider,
+ * courier, inventory, shipping-coverage, and return-policy claims are not
+ * inferred from platform capability; customer-facing specifics appear only
+ * where the Storefront has authoritative data for them.
  */
 export default async function ProductPage({ params }: PageProps) {
   const { idSlug } = await params;
   const product = await loadProduct(idSlug);
-
   const emptyReviewSummary = { averageRating: null, totalCount: 0, distribution: [] };
 
   const [brand, related, recommended, reviewsResult, reviewSummary] = await Promise.all([
     product.brandId ? getBrand(product.brandId).catch(() => null) : Promise.resolve(null),
     getRecommendations({ slot: 'related', productId: product.id, limit: 8 }, { revalidateSeconds: 180 }),
     getRecommendations({ slot: 'recommended', productId: product.id, limit: 8 }, { revalidateSeconds: 300 }),
-    // Fails open to an honest empty list, never taking down the whole PDP —
-    // the same "a struggling secondary read must never break primary
-    // browsing" discipline `composition/pricing.ts`'s own docblock
-    // established for Pricing, applied here to Reviews.
     getReviews(product.id, { revalidateSeconds: 60 }).catch(() => ({ data: [], pagination: undefined })),
     getReviewSummary(product.id, { revalidateSeconds: 60 }).catch(() => emptyReviewSummary),
   ]);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
   const productUrl = `${siteUrl}/products/${idSlug}`;
-  const breadcrumbItems = [{ name: 'Home', url: siteUrl }, ...product.categories.map((category) => ({ name: category.name, url: `${siteUrl}${categoryHref(category)}` })), { name: product.name, url: productUrl }];
+  const breadcrumbItems = [
+    { name: 'Home', url: siteUrl },
+    ...product.categories.map((category) => ({ name: category.name, url: `${siteUrl}${categoryHref(category)}` })),
+    { name: product.name, url: productUrl },
+  ];
   const breadcrumbSchema = buildBreadcrumbSchema(breadcrumbItems);
   const productSchema = buildProductSchema(product, productUrl);
-
   const galleryImages = product.images.length > 0 ? product.images : product.image ? [product.image] : [];
   const { price, compareAtPrice } = toMoney(product.price);
 
@@ -270,13 +96,18 @@ export default async function ProductPage({ params }: PageProps) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }} />
       <ViewTracker id={product.id} name={product.name} href={productUrl.replace(siteUrl, '')} imageSrc={product.image?.src ?? null} />
 
-      <Breadcrumb items={[{ label: 'Home', href: '/' }, ...product.categories.map((category) => ({ label: category.name, href: categoryHref(category) })), { label: product.name }]} />
+      <Breadcrumb
+        items={[
+          { label: 'Home', href: '/' },
+          ...product.categories.map((category) => ({ label: category.name, href: categoryHref(category) })),
+          { label: product.name },
+        ]}
+      />
 
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start lg:gap-12">
         <ProductGallery images={galleryImages} productName={product.name} />
 
         <div className="flex flex-col gap-6 lg:sticky lg:top-20">
-          {/* Decide — the Buy Box itself, boxed as its own distinct, premium surface so it reads as the page's clear focal point (Experience Polish Sprint 1, Pack 5.5) — identity, price, stock, the two real purchase actions, and the one immediate reassurance (COD), in the order a shopper actually needs them. */}
           <div className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-6 shadow-elevation-1">
             <div>
               {brand && (
@@ -293,7 +124,6 @@ export default async function ProductPage({ params }: PageProps) {
             </div>
 
             <PriceBlock size="lg" price={price} compareAtPrice={compareAtPrice} />
-
             {product.shortDescription && <Text variant="body-strong">{product.shortDescription}</Text>}
 
             <div className="flex items-center gap-3">
@@ -333,29 +163,18 @@ export default async function ProductPage({ params }: PageProps) {
             <CodAvailableBadge />
           </div>
 
-          {/* Reassure — real trust, payment, and delivery signals, plus the honest "not built yet" state, all grounded in real backend capability. Flows directly beneath the boxed Buy Box — its own card edge above already separates it, so no extra rule is needed here. */}
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 rounded-xl border border-border p-5">
-              <TrustBadge icon={ShieldCheck} label="Secure payments" description="Your payment details stay protected" />
-              <TrustBadge icon={TruckIcon} label="Nationwide delivery" description="Shipped across Bangladesh" />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Text as="p" variant="caption" className="font-medium uppercase tracking-wide text-text-secondary">
-                Payment methods
-              </Text>
-              <PaymentMethodsRow methods={REAL_BACKEND_PAYMENT_METHODS} />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Text as="p" variant="caption" className="font-medium uppercase tracking-wide text-text-secondary">
-                Delivery partners
-              </Text>
-              <div className="flex flex-wrap gap-1.5">
-                {REAL_COURIERS.map((courier) => (
-                  <CourierBadge key={courier} courier={courier} />
-                ))}
-              </div>
+              <TrustBadge
+                icon={ShieldCheck}
+                label="Payment options"
+                description="Available methods are confirmed at checkout"
+              />
+              <TrustBadge
+                icon={TruckIcon}
+                label="Delivery options"
+                description="Rates and availability are confirmed at checkout"
+              />
             </div>
 
             <div className="flex flex-col gap-2 rounded-xl border border-dashed border-border bg-surface-subtle p-4">
@@ -377,7 +196,6 @@ export default async function ProductPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Learn — context and detail for a shopper who wants more before or after deciding; never blocks the decide-stage content above it. */}
           <div className="flex flex-col gap-4 border-t border-border pt-8">
             {product.categories.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -403,27 +221,29 @@ export default async function ProductPage({ params }: PageProps) {
                 </summary>
                 <div className="mt-2 flex flex-col gap-3">
                   <Text as="p" variant="body" className="text-text-secondary">
-                    General shipping information — delivery windows and rates vary by destination and are confirmed at checkout.
+                    Delivery options, rates and availability depend on the destination and are calculated during checkout.
                   </Text>
                   <ShippingCalculator />
                 </div>
               </details>
+
               <details className="group py-3">
                 <summary className="flex cursor-pointer list-none items-center justify-between text-body-strong text-text-primary">
                   Returns
                   <span className="text-text-secondary transition-transform group-open:rotate-180">⌄</span>
                 </summary>
                 <Text as="p" variant="body" className="mt-2 text-text-secondary">
-                  General return information — eligibility and windows vary by item and are confirmed at checkout.
+                  Return policy details are not published for this store yet. Contact the store before ordering if you need return information.
                 </Text>
               </details>
+
               <details className="group py-3">
                 <summary className="flex cursor-pointer list-none items-center justify-between text-body-strong text-text-primary">
                   Questions about this product?
                   <span className="text-text-secondary transition-transform group-open:rotate-180">⌄</span>
                 </summary>
                 <Text as="p" variant="body" className="mt-2 text-text-secondary">
-                  Reach out to customer support for help before you buy.
+                  Use the store contact details if you need product information before ordering.
                 </Text>
               </details>
             </div>
@@ -431,16 +251,18 @@ export default async function ProductPage({ params }: PageProps) {
         </div>
       </div>
 
-      {related.length > 0 && (
-        <ProductGrid products={related} buildHref={productHref} columns={4} heading="Related products" />
-      )}
+      {related.length > 0 && <ProductGrid products={related} buildHref={productHref} columns={4} heading="Related products" />}
       {recommended.length > 0 && (
         <ProductGrid products={recommended} buildHref={productHref} columns={4} heading="You may also like" />
       )}
 
       <div className="flex flex-col gap-6">
         <SectionHeader eyebrow="Reviews" heading="Ratings & reviews" />
-        <RatingSummary averageRating={reviewSummary.averageRating} totalCount={reviewSummary.totalCount} distribution={reviewSummary.distribution} />
+        <RatingSummary
+          averageRating={reviewSummary.averageRating}
+          totalCount={reviewSummary.totalCount}
+          distribution={reviewSummary.distribution}
+        />
         <ReviewList reviews={reviewsResult.data} />
         <ReviewForm productId={product.id} className="max-w-xl" />
       </div>
