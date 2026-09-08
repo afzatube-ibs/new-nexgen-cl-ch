@@ -165,6 +165,10 @@ jobs:
             if (!body.includes(text)) throw new Error(`${surface} missing required text: ${text}`);
           }
 
+          function forbidText(body, text, surface) {
+            if (body.includes(text)) throw new Error(`${surface} contains unsupported claim: ${text}`);
+          }
+
           (async () => {
             const browser = await chromium.launch({ headless: true });
             const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
@@ -187,6 +191,8 @@ jobs:
             requireText(homeBody, 'Baobaohao A10 Baby Stroller', 'Homepage');
             requireText(homeBody, 'Strollers', 'Homepage');
             requireText(homeBody, 'Featured baby essentials', 'Homepage');
+            forbidText(homeBody, 'In Stock', 'Homepage');
+            forbidText(homeBody, 'Nationwide shipping across Bangladesh', 'Homepage');
             const productLinks = page.locator('a[href^="/products/"]');
             const categoryLinks = page.locator('a[href^="/categories/"]');
             if ((await productLinks.count()) < 1) throw new Error('Homepage rendered no real product links');
@@ -200,6 +206,20 @@ jobs:
             if (!response || response.status() !== 200) throw new Error(`PDP returned ${response?.status()}`);
             const productBody = await page.locator('body').innerText();
             requireText(productBody, 'Baobaohao A10 Baby Stroller', 'PDP');
+            requireText(productBody, 'Payment options', 'PDP');
+            requireText(productBody, 'Delivery options', 'PDP');
+            for (const forbidden of [
+              'In Stock',
+              'Nationwide delivery',
+              'bKash',
+              'Nagad',
+              'SSLCommerz',
+              'Pathao',
+              'Steadfast',
+              'RedX',
+              'Paperfly',
+              'Sundarban Courier',
+            ]) forbidText(productBody, forbidden, 'PDP');
             await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-product.png', fullPage: true });
 
             await page.goto('http://127.0.0.1:3000', { waitUntil: 'networkidle' });
@@ -211,6 +231,9 @@ jobs:
             const categoryBody = await page.locator('body').innerText();
             requireText(categoryBody, 'Strollers', 'Category page');
             requireText(categoryBody, 'Baobaohao A10 Baby Stroller', 'Category page');
+            forbidText(categoryBody, 'New arrivals added every week.', 'Category page');
+            forbidText(categoryBody, 'Recommended for you', 'Category page');
+            forbidText(categoryBody, 'In Stock', 'Category page');
             await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-category.png', fullPage: true });
 
             console.log('BROWSER_CONSOLE_ERRORS', JSON.stringify(consoleErrors));
