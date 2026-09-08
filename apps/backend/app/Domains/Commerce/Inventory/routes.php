@@ -46,6 +46,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function ():
     Route::post('stock-transfers/{stockTransfer}/cancel', [StockTransferController::class, 'cancel'])->middleware('permission:inventory.transfers.manage')->name('v1.stock-transfers.cancel');
 
     // --- Availability ---
+    Route::get('inventory/availability/batch', [AvailabilityController::class, 'batch'])->middleware('permission:inventory.stock.view')->name('v1.inventory.availability.batch');
     Route::get('inventory/availability', [AvailabilityController::class, 'show'])->middleware('permission:inventory.stock.view')->name('v1.inventory.availability');
 
     // --- Audit Log ---
