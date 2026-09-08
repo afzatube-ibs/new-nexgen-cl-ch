@@ -28,6 +28,7 @@ class ServiceAccountRoleSeeder extends Seeder
             'appearance.branding.view',
             'cms.published.view',
             'pricing.lookup.view',
+            'inventory.stock.view',
             'reviews.reviews.view',
         ]);
 
