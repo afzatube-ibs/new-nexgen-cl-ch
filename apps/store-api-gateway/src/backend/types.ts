@@ -139,6 +139,7 @@ export interface BackendPriceListEntry {
  * must never assume a shape it hasn't verified against a real response.
  */
 export interface BackendPaginationMeta {
+  [key: string]: number | undefined;
   current_page?: number;
   currentPage?: number;
   last_page?: number;
