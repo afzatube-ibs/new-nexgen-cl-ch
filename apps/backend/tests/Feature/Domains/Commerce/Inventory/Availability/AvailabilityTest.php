@@ -24,7 +24,7 @@ it('sums availability for a sku across active warehouses', function () {
 });
 
 it('returns real aggregate availability for many skus in one request', function () {
-    $caller = userWithPermissions(['inventory.stock.view']);
+    $caller = userWithPermissions(['inventory.availability.view']);
     $warehouseA = Warehouse::factory()->create();
     $warehouseB = Warehouse::factory()->create();
     $archivedWarehouse = Warehouse::factory()->archived()->create();
@@ -49,8 +49,8 @@ it('returns real aggregate availability for many skus in one request', function 
         ->assertJsonPath('data.2.isAvailable', false);
 });
 
-it('requires inventory stock view permission for batched availability', function () {
-    $caller = userWithPermissions([]);
+it('requires the dedicated aggregate availability permission for batched availability', function () {
+    $caller = userWithPermissions(['inventory.stock.view']);
 
     $this->actingAs($caller, 'sanctum')
         ->getJson('/api/v1/inventory/availability-many?skus=SKU-1')
