@@ -13,16 +13,15 @@
  *
  * This module owns NO business logic — Rules §1: "Gateway orchestrates.
  * Commerce owns business logic." It only knows how to call the real
- * Catalog/Search/CMS read endpoints and shape their response envelopes;
- * every commerce or publishing decision remains entirely the real backend's
- * own.
+ * backend's read endpoints and shape their response envelopes; every
+ * commerce or publishing decision remains entirely the backend's own.
  */
 import type { FastifyBaseLogger } from 'fastify';
 import { CircuitBreaker } from '../lib/circuitBreaker.js';
 import { BackendUpstreamError } from '../lib/errors.js';
 import type { BackendItemResponse, BackendListResponse } from './types.js';
 
-export type BackendModule = 'catalog' | 'search' | 'branding' | 'pricing' | 'reviews' | 'cms';
+export type BackendModule = 'catalog' | 'search' | 'branding' | 'pricing' | 'inventory' | 'reviews' | 'cms';
 
 export interface BackendClientOptions {
   baseUrl: string;
