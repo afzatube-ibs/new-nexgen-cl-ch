@@ -12,6 +12,7 @@ export * from './gateway/errors.js';
 export * from './gateway/client.js';
 export * from './gateway/catalog.js';
 export * from './gateway/content.js';
+export * from './gateway/inventory.js';
 export * from './gateway/recommendations.js';
 export * from './gateway/customerAuth.js';
 export * from './gateway/reviews.js';
