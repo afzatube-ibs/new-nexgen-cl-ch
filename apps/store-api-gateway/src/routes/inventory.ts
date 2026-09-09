@@ -9,8 +9,8 @@ const querySchema = z.object({
 
 /**
  * Shopper-safe Inventory read. The backend service token remains entirely
- * inside the Gateway and the response intentionally exposes only aggregate
- * sellable quantity, never warehouse identities or operational stock detail.
+ * inside the Gateway. Exact quantities and warehouse detail stay internal;
+ * shoppers receive only a tri-state availability signal.
  */
 export function registerInventoryRoutes(app: FastifyInstance, services: GatewayServices, prefix: string): void {
   app.get(`${prefix}/inventory/availability`, async (request) => {
@@ -24,10 +24,13 @@ export function registerInventoryRoutes(app: FastifyInstance, services: GatewayS
     const availability = await fetchComposedAvailability(services.backend, skus, request.id, request.log);
 
     return {
-      data: skus.map((sku) => ({
-        sku,
-        totalAvailable: availability.get(sku)?.totalAvailable ?? null,
-      })),
+      data: skus.map((sku) => {
+        const item = availability.get(sku);
+        return {
+          sku,
+          isAvailable: item ? item.totalAvailable > 0 : null,
+        };
+      }),
       meta: { requestId: request.id },
     };
   });
