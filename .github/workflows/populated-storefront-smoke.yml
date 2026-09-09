@@ -77,15 +77,21 @@ jobs:
           php artisan migrate:fresh --seed --force
           php artisan db:seed --class=DemoStoreSeeder --force
           php artisan storage:link
-          php artisan identity-access:create-service-account storefront-service > /tmp/storefront-token.txt
-          php artisan identity-access:create-service-account checkout-service > /tmp/checkout-token.txt
-          awk '/^[0-9]+\|/{print; exit}' /tmp/storefront-token.txt > /tmp/storefront-token-value.txt
-          awk '/^[0-9]+\|/{print; exit}' /tmp/checkout-token.txt > /tmp/checkout-token-value.txt
+
+          # Preserve the normal demo seeder's useful positive inventory while
+          # forcing one disposable SKU to zero so browser evidence proves both
+          # Inventory-backed states in the exact same storefront run.
+          php artisan tinker --execute="\\App\\Domains\\Commerce\\Inventory\\Models\\StockItem::query()->where('sku', 'NX-SOCK-SET')->update(['quantity_on_hand' => 0, 'quantity_reserved' => 0]);"
+
+          php artisan identity-access:create-service-account storefront-service --token-only > /tmp/storefront-token-value.txt
+          php artisan identity-access:create-service-account checkout-service --token-only > /tmp/checkout-token-value.txt
           test -s /tmp/storefront-token-value.txt
           test -s /tmp/checkout-token-value.txt
           php artisan tinker --execute="throw_unless(\\App\\Domains\\Commerce\\Catalog\\Models\\Product::query()->where('status', 'active')->count() >= 6);"
           php artisan tinker --execute="throw_unless(\\App\\Domains\\Commerce\\Pricing\\Models\\PriceList::query()->where('currency_code', 'BDT')->where('is_default', true)->exists());"
           php artisan tinker --execute="throw_unless(\\App\\Domains\\Platform\\Cms\\Models\\CmsPage::query()->where('slug', 'home')->where('status', 'published')->exists());"
+          php artisan tinker --execute="throw_unless(\\App\\Domains\\Commerce\\Inventory\\Models\\StockItem::query()->where('sku', 'NX-A10-GRAY')->firstOrFail()->available() > 0);"
+          php artisan tinker --execute="throw_unless(\\App\\Domains\\Commerce\\Inventory\\Models\\StockItem::query()->where('sku', 'NX-SOCK-SET')->firstOrFail()->available() === 0);"
 
       - name: Configure Bangladesh demo runtime
         shell: bash
@@ -98,8 +104,8 @@ jobs:
             echo "BACKEND_SERVICE_TOKEN=$STORE_TOKEN"
             echo "BACKEND_CHECKOUT_SERVICE_TOKEN=$CHECKOUT_TOKEN"
             echo 'REDIS_URL=redis://127.0.0.1:6379'
-            echo 'GUEST_SESSION_SECRET=gate5-demo-guest-session-secret-1234567890'
-            echo 'PREVIEW_TOKEN_SECRET=gate5-demo-preview-token-secret-1234567890'
+            echo 'GUEST_SESSION_SECRET=gate6-demo-guest-session-secret-1234567890'
+            echo 'PREVIEW_TOKEN_SECRET=gate6-demo-preview-token-secret-1234567890'
             echo 'PUBLIC_BASE_URL=http://127.0.0.1:4000'
             echo 'CORS_ALLOWED_ORIGINS=http://127.0.0.1:3000'
             echo 'DEFAULT_LOCALE=en-BD'
@@ -141,6 +147,8 @@ jobs:
           curl -fsS 'http://127.0.0.1:4000/v1/homepage?currency=BDT' > /tmp/nexgen-demo/homepage.json
           grep -q 'Baobaohao A10 Baby Stroller' /tmp/nexgen-demo/homepage.json
           grep -q '"currencyCode":"BDT"' /tmp/nexgen-demo/homepage.json
+          grep -q '"isAvailable":true' /tmp/nexgen-demo/homepage.json
+          grep -q '"isAvailable":false' /tmp/nexgen-demo/homepage.json
 
       - name: Build and start Storefront
         run: |
@@ -189,9 +197,11 @@ jobs:
             const homeBody = await page.locator('body').innerText();
             requireText(homeBody, 'neXgen Baby Store', 'Homepage');
             requireText(homeBody, 'Baobaohao A10 Baby Stroller', 'Homepage');
+            requireText(homeBody, 'WarmSteps Baby Socks Set', 'Homepage');
             requireText(homeBody, 'Strollers', 'Homepage');
             requireText(homeBody, 'Featured baby essentials', 'Homepage');
-            forbidText(homeBody, 'In Stock', 'Homepage');
+            requireText(homeBody, 'In Stock', 'Homepage');
+            requireText(homeBody, 'Out of stock', 'Homepage');
             forbidText(homeBody, 'Nationwide shipping across Bangladesh', 'Homepage');
             const productLinks = page.locator('a[href^="/products/"]');
             const categoryLinks = page.locator('a[href^="/categories/"]');
@@ -200,16 +210,16 @@ jobs:
             if ((await page.locator('img').count()) < 1) throw new Error('Homepage rendered no real product images');
             await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-populated-home.png', fullPage: true });
 
-            const productHref = await productLinks.first().getAttribute('href');
-            if (!productHref) throw new Error('First product link has no href');
-            response = await page.goto(`http://127.0.0.1:3000${productHref}`, { waitUntil: 'networkidle' });
-            if (!response || response.status() !== 200) throw new Error(`PDP returned ${response?.status()}`);
+            const stockedHref = await page.locator('a[href^="/products/"]', { hasText: 'Baobaohao A10 Baby Stroller - Gray' }).first().getAttribute('href');
+            if (!stockedHref) throw new Error('Stocked stroller link has no href');
+            response = await page.goto(`http://127.0.0.1:3000${stockedHref}`, { waitUntil: 'networkidle' });
+            if (!response || response.status() !== 200) throw new Error(`Stocked PDP returned ${response?.status()}`);
             const productBody = await page.locator('body').innerText();
-            requireText(productBody, 'Baobaohao A10 Baby Stroller', 'PDP');
-            requireText(productBody, 'Payment options', 'PDP');
-            requireText(productBody, 'Delivery options', 'PDP');
+            requireText(productBody, 'Baobaohao A10 Baby Stroller', 'Stocked PDP');
+            requireText(productBody, 'In Stock', 'Stocked PDP');
+            requireText(productBody, 'Payment options', 'Stocked PDP');
+            requireText(productBody, 'Delivery options', 'Stocked PDP');
             for (const forbidden of [
-              'In Stock',
               'Nationwide delivery',
               'bKash',
               'Nagad',
@@ -219,8 +229,33 @@ jobs:
               'RedX',
               'Paperfly',
               'Sundarban Courier',
-            ]) forbidText(productBody, forbidden, 'PDP');
-            await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-product.png', fullPage: true });
+            ]) forbidText(productBody, forbidden, 'Stocked PDP');
+            await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-product-stocked.png', fullPage: true });
+
+            await page.goto('http://127.0.0.1:3000', { waitUntil: 'networkidle' });
+            const zeroStockHref = await page.locator('a[href^="/products/"]', { hasText: 'WarmSteps Baby Socks Set' }).first().getAttribute('href');
+            if (!zeroStockHref) throw new Error('Zero-stock product link has no href');
+            response = await page.goto(`http://127.0.0.1:3000${zeroStockHref}`, { waitUntil: 'networkidle' });
+            if (!response || response.status() !== 200) throw new Error(`Zero-stock PDP returned ${response?.status()}`);
+            const zeroStockBody = await page.locator('body').innerText();
+            requireText(zeroStockBody, 'WarmSteps Baby Socks Set', 'Zero-stock PDP');
+            requireText(zeroStockBody, 'Out of stock', 'Zero-stock PDP');
+
+            // Disabled purchase controls intentionally change their visible and
+            // accessible label to the real disabled reason. Prove every
+            // out-of-stock purchase affordance is non-interactive instead of
+            // searching for the labels used only while a product is sellable.
+            const blockedPurchaseControls = page.locator('button[title="Out of stock"]');
+            const blockedCount = await blockedPurchaseControls.count();
+            if (blockedCount < 2) throw new Error(`Expected at least two out-of-stock purchase controls, found ${blockedCount}`);
+            for (let index = 0; index < blockedCount; index += 1) {
+              if (!(await blockedPurchaseControls.nth(index).isDisabled())) {
+                throw new Error(`Out-of-stock purchase control ${index + 1} is not disabled`);
+              }
+            }
+            forbidText(zeroStockBody, 'Add to cart', 'Zero-stock PDP');
+            forbidText(zeroStockBody, 'Buy now', 'Zero-stock PDP');
+            await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-product-out-of-stock.png', fullPage: true });
 
             await page.goto('http://127.0.0.1:3000', { waitUntil: 'networkidle' });
             const strollersLink = page.locator('a[href^="/categories/"]', { hasText: 'Strollers' }).first();
@@ -231,9 +266,9 @@ jobs:
             const categoryBody = await page.locator('body').innerText();
             requireText(categoryBody, 'Strollers', 'Category page');
             requireText(categoryBody, 'Baobaohao A10 Baby Stroller', 'Category page');
+            requireText(categoryBody, 'In Stock', 'Category page');
             forbidText(categoryBody, 'New arrivals added every week.', 'Category page');
             forbidText(categoryBody, 'Recommended for you', 'Category page');
-            forbidText(categoryBody, 'In Stock', 'Category page');
             await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-category.png', fullPage: true });
 
             console.log('BROWSER_CONSOLE_ERRORS', JSON.stringify(consoleErrors));

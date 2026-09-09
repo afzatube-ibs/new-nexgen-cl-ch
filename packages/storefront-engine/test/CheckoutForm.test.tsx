@@ -8,6 +8,28 @@ import * as checkoutClient from '../src/checkout/checkoutClient.js';
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
+vi.mock('../src/components/AddressSelector.js', () => ({
+  AddressSelector: ({
+    value,
+    onChange,
+  }: {
+    value: { divisionId: string | null; districtId: string | null; upazilaId: string | null };
+    onChange: (value: { divisionId: string | null; districtId: string | null; upazilaId: string | null }) => void;
+  }) => (
+    <label>
+      Division
+      <select
+        aria-label="Division"
+        value={value.divisionId ?? ''}
+        onChange={(event) => onChange({ divisionId: event.target.value || null, districtId: null, upazilaId: null })}
+      >
+        <option value="">Select division</option>
+        <option value="dhaka">Dhaka</option>
+      </select>
+    </label>
+  ),
+}));
+
 const REAL_SHIPPING_OPTION = { id: 'method-1', label: 'Standard Delivery', amount: '60.0000', currencyCode: 'BDT' };
 const AVAILABLE_PAYMENT_METHODS: checkoutClient.CheckoutPaymentMethod[] = [
   { code: 'cod', label: 'Cash on Delivery' },
@@ -15,8 +37,7 @@ const AVAILABLE_PAYMENT_METHODS: checkoutClient.CheckoutPaymentMethod[] = [
 ];
 
 function selectDivision() {
-  fireEvent.click(screen.getByRole('combobox', { name: 'Division' }));
-  fireEvent.click(screen.getByRole('option', { name: 'Dhaka' }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Division' }), { target: { value: 'dhaka' } });
 }
 
 async function waitForPayments() {

@@ -1,10 +1,6 @@
 /**
- * Response shapes this package fetches from the real Store API Gateway
- * (`apps/store-api-gateway`) — a direct mirror of that service's own
- * `src/composition/mappers.ts` / `src/lib/responseEnvelope.ts` output,
- * confirmed by direct code read (not guessed), per this milestone's own
- * "Everything must consume the Gateway" rule. Nothing here invents a field
- * the Gateway does not actually return.
+ * Response shapes fetched from the real Store API Gateway. These mirror the
+ * Gateway contracts directly; no Storefront-only commerce field is invented.
  */
 
 export interface ResponsiveImage {
@@ -44,9 +40,7 @@ export interface CategorySummary {
   slug: string;
   description: string | null;
   image: ResponsiveImage | null;
-  /** Real backend field, added Beta Milestone 2 for mega-menu hierarchy — `null` for a top-level category. */
   parentId: string | null;
-  /** Real backend field (merchant-configured display order) — used for nav/menu ordering. */
   position: number;
 }
 
@@ -58,13 +52,6 @@ export interface BrandSummary {
   logo: ResponsiveImage | null;
 }
 
-/**
- * Real metadata for one Collection. Member-product listing is a separate
- * real call — `getProducts({ collectionId })`, backed by
- * `ProductController::index()`'s own `collection_id` filter (neXgen
- * Production Sprint, Milestone 2 completion) — not carried on this summary
- * itself.
- */
 export interface CollectionSummary {
   id: string;
   name: string;
@@ -72,15 +59,6 @@ export interface CollectionSummary {
   description: string | null;
 }
 
-/**
- * Milestone 2 — field-for-field matched to the real Gateway's own
- * `composition/pricing.ts` `ComposedPrice` — a direct, uncomputed
- * pass-through of the real backend's own resolved `PriceListEntry`.
- * Amounts are real decimal strings (e.g. `"2490.0000"`), never a JSON
- * number, converted to the `Money` (minor-unit) shape `PriceBlock`
- * expects only at the point of rendering (`pricing/toMoney.ts`) — never
- * earlier, and never recomputed.
- */
 export interface ComposedPrice {
   currencyCode: string;
   basePrice: string;
@@ -88,6 +66,10 @@ export interface ComposedPrice {
   salePrice: string | null;
   effectivePrice: string;
   isSaleActive: boolean;
+}
+
+export interface ComposedAvailability {
+  isAvailable: boolean;
 }
 
 export interface ProductSummary {
@@ -100,8 +82,9 @@ export interface ProductSummary {
   visibility: string;
   brandId: string | null;
   image: ResponsiveImage | null;
-  /** Real, composed from Pricing — `null` when no price is configured for this SKU yet (never a fabricated figure). */
   price: ComposedPrice | null;
+  /** Present on current Gateway responses; optional keeps older local/test fixtures safely interpreted as unknown. */
+  availability?: ComposedAvailability | null;
 }
 
 export interface ProductDetail extends ProductSummary {
@@ -114,17 +97,6 @@ export interface ProductDetail extends ProductSummary {
   publishedAt: string | null;
 }
 
-/**
- * Milestone 2 completion — field-for-field matched to the real Gateway's
- * own `composition/mappers.ts` `SearchResultSummary` (itself a direct
- * mirror of the real backend's own `ProductSearchResultResource`, which
- * has no `slug`/`status`/`visibility`/`image`/`shortDescription` field at
- * all — a genuinely narrower shape than `ProductSummary`, not a
- * short-cut). `toProductSummaryFromSearchResult` (below) is the one place
- * this narrower shape becomes a full `ProductSummary` for reuse with the
- * real `ProductGrid`/`ProductCard` primitives, using only real,
- * backend-guaranteed defaults — never a fabricated field.
- */
 export interface SearchResultSummary {
   id: string;
   name: string;
@@ -133,19 +105,9 @@ export interface SearchResultSummary {
   publishedAt: string | null;
   relevanceScore: number | null;
   price: ComposedPrice | null;
+  availability?: ComposedAvailability | null;
 }
 
-/**
- * `status`/`visibility` are not invented here: the real backend's own
- * `Commerce\Search\Actions\SearchProductsAction` hardcodes its index
- * query to `status: [active]` and `visibility: [search, catalog_search]`
- * (confirmed by direct source read) — every real search result is
- * therefore guaranteed to already satisfy both, and asserting that here
- * is a correct inference from a real backend invariant, not a guess.
- * `image`/`shortDescription` are honestly `null` — the real search index
- * genuinely carries neither field yet, and `ProductCard`'s own "No image"
- * state already renders that honestly.
- */
 export function toProductSummaryFromSearchResult(result: SearchResultSummary): ProductSummary {
   return {
     id: result.id,
@@ -158,6 +120,7 @@ export function toProductSummaryFromSearchResult(result: SearchResultSummary): P
     brandId: result.brandId,
     image: null,
     price: result.price,
+    availability: result.availability ?? null,
   };
 }
 
@@ -167,7 +130,6 @@ export interface HomepageData {
   products: ProductSummary[];
 }
 
-/** `GET /v1/branding` (`apps/store-api-gateway/src/routes/branding.ts`) — mirrors that route's own real `StorefrontBranding` shape exactly. */
 export interface StorefrontBranding {
   storeName: string;
   supportEmail: string | null;

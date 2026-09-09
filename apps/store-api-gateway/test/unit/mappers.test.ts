@@ -122,6 +122,7 @@ describe('composition/mappers', () => {
       publishedAt: null,
       relevanceScore: 4.2,
       price: null,
+      availability: null,
     });
   });
 

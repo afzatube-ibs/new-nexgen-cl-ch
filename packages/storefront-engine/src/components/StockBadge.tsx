@@ -1,26 +1,40 @@
 import { Badge } from '@nexgen/ui';
 
 /**
- * Catalog status is not inventory availability. The Storefront currently
- * receives `draft | active | archived` from Catalog but no composed
- * quantity-on-hand signal from Inventory. Showing "In Stock" for `active`
- * therefore overstates what we know.
- *
- * Until a real Catalog↔Inventory availability field is exposed through the
- * Gateway, active products render no stock claim. Non-active products may
- * still render an explicit unavailable state.
+ * Customer-facing stock state. Catalog publish status still controls whether
+ * a product may be sold at all; `isAvailable` comes only from the real
+ * Inventory composition. Unknown Inventory state renders no stock claim.
  */
 export interface StockBadgeProps {
   status: string;
+  isAvailable: boolean | null;
   className?: string;
 }
 
-export function StockBadge({ status, className }: StockBadgeProps) {
-  if (status === 'active') return null;
+export function StockBadge({ status, isAvailable, className }: StockBadgeProps) {
+  if (status !== 'active') {
+    return (
+      <Badge variant="outline" className={className}>
+        Unavailable
+      </Badge>
+    );
+  }
 
-  return (
-    <Badge variant="outline" className={className}>
-      Unavailable
-    </Badge>
-  );
+  if (isAvailable === true) {
+    return (
+      <Badge variant="success" className={className}>
+        In Stock
+      </Badge>
+    );
+  }
+
+  if (isAvailable === false) {
+    return (
+      <Badge variant="outline" className={className}>
+        Out of stock
+      </Badge>
+    );
+  }
+
+  return null;
 }
