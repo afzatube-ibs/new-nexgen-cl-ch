@@ -2,19 +2,19 @@ import { Badge } from '@nexgen/ui';
 
 /**
  * Shopper-facing stock truth. Catalog status remains a publish/lifecycle
- * signal; Inventory's aggregate quantity is the only source allowed to
+ * signal; Inventory's composed tri-state is the only source allowed to
  * produce an in/out-of-stock claim.
  *
- * `totalAvailable === null | undefined` means availability could not be
+ * `isAvailable === null | undefined` means availability could not be
  * resolved, so active products render no stock claim rather than guessing.
  */
 export interface StockBadgeProps {
   status: string;
-  totalAvailable?: number | null;
+  isAvailable?: boolean | null;
   className?: string;
 }
 
-export function StockBadge({ status, totalAvailable, className }: StockBadgeProps) {
+export function StockBadge({ status, isAvailable, className }: StockBadgeProps) {
   if (status !== 'active') {
     return (
       <Badge variant="outline" className={className}>
@@ -23,9 +23,9 @@ export function StockBadge({ status, totalAvailable, className }: StockBadgeProp
     );
   }
 
-  if (totalAvailable === null || totalAvailable === undefined) return null;
+  if (isAvailable === null || isAvailable === undefined) return null;
 
-  if (totalAvailable <= 0) {
+  if (!isAvailable) {
     return (
       <Badge variant="outline" className={className}>
         Out of stock
