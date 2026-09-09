@@ -55,8 +55,10 @@ final class AvailabilityController
             return response()->json(['data' => []]);
         }
 
+        /** @var list<string> $skuList */
+        $skuList = array_values($skus->all());
         /** @var Collection<int, StockItem> $stockItems */
-        $stockItems = $this->stockItemsForSkus($skus->all());
+        $stockItems = $this->stockItemsForSkus($skuList);
         $grouped = $stockItems->groupBy('sku');
 
         return response()->json([
