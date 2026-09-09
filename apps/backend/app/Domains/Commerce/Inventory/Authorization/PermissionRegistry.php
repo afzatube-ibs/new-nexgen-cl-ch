@@ -20,6 +20,7 @@ final class PermissionRegistry
             new PermissionDefinition('inventory.warehouses.view', 'View warehouses', 'inventory'),
             new PermissionDefinition('inventory.warehouses.manage', 'Create, update, archive, delete, and restore warehouses', 'inventory'),
             new PermissionDefinition('inventory.stock.view', 'View stock levels and movement history', 'inventory'),
+            new PermissionDefinition('inventory.availability.view', 'View aggregate sellable availability by SKU', 'inventory'),
             new PermissionDefinition('inventory.stock.manage', 'Adjust stock levels', 'inventory'),
             new PermissionDefinition('inventory.reservations.manage', 'Reserve, release, and commit stock reservations', 'inventory'),
             new PermissionDefinition('inventory.transfers.manage', 'Initiate, complete, and cancel stock transfers', 'inventory'),
