@@ -43,6 +43,7 @@ import { registerEventRoutes } from './routes/events.js';
 import { registerRecommendationRoutes } from './routes/recommendations.js';
 import { registerPreviewRoutes } from './routes/preview.js';
 import { registerCheckoutRoutes } from './routes/checkout.js';
+import { registerInventoryRoutes } from './routes/inventory.js';
 import { registerOrderLookupRoutes, registerCustomerOrderRoutes } from './routes/orders.js';
 import { registerCustomerRoutes } from './routes/customers.js';
 import { registerReviewRoutes } from './routes/reviews.js';
@@ -166,6 +167,7 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
     registerRecommendationRoutes(versionedApp, prefix, env);
     registerPreviewRoutes(versionedApp, prefix);
     registerCheckoutRoutes(versionedApp, services.checkoutBackend, services.backend, prefix);
+    registerInventoryRoutes(versionedApp, services, prefix);
     registerOrderLookupRoutes(versionedApp, services.checkoutBackend, prefix);
     registerCustomerRoutes(versionedApp, services.customerBackend, prefix);
     registerCustomerOrderRoutes(versionedApp, services.customerBackend, prefix);
