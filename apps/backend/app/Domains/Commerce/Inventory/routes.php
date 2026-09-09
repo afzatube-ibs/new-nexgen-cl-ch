@@ -47,6 +47,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function ():
 
     // --- Availability ---
     Route::get('inventory/availability', [AvailabilityController::class, 'show'])->middleware('permission:inventory.stock.view')->name('v1.inventory.availability');
+    Route::get('inventory/availability-many', [AvailabilityController::class, 'index'])->middleware('permission:inventory.availability.view')->name('v1.inventory.availability-many');
 
     // --- Audit Log ---
     Route::get('inventory/audit-logs', [AuditLogController::class, 'index'])->middleware('permission:inventory.audit_log.view')->name('v1.inventory.audit-logs.index');
