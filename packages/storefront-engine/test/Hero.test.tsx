@@ -37,10 +37,25 @@ describe('Hero featured product', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: 'View Modern Baby Bassinet' }).getAttribute('href')).toBe('/products/product-1-modern-baby-bassinet');
+    expect(screen.getByRole('link', { name: 'View Modern Baby Bassinet details' }).getAttribute('href')).toBe('/products/product-1-modern-baby-bassinet');
     expect(screen.getByRole('img', { name: 'Blue and black baby bassinet' })).not.toBeNull();
     expect(screen.getByText('BDT 5,990.00')).not.toBeNull();
     expect(screen.getByText('In Stock')).not.toBeNull();
+  });
+
+  it('keeps the product panel useful when catalog media is missing', () => {
+    render(
+      <Hero
+        heading="Everything your little one needs"
+        showFeaturedProduct
+        featuredProduct={{ ...featuredProduct, image: null }}
+        featuredProductHref="/products/product-1-modern-baby-bassinet"
+      />,
+    );
+
+    expect(screen.getByText('Product image coming soon')).not.toBeNull();
+    expect(screen.getByText('Modern Baby Bassinet')).not.toBeNull();
+    expect(screen.getByText('BDT 5,990.00')).not.toBeNull();
   });
 
   it('keeps the merchant hero text-only when product merchandising is disabled', () => {
