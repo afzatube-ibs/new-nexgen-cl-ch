@@ -55,12 +55,16 @@ export default async function HomePage() {
   const sections = publishedHome?.content?.length ? publishedHome.content : template.defaultSections;
   const hasCmsHome = Boolean(publishedHome?.content?.length);
   const featuredHeroProduct = homepage.products.find((product) => product.availability?.isAvailable !== false) ?? null;
+  const heroSection = sections.find((section) => section.type === 'Hero');
+  const heroSectionKey = heroSection?.key ?? 'hero';
+  const showFeaturedProduct = heroSection?.configuration.showFeaturedProduct !== false;
 
   const resolved = resolveSections({
     sections,
     data: {
-      hero: hasCmsHome
+      [heroSectionKey]: hasCmsHome
         ? {
+            showFeaturedProduct,
             featuredProduct: featuredHeroProduct,
             featuredProductHref: featuredHeroProduct ? productHref(featuredHeroProduct) : undefined,
           }
