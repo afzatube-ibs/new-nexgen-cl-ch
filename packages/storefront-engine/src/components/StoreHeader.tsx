@@ -3,20 +3,7 @@
 import { forwardRef, useState, type AnchorHTMLAttributes } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Icon,
-  cn,
-} from '@nexgen/ui';
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Icon, cn } from '@nexgen/ui';
 import { ChevronDown, Menu, MessageCircle, Search, ShoppingBag, User } from 'lucide-react';
 import { useCartDrawerControls } from '../cart/CartDrawerProvider.js';
 import { useCart } from '../cart/useCart.js';
@@ -48,16 +35,27 @@ function groupTopLevel(categories: NavCategory[]): { parent: NavCategory; childr
   return categories
     .filter((category) => category.parentId === null)
     .sort((a, b) => a.position - b.position)
-    .map((parent) => ({ parent, children: (byParent.get(parent.id) ?? []).sort((a, b) => a.position - b.position) }));
+    .map((parent) => ({
+      parent,
+      children: (byParent.get(parent.id) ?? []).sort((a, b) => a.position - b.position),
+    }));
 }
 
 type NavigationAnchorProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & { href: string };
 
-const NavigationAnchor = forwardRef<HTMLAnchorElement, NavigationAnchorProps>(function NavigationAnchor({ href, ...props }, ref) {
+const NavigationAnchor = forwardRef<HTMLAnchorElement, NavigationAnchorProps>(function NavigationAnchor({ href, children, ...props }, ref) {
   if (/^https?:\/\//i.test(href)) {
-    return <a ref={ref} href={href} target="_blank" rel="noopener noreferrer" {...props} />;
+    return (
+      <a ref={ref} href={href} target="_blank" rel="noopener noreferrer" {...props}>
+        {children}
+      </a>
+    );
   }
-  return <Link ref={ref} href={href} {...props} />;
+  return (
+    <Link ref={ref} href={href} {...props}>
+      {children}
+    </Link>
+  );
 });
 
 export function StoreHeader({ categories, branding, navigation }: StoreHeaderProps) {
@@ -69,17 +67,12 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
   const { openDrawer } = useCartDrawerControls();
   const brandColor = branding.primaryColor;
 
-  const whatsappHref = branding.social.whatsappNumber
-    ? `https://wa.me/${branding.social.whatsappNumber.replace(/[^\d]/g, '')}`
-    : null;
+  const whatsappHref = branding.social.whatsappNumber ? `https://wa.me/${branding.social.whatsappNumber.replace(/[^\d]/g, '')}` : null;
 
   return (
     <div className="sticky top-0 z-40 bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/90">
       {branding.announcement.enabled && branding.announcement.text && (
-        <div
-          className={cn('px-4 py-1.5 text-center text-caption font-medium text-white', !brandColor && 'bg-brand')}
-          style={brandColor ? { backgroundColor: brandColor } : undefined}
-        >
+        <div className={cn('px-4 py-1.5 text-center text-caption font-medium text-white', !brandColor && 'bg-brand')} style={brandColor ? { backgroundColor: brandColor } : undefined}>
           {branding.announcement.text}
         </div>
       )}
@@ -87,11 +80,7 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
           <Drawer open={mobileOpen} onOpenChange={setMobileOpen}>
             <DrawerTrigger asChild>
-              <button
-                type="button"
-                aria-label="Open menu"
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-text-primary hover:bg-surface-subtle lg:hidden"
-              >
+              <button type="button" aria-label="Open menu" className="flex h-10 w-10 items-center justify-center rounded-lg text-text-primary hover:bg-surface-subtle lg:hidden">
                 <Icon icon={Menu} size="standalone" />
               </button>
             </DrawerTrigger>
