@@ -54,16 +54,23 @@ export default async function HomePage() {
   const template = resolveTemplate('homepage');
   const sections = publishedHome?.content?.length ? publishedHome.content : template.defaultSections;
   const hasCmsHome = Boolean(publishedHome?.content?.length);
+  const featuredHeroProduct = homepage.products.find((product) => product.availability?.isAvailable !== false && product.image) ?? null;
 
   const resolved = resolveSections({
     sections,
     data: {
       hero: hasCmsHome
-        ? {}
+        ? {
+            featuredProduct: featuredHeroProduct,
+            featuredProductHref: featuredHeroProduct ? productHref(featuredHeroProduct) : undefined,
+          }
         : {
             heading: branding.storeName,
             subheading: 'Browse products, categories, brands, and new arrivals from one trusted storefront.',
             cta: { label: 'Shop now', href: '#featured-products' },
+            showFeaturedProduct: true,
+            featuredProduct: featuredHeroProduct,
+            featuredProductHref: featuredHeroProduct ? productHref(featuredHeroProduct) : undefined,
           },
       'category-grid': {
         categories: homepage.categories.filter((category) => category.parentId === null),
