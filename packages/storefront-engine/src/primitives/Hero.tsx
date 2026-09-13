@@ -19,9 +19,7 @@ export function Hero({ heading, subheading, cta }: HeroProps) {
       </div>
 
       <div className="relative z-10 flex max-w-3xl flex-col items-start gap-5">
-        <span className="inline-flex items-center rounded-full border border-brand/20 bg-surface px-3 py-1 text-caption font-medium text-brand">
-          Shop the catalog
-        </span>
+        <span className="h-1 w-12 rounded-full bg-brand" aria-hidden="true" />
         <Text as="h1" variant="display" className="max-w-3xl text-balance">
           {heading}
         </Text>
