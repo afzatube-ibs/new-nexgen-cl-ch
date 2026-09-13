@@ -74,20 +74,23 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
     : null;
 
   return (
-    <div className="sticky top-0 z-40 bg-surface">
+    <div className="sticky top-0 z-40 bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/90">
       {branding.announcement.enabled && branding.announcement.text && (
-        <div className={cn('px-4 py-1.5 text-center text-caption text-white', !brandColor && 'bg-brand')} style={brandColor ? { backgroundColor: brandColor } : undefined}>
+        <div
+          className={cn('px-4 py-1.5 text-center text-caption font-medium text-white', !brandColor && 'bg-brand')}
+          style={brandColor ? { backgroundColor: brandColor } : undefined}
+        >
           {branding.announcement.text}
         </div>
       )}
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-4 px-4">
+      <header className="border-b border-border shadow-elevation-1">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
           <Drawer open={mobileOpen} onOpenChange={setMobileOpen}>
             <DrawerTrigger asChild>
               <button
                 type="button"
                 aria-label="Open menu"
-                className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle lg:hidden"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-text-primary hover:bg-surface-subtle lg:hidden"
               >
                 <Icon icon={Menu} size="standalone" />
               </button>
@@ -131,9 +134,9 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
 
           <Link href="/" className="flex shrink-0 items-center" aria-label={branding.storeName}>
             {branding.logo ? (
-              <Image src={branding.logo.url} alt={branding.logo.alt} width={120} height={32} className="h-8 w-auto object-contain" priority />
+              <Image src={branding.logo.url} alt={branding.logo.alt} width={132} height={36} className="h-9 w-auto object-contain" priority />
             ) : (
-              <span className="text-body-strong text-text-primary">{branding.storeName}</span>
+              <span className="text-heading text-text-primary">{branding.storeName}</span>
             )}
           </Link>
 
@@ -143,7 +146,7 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
                   <NavigationAnchor
                     key={item.id}
                     href={item.href}
-                    className="rounded-md px-3 py-2 text-body text-text-primary hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    className="rounded-lg px-3 py-2 text-body text-text-primary transition-colors hover:bg-brand/5 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                   >
                     {item.label}
                   </NavigationAnchor>
@@ -153,7 +156,7 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
                     <DropdownMenu key={parent.id}>
                       <DropdownMenuTrigger
                         className={cn(
-                          'flex items-center gap-1 rounded-md px-3 py-2 text-body text-text-primary hover:bg-surface-subtle',
+                          'flex items-center gap-1 rounded-lg px-3 py-2 text-body text-text-primary transition-colors hover:bg-brand/5 hover:text-brand',
                           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                         )}
                       >
@@ -175,7 +178,7 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
                     <Link
                       key={parent.id}
                       href={parent.href}
-                      className="rounded-md px-3 py-2 text-body text-text-primary hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                      className="rounded-lg px-3 py-2 text-body text-text-primary transition-colors hover:bg-brand/5 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       {parent.name}
                     </Link>
@@ -183,7 +186,16 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
                 )}
           </nav>
 
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label="Search products"
+              onClick={() => setSearchOpen(true)}
+              className="hidden h-10 min-w-44 items-center gap-2 rounded-full border border-border bg-surface-subtle px-4 text-left text-caption text-text-secondary transition-colors hover:border-brand/30 hover:bg-brand/5 hover:text-text-primary md:flex"
+            >
+              <Icon icon={Search} size="inline" />
+              <span>Search products</span>
+            </button>
             {whatsappHref && (
               <a
                 href={whatsappHref}
@@ -191,19 +203,24 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
                 rel="noopener noreferrer"
                 aria-label="Chat on WhatsApp"
                 title="Chat on WhatsApp"
-                className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-brand/5 hover:text-brand"
               >
                 <Icon icon={MessageCircle} size="standalone" />
               </a>
             )}
-            <button type="button" aria-label="Search" onClick={() => setSearchOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle">
+            <button
+              type="button"
+              aria-label="Search"
+              onClick={() => setSearchOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-text-primary hover:bg-surface-subtle md:hidden"
+            >
               <Icon icon={Search} size="standalone" />
             </button>
             <Link
               href="/account"
               aria-label="My account"
               title="My account"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-brand/5 hover:text-brand"
             >
               <Icon icon={User} size="standalone" />
             </Link>
@@ -211,12 +228,12 @@ export function StoreHeader({ categories, branding, navigation }: StoreHeaderPro
               type="button"
               aria-label={activeItemCount > 0 ? `Open cart, ${activeItemCount} item${activeItemCount === 1 ? '' : 's'}` : 'Open cart'}
               onClick={openDrawer}
-              className="relative flex h-9 w-9 items-center justify-center rounded-md text-text-primary hover:bg-surface-subtle"
+              className="relative flex h-10 w-10 items-center justify-center rounded-lg text-text-primary transition-colors hover:bg-brand/5 hover:text-brand"
             >
               <Icon icon={ShoppingBag} size="standalone" />
               {activeItemCount > 0 && (
                 <span
-                  className={cn('absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none text-white', !brandColor && 'bg-brand')}
+                  className={cn('absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none text-white', !brandColor && 'bg-brand')}
                   style={brandColor ? { backgroundColor: brandColor } : undefined}
                 >
                   {activeItemCount > 99 ? '99+' : activeItemCount}

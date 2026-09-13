@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import {
   GatewayRequestError,
-  PromotionBanner,
   RecentlyViewedRail,
   buildOrganizationSchema,
   buildWebsiteSchema,
@@ -39,6 +38,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * Section order/configuration; real catalog/recommendation data is still
  * injected server-side by key. If no home page is published, the Storefront
  * Engine's honest default template remains the launch-safe fallback.
+ *
+ * The merchant announcement is intentionally not rendered here: StoreHeader
+ * owns that global surface so an enabled announcement appears exactly once.
  */
 export default async function HomePage() {
   const [homepage, recentlyAdded, trending, branding, publishedHome] = await Promise.all([
@@ -104,13 +106,11 @@ export default async function HomePage() {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
   const organizationSchema = buildOrganizationSchema({ name: branding.storeName, url: siteUrl });
   const websiteSchema = buildWebsiteSchema({ name: branding.storeName, url: siteUrl });
-  const announcementText = branding.announcement.enabled ? branding.announcement.text?.trim() : null;
 
   return (
     <div className="flex flex-col gap-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
-      {announcementText && <PromotionBanner heading={announcementText} tone="subtle" />}
       {resolved.map(({ key, Component, props }) =>
         key === 'featured-products' ? (
           <div key={key} id="featured-products" className="scroll-mt-24">

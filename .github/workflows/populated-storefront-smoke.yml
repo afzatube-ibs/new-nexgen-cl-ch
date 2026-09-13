@@ -203,6 +203,9 @@ jobs:
             requireText(homeBody, 'In Stock', 'Homepage');
             requireText(homeBody, 'Out of stock', 'Homepage');
             forbidText(homeBody, 'Nationwide shipping across Bangladesh', 'Homepage');
+            const announcementText = 'Demo storefront — real catalog, BDT pricing and stock powered by neXgen Core.';
+            const announcementCount = await page.getByText(announcementText, { exact: true }).count();
+            if (announcementCount !== 1) throw new Error(`Expected merchant announcement exactly once, found ${announcementCount}`);
             const productLinks = page.locator('a[href^="/products/"]');
             const categoryLinks = page.locator('a[href^="/categories/"]');
             if ((await productLinks.count()) < 1) throw new Error('Homepage rendered no real product links');
@@ -241,10 +244,6 @@ jobs:
             requireText(zeroStockBody, 'WarmSteps Baby Socks Set', 'Zero-stock PDP');
             requireText(zeroStockBody, 'Out of stock', 'Zero-stock PDP');
 
-            // Disabled purchase controls intentionally change their visible and
-            // accessible label to the real disabled reason. Prove every
-            // out-of-stock purchase affordance is non-interactive instead of
-            // searching for the labels used only while a product is sellable.
             const blockedPurchaseControls = page.locator('button[title="Out of stock"]');
             const blockedCount = await blockedPurchaseControls.count();
             if (blockedCount < 2) throw new Error(`Expected at least two out-of-stock purchase controls, found ${blockedCount}`);
@@ -253,8 +252,8 @@ jobs:
                 throw new Error(`Out-of-stock purchase control ${index + 1} is not disabled`);
               }
             }
-            forbidText(zeroStockBody, 'Add to cart', 'Zero-stock PDP');
-            forbidText(zeroStockBody, 'Buy now', 'Zero-stock PDP');
+            // Related/recommended product cards may remain sellable. The target
+            // product's own purchase affordances are proven disabled above.
             await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-product-out-of-stock.png', fullPage: true });
 
             await page.goto('http://127.0.0.1:3000', { waitUntil: 'networkidle' });
