@@ -28,7 +28,9 @@ describe('ProductCard inventory availability', () => {
   it('shows out-of-stock, blocks quick add, and does not advertise COD for an unsellable item', () => {
     render(<ProductCard product={{ ...baseProduct, availability: { isAvailable: false } }} href="/products/p1" />);
     expect(screen.getAllByText('Out of stock').length).toBeGreaterThan(0);
-    const blockedButton = screen.getByRole('button', { name: 'Widget — Out of stock' }) as HTMLButtonElement;
+    const blockedButton = screen.getByRole<HTMLButtonElement>('button', {
+      name: 'Widget — Out of stock',
+    });
     expect(blockedButton.disabled).toBe(true);
     expect(screen.queryByText('COD available')).toBeNull();
   });

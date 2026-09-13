@@ -2,7 +2,15 @@ import { Link } from 'react-router-dom';
 import { CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Text } from '@nexgen/ui';
 import { DashboardWidgetCard } from '../../../framework/index.js';
-import { usePaymentReadiness, useShippingReadiness, useNotificationReadiness, useCatalogReadiness } from './queries.js';
+import {
+  useCatalogReadiness,
+  useInventoryReadiness,
+  useNotificationReadiness,
+  usePaymentReadiness,
+  usePricingReadiness,
+  useShippingReadiness,
+  useStorefrontReadiness,
+} from './queries.js';
 
 interface ReadinessRowProps {
   ok: boolean | undefined;
@@ -70,12 +78,15 @@ function ReadinessRow({ ok, okLabel, warningLabel, action, unavailableLabel }: R
  * Admin screens, so those two rows link there directly.
  */
 export function ProductionReadinessWidget() {
+  const storefront = useStorefrontReadiness();
+  const pricing = usePricingReadiness();
+  const inventory = useInventoryReadiness();
   const payments = usePaymentReadiness();
   const shipping = useShippingReadiness();
   const notifications = useNotificationReadiness();
   const catalog = useCatalogReadiness();
 
-  const queries = [payments, shipping, notifications, catalog];
+  const queries = [storefront, catalog, pricing, inventory, payments, shipping, notifications];
   const anyLoading = queries.some((q) => q.status === 'pending');
   const allErrored = queries.every((q) => q.status === 'error');
   const status = anyLoading ? 'loading' : allErrored ? 'error' : 'success';
@@ -86,6 +97,9 @@ export function ProductionReadinessWidget() {
       icon={ShieldCheck}
       status={status}
       onRetry={() => {
+        void storefront.refetch();
+        void pricing.refetch();
+        void inventory.refetch();
         void payments.refetch();
         void shipping.refetch();
         void notifications.refetch();
@@ -98,6 +112,65 @@ export function ProductionReadinessWidget() {
           query below has genuinely settled to either 'success' (real
           data present) or 'error' (data undefined) by this point. */}
       <div className="flex flex-col divide-y divide-border">
+        <ReadinessRow
+          ok={storefront.status === 'error' ? undefined : (storefront.data?.identityReady ?? false)}
+          okLabel="Store identity and business contact details are complete"
+          warningLabel="Store identity or business contact details are incomplete"
+          action={{ label: 'Complete →', to: '/appearance/branding' }}
+        />
+        <ReadinessRow
+          ok={storefront.status === 'error' ? undefined : storefront.data?.appearancePublished}
+          okLabel="Storefront appearance is published"
+          warningLabel="Storefront appearance has not been published"
+          action={{ label: 'Publish →', to: '/appearance/branding' }}
+        />
+        <ReadinessRow
+          ok={storefront.status === 'error' ? undefined : storefront.data?.homepagePublished}
+          okLabel="Storefront homepage is published"
+          warningLabel="Storefront homepage has not been published"
+          action={{ label: 'Publish →', to: '/content/homepage' }}
+        />
+        <ReadinessRow
+          ok={storefront.status === 'error' ? undefined : storefront.data?.navigationPublished}
+          okLabel="Main storefront navigation is published"
+          warningLabel="Main storefront navigation has not been published"
+          action={{ label: 'Publish →', to: '/content/navigation' }}
+        />
+        <ReadinessRow
+          ok={catalog.status === 'error' ? undefined : (catalog.data?.activeProductCount ?? 0) > 0}
+          okLabel={catalog.data ? `${catalog.data.activeProductCount} active product${catalog.data.activeProductCount === 1 ? '' : 's'} in your catalog` : 'Catalog has active products'}
+          warningLabel="Your catalog has no active products — there is nothing for customers to buy"
+          action={{ label: 'Add products →', to: '/catalog/products' }}
+        />
+        <ReadinessRow
+          ok={pricing.status === 'error' ? undefined : (pricing.data?.hasActiveDefaultList ?? false)}
+          okLabel="An active default price list is configured"
+          warningLabel="No active default price list is configured — checkout cannot price products"
+          action={{ label: 'Configure →', to: '/pricing/price-lists' }}
+        />
+        <ReadinessRow
+          ok={pricing.status === 'error' ? undefined : (pricing.data?.pricedSkuCount ?? 0) > 0}
+          okLabel={pricing.data ? `${pricing.data.pricedSkuCount} SKU price${pricing.data.pricedSkuCount === 1 ? '' : 's'} configured` : 'Product prices configured'}
+          warningLabel="The default price list has no SKU prices"
+          action={{ label: 'Add prices →', to: '/pricing/price-lists' }}
+        />
+        <ReadinessRow
+          ok={inventory.status === 'error' ? undefined : (inventory.data?.hasActiveWarehouse ?? false)}
+          okLabel="An active warehouse is configured"
+          warningLabel="No active warehouse is configured"
+          action={{ label: 'Configure →', to: '/inventory/warehouses' }}
+        />
+        <ReadinessRow
+          ok={inventory.status === 'error' ? undefined : (inventory.data?.hasAvailableStock ?? false)}
+          okLabel="At least one SKU has real available stock"
+          warningLabel="No SKU currently has available stock"
+          action={{ label: 'Update stock →', to: '/inventory/stock-levels' }}
+        />
+        <ReadinessRow
+          ok={payments.status === 'error' ? undefined : (payments.data?.hasAnyGateway ?? false)}
+          okLabel="At least one customer payment method is available"
+          warningLabel="No customer payment method is available — checkout is blocked"
+        />
         <ReadinessRow
           ok={payments.status === 'error' ? undefined : (payments.data?.hasOnlineGateway ?? false)}
           okLabel="An online payment gateway is configured"
@@ -118,12 +191,6 @@ export function ProductionReadinessWidget() {
           ok={notifications.status === 'error' ? undefined : (notifications.data?.hasProvider ?? false)}
           okLabel="An email notification provider is configured"
           warningLabel="No email notification provider configured — customers won't receive order confirmations or updates"
-        />
-        <ReadinessRow
-          ok={catalog.status === 'error' ? undefined : (catalog.data?.activeProductCount ?? 0) > 0}
-          okLabel={catalog.data ? `${catalog.data.activeProductCount} active product${catalog.data.activeProductCount === 1 ? '' : 's'} in your catalog` : 'Catalog has active products'}
-          warningLabel="Your catalog has no active products — there is nothing for customers to buy"
-          action={{ label: 'Add products →', to: '/catalog/products' }}
         />
       </div>
     </DashboardWidgetCard>

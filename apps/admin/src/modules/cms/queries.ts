@@ -13,6 +13,7 @@ import {
   unpublishCmsPage,
   updateCmsMenu,
   updateCmsPage,
+  type CmsPageDTO,
   type SaveCmsMenuInput,
   type SaveCmsPageInput,
 } from '@nexgen/api-client';
@@ -24,7 +25,10 @@ const REVISIONS_KEY = (storeId: string, pageId: string) => ['cms', 'revisions', 
 const MENUS_KEY = (storeId: string) => ['cms', 'menus', storeId];
 
 export function useCurrentStore() {
-  return useQuery({ queryKey: STORE_KEY, queryFn: () => listStores(apiClient) });
+  return useQuery({
+    queryKey: STORE_KEY,
+    queryFn: () => listStores(apiClient),
+  });
 }
 
 export function useCmsPages(storeId: string | undefined) {
@@ -47,7 +51,10 @@ export function useCreateCmsPage(storeId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: SaveCmsPageInput) => createCmsPage(apiClient, storeId as string, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: PAGES_KEY(storeId ?? '') }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: PAGES_KEY(storeId ?? ''),
+      }),
   });
 }
 
@@ -57,10 +64,10 @@ export function useUpdateCmsPage(storeId: string | undefined) {
     mutationFn: ({ pageId, input, expectedVersion }: { pageId: string; input: Partial<SaveCmsPageInput>; expectedVersion: number }) =>
       updateCmsPage(apiClient, storeId as string, pageId, input, expectedVersion),
     onSuccess: (page) => {
-      queryClient.setQueryData(PAGES_KEY(storeId ?? ''), (old: unknown) =>
-        Array.isArray(old) ? old.map((item) => (typeof item === 'object' && item && 'id' in item && item.id === page.id ? page : item)) : old,
-      );
-      void queryClient.invalidateQueries({ queryKey: REVISIONS_KEY(storeId ?? '', page.id) });
+      queryClient.setQueryData<CmsPageDTO[]>(PAGES_KEY(storeId ?? ''), (old) => old?.map((item) => (item.id === page.id ? page : item)));
+      void queryClient.invalidateQueries({
+        queryKey: REVISIONS_KEY(storeId ?? '', page.id),
+      });
     },
   });
 }
@@ -69,7 +76,10 @@ export function usePublishCmsPage(storeId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ pageId, expectedVersion }: { pageId: string; expectedVersion: number }) => publishCmsPage(apiClient, storeId as string, pageId, expectedVersion),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: PAGES_KEY(storeId ?? '') }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: PAGES_KEY(storeId ?? ''),
+      }),
   });
 }
 
@@ -77,7 +87,10 @@ export function useUnpublishCmsPage(storeId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ pageId, expectedVersion }: { pageId: string; expectedVersion: number }) => unpublishCmsPage(apiClient, storeId as string, pageId, expectedVersion),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: PAGES_KEY(storeId ?? '') }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: PAGES_KEY(storeId ?? ''),
+      }),
   });
 }
 
@@ -87,8 +100,12 @@ export function useRestoreCmsRevision(storeId: string | undefined) {
     mutationFn: ({ pageId, revisionId, expectedVersion }: { pageId: string; revisionId: string; expectedVersion: number }) =>
       restoreCmsPageRevision(apiClient, storeId as string, pageId, revisionId, expectedVersion),
     onSuccess: (page) => {
-      void queryClient.invalidateQueries({ queryKey: PAGES_KEY(storeId ?? '') });
-      void queryClient.invalidateQueries({ queryKey: REVISIONS_KEY(storeId ?? '', page.id) });
+      void queryClient.invalidateQueries({
+        queryKey: PAGES_KEY(storeId ?? ''),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: REVISIONS_KEY(storeId ?? '', page.id),
+      });
     },
   });
 }
@@ -105,7 +122,10 @@ export function useCreateCmsMenu(storeId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: SaveCmsMenuInput) => createCmsMenu(apiClient, storeId as string, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: MENUS_KEY(storeId ?? '') }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: MENUS_KEY(storeId ?? ''),
+      }),
   });
 }
 
@@ -114,7 +134,10 @@ export function useUpdateCmsMenu(storeId: string | undefined) {
   return useMutation({
     mutationFn: ({ menuId, input, expectedVersion }: { menuId: string; input: Partial<SaveCmsMenuInput>; expectedVersion: number }) =>
       updateCmsMenu(apiClient, storeId as string, menuId, input, expectedVersion),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: MENUS_KEY(storeId ?? '') }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: MENUS_KEY(storeId ?? ''),
+      }),
   });
 }
 
@@ -122,7 +145,10 @@ export function usePublishCmsMenu(storeId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ menuId, expectedVersion }: { menuId: string; expectedVersion: number }) => publishCmsMenu(apiClient, storeId as string, menuId, expectedVersion),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: MENUS_KEY(storeId ?? '') }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: MENUS_KEY(storeId ?? ''),
+      }),
   });
 }
 
@@ -130,6 +156,9 @@ export function useUnpublishCmsMenu(storeId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ menuId, expectedVersion }: { menuId: string; expectedVersion: number }) => unpublishCmsMenu(apiClient, storeId as string, menuId, expectedVersion),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: MENUS_KEY(storeId ?? '') }),
+    onSuccess: () =>
+      void queryClient.invalidateQueries({
+        queryKey: MENUS_KEY(storeId ?? ''),
+      }),
   });
 }
