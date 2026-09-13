@@ -1,6 +1,8 @@
 name: populated-storefront-smoke
 
 on:
+  push:
+    branches: [nexgen-gate7-conversion-storefront]
   pull_request:
   workflow_dispatch:
 
@@ -241,10 +243,6 @@ jobs:
             requireText(zeroStockBody, 'WarmSteps Baby Socks Set', 'Zero-stock PDP');
             requireText(zeroStockBody, 'Out of stock', 'Zero-stock PDP');
 
-            // Disabled purchase controls intentionally change their visible and
-            // accessible label to the real disabled reason. Prove every
-            // out-of-stock purchase affordance is non-interactive instead of
-            // searching for the labels used only while a product is sellable.
             const blockedPurchaseControls = page.locator('button[title="Out of stock"]');
             const blockedCount = await blockedPurchaseControls.count();
             if (blockedCount < 2) throw new Error(`Expected at least two out-of-stock purchase controls, found ${blockedCount}`);
