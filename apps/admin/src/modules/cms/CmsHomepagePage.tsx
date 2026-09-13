@@ -222,7 +222,7 @@ export function CmsHomepagePage() {
                 <input id="hero-show-featured-product" type="checkbox" className="mt-1" checked={draft.heroShowFeaturedProduct} onChange={(event) => update('heroShowFeaturedProduct', event.target.checked)} disabled={!canManage} />
                 <span>
                   <label htmlFor="hero-show-featured-product" className="block font-semibold">Show a featured product in the hero</label>
-                  <span className="text-caption text-text-secondary">Uses the first available featured product with an image, including its live price and stock state.</span>
+                  <span className="text-caption text-text-secondary">Uses the first available featured product, including its live price and stock state.</span>
                 </span>
               </div>
             </CardContent>
