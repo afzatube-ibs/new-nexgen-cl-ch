@@ -42,6 +42,7 @@ const heroConfigSchema = z.object({
   heading: z.string().min(1).optional(),
   subheading: z.string().optional(),
   cta: z.object({ label: z.string().min(1), href: z.string().min(1) }).optional(),
+  showFeaturedProduct: z.boolean().optional(),
 });
 
 const richTextConfigSchema = z.object({
