@@ -200,6 +200,7 @@ jobs:
             requireText(homeBody, 'WarmSteps Baby Socks Set', 'Homepage');
             requireText(homeBody, 'Strollers', 'Homepage');
             requireText(homeBody, 'Featured baby essentials', 'Homepage');
+            requireText(homeBody, 'Featured product', 'Homepage');
             requireText(homeBody, 'In Stock', 'Homepage');
             requireText(homeBody, 'Out of stock', 'Homepage');
             forbidText(homeBody, 'Nationwide shipping across Bangladesh', 'Homepage');
@@ -211,6 +212,8 @@ jobs:
             if ((await productLinks.count()) < 1) throw new Error('Homepage rendered no real product links');
             if ((await categoryLinks.count()) < 1) throw new Error('Homepage rendered no real category links');
             if ((await page.locator('img').count()) < 1) throw new Error('Homepage rendered no real product images');
+            const heroProductLink = page.getByRole('link', { name: /View .* details/ });
+            if ((await heroProductLink.count()) !== 1) throw new Error('Homepage hero did not render one featured product link');
             await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-populated-home.png', fullPage: true });
 
             const stockedHref = await page.locator('a[href^="/products/"]', { hasText: 'Baobaohao A10 Baby Stroller - Gray' }).first().getAttribute('href');
