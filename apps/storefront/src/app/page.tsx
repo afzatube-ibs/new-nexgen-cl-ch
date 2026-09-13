@@ -54,7 +54,7 @@ export default async function HomePage() {
   const template = resolveTemplate('homepage');
   const sections = publishedHome?.content?.length ? publishedHome.content : template.defaultSections;
   const hasCmsHome = Boolean(publishedHome?.content?.length);
-  const featuredHeroProduct = homepage.products.find((product) => product.availability?.isAvailable !== false && product.image) ?? null;
+  const featuredHeroProduct = homepage.products.find((product) => product.availability?.isAvailable !== false) ?? null;
 
   const resolved = resolveSections({
     sections,
