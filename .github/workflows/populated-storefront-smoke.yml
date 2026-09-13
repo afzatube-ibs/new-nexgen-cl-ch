@@ -203,6 +203,9 @@ jobs:
             requireText(homeBody, 'In Stock', 'Homepage');
             requireText(homeBody, 'Out of stock', 'Homepage');
             forbidText(homeBody, 'Nationwide shipping across Bangladesh', 'Homepage');
+            const announcementText = 'Demo storefront — real catalog, BDT pricing and stock powered by neXgen Core.';
+            const announcementCount = await page.getByText(announcementText, { exact: true }).count();
+            if (announcementCount !== 1) throw new Error(`Expected merchant announcement exactly once, found ${announcementCount}`);
             const productLinks = page.locator('a[href^="/products/"]');
             const categoryLinks = page.locator('a[href^="/categories/"]');
             if ((await productLinks.count()) < 1) throw new Error('Homepage rendered no real product links');
