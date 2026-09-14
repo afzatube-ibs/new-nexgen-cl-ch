@@ -212,7 +212,11 @@ final readonly class BkashGateway implements PaymentGatewayContract, RefundableG
         return is_string($fields['status'] ?? null) ? strtolower($fields['status']) : null;
     }
 
-    /** Execute an authorized hosted-checkout payment; query fallback makes a repeated callback safe. */
+    /**
+     * Execute an authorized hosted-checkout payment; query fallback makes a repeated callback safe.
+     *
+     * @return array<string, mixed>|null
+     */
     private function executePayment(string $paymentId): ?array
     {
         $response = $this->authorized()->post($this->baseUrl().'/tokenized/checkout/execute', [
