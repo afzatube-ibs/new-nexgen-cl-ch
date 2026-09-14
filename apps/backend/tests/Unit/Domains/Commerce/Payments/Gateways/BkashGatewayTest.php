@@ -118,6 +118,29 @@ it('normalizes a confirmed webhook payload to captured', function () {
     expect($notification->gatewayReference)->toBe('TR0011abc');
 });
 
+it('executes a successful browser callback before marking the payment captured', function () {
+    Http::fake([
+        '*/token/grant' => Http::response(['id_token' => 'token-abc', 'expires_in' => 3600]),
+        '*/payment/status/*' => Http::response([
+            'paymentID' => 'TR0011abc',
+            'transactionStatus' => 'Initiated',
+        ]),
+        '*/checkout/execute' => Http::response([
+            'paymentID' => 'TR0011abc',
+            'transactionStatus' => 'Completed',
+            'amount' => '100',
+            'currency' => 'BDT',
+        ]),
+    ]);
+
+    $gateway = bkashGateway();
+    $payload = http_build_query(['paymentID' => 'TR0011abc', 'status' => 'success']);
+
+    expect($gateway->verifyWebhookSignature($payload, []))->toBeTrue();
+    expect($gateway->parseWebhookPayload($payload, [])->status)->toBe('captured');
+    Http::assertSent(fn ($request) => str_contains((string) $request->url(), 'checkout/execute') && $request['paymentID'] === 'TR0011abc');
+});
+
 it('caches the id token rather than re-granting on every call within its lifetime', function () {
     Http::fake([
         '*/token/grant' => Http::response(['id_token' => 'token-abc', 'expires_in' => 3600]),

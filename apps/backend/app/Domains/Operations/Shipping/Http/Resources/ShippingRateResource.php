@@ -24,6 +24,8 @@ final class ShippingRateResource extends JsonResource
             'shippingMethodId' => $this->shipping_method_id,
             'minWeightGrams' => $this->min_weight_grams,
             'maxWeightGrams' => $this->max_weight_grams,
+            'minOrderAmount' => $this->min_order_amount,
+            'maxOrderAmount' => $this->max_order_amount,
             'amount' => $this->amount,
             'currencyCode' => $this->currency_code,
             'status' => $this->status,

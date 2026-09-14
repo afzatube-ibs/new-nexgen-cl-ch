@@ -14,6 +14,8 @@ on:
       - 'packages/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'scripts/production-preflight.mjs'
+      - 'scripts/production-preflight.test.mjs'
       - '.github/workflows/production-compose-smoke.yml'
   workflow_dispatch:
 
@@ -52,11 +54,16 @@ jobs:
           GUEST_SESSION_SECRET=ci-guest-session-secret-1234567890-abcdef
           PREVIEW_TOKEN_SECRET=ci-preview-token-secret-1234567890-abcdef
           PAYMENTS_CHECKOUT_RETURN_URL=http://127.0.0.1:3000/checkout/success
+          PAYMENTS_CALLBACK_BASE_URL=http://127.0.0.1:8080
           BACKEND_SERVICE_TOKEN=
           BACKEND_CHECKOUT_SERVICE_TOKEN=
           EOF
 
+          node scripts/production-preflight.mjs .env.production --phase=bootstrap
           docker compose --env-file .env.production -f docker-compose.production.yml config --quiet
+
+      - name: Test production preflight
+        run: npm run test:preflight
 
       - name: Build production images
         env:

@@ -107,7 +107,10 @@ final readonly class BkashGateway implements PaymentGatewayContract, RefundableG
     public function parseWebhookPayload(string $rawPayload, array $headers): GatewayWebhookNotification
     {
         $paymentId = $this->extractPaymentId($rawPayload);
-        $confirmed = $paymentId !== null ? $this->queryPaymentStatus($paymentId) : null;
+        $callbackStatus = $this->extractCallbackStatus($rawPayload);
+        $confirmed = $paymentId !== null && $callbackStatus === 'success'
+            ? $this->executePayment($paymentId)
+            : ($paymentId !== null ? $this->queryPaymentStatus($paymentId) : null);
 
         if ($confirmed === null) {
             throw new RuntimeException('bKash payment could not be re-confirmed via the Query Payment API.');
@@ -194,6 +197,37 @@ final readonly class BkashGateway implements PaymentGatewayContract, RefundableG
         parse_str($rawPayload, $fields);
 
         return is_string($fields['paymentID'] ?? null) ? $fields['paymentID'] : null;
+    }
+
+    private function extractCallbackStatus(string $rawPayload): ?string
+    {
+        $decoded = json_decode($rawPayload, true);
+        if (is_array($decoded) && is_string($decoded['status'] ?? null)) {
+            return strtolower($decoded['status']);
+        }
+
+        $fields = [];
+        parse_str($rawPayload, $fields);
+
+        return is_string($fields['status'] ?? null) ? strtolower($fields['status']) : null;
+    }
+
+    /** Execute an authorized hosted-checkout payment; query fallback makes a repeated callback safe. */
+    private function executePayment(string $paymentId): ?array
+    {
+        $response = $this->authorized()->post($this->baseUrl().'/tokenized/checkout/execute', [
+            'paymentID' => $paymentId,
+        ]);
+
+        if ($response->successful()) {
+            /** @var array<string, mixed> $body */
+            $body = $response->json() ?? [];
+            if (($body['transactionStatus'] ?? null) === 'Completed') {
+                return $body;
+            }
+        }
+
+        return $this->queryPaymentStatus($paymentId);
     }
 
     /**

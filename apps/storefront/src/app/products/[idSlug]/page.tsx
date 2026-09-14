@@ -194,7 +194,7 @@ export default async function ProductPage({ params }: PageProps) {
                   <Text as="p" variant="body" className="text-text-secondary">
                     Delivery options, rates and availability depend on the destination and are calculated during checkout.
                   </Text>
-                  <ShippingCalculator />
+                  <ShippingCalculator productId={product.id} />
                 </div>
               </details>
 

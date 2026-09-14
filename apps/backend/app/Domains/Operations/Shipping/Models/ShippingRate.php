@@ -26,6 +26,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $shipping_method_id
  * @property int $min_weight_grams
  * @property int|null $max_weight_grams
+ * @property string $min_order_amount
+ * @property string|null $max_order_amount
  * @property string $amount
  * @property string $currency_code
  * @property string $status
@@ -45,6 +47,8 @@ final class ShippingRate extends Model
         'shipping_method_id',
         'min_weight_grams',
         'max_weight_grams',
+        'min_order_amount',
+        'max_order_amount',
         'amount',
         'currency_code',
         'status',
@@ -55,6 +59,8 @@ final class ShippingRate extends Model
         return [
             'min_weight_grams' => 'integer',
             'max_weight_grams' => 'integer',
+            'min_order_amount' => 'decimal:4',
+            'max_order_amount' => 'decimal:4',
             // `decimal:4` matches this table's own `decimal(12, 4)` column
             // and this platform's own established pattern for every other
             // money column (Payment, Promotion, Shipment) — without it,
@@ -76,6 +82,7 @@ final class ShippingRate extends Model
             $rate->tenant_id ??= TenantId::DEFAULT;
             $rate->status ??= self::STATUS_ACTIVE;
             $rate->min_weight_grams ??= 0;
+            $rate->min_order_amount ??= '0.0000';
             $rate->currency_code = strtoupper((string) $rate->currency_code);
             // See Identity & Access's User::booted() for why this is set
             // here rather than relying on the migration's database-level

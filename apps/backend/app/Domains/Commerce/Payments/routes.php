@@ -30,6 +30,7 @@ use App\Domains\Commerce\Payments\Http\Controllers\PaymentActionController;
 use App\Domains\Commerce\Payments\Http\Controllers\PaymentController;
 use App\Domains\Commerce\Payments\Http\Controllers\PaymentMethodController;
 use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\BkashWebhookController;
+use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\BkashReturnController;
 use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\NagadWebhookController;
 use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\SslcommerzWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -74,6 +75,7 @@ Route::prefix('api/v1')->middleware(['api', 'auth:sanctum'])->group(function ():
 // adding real protection, found and verified live during Phase 1.1's
 // hardening pass.
 Route::prefix('api/v1')->middleware(['api', 'throttle:payments-webhooks'])->withoutMiddleware('throttle:api')->group(function (): void {
+    Route::get('payments/returns/bkash', BkashReturnController::class)->name('v1.payments.returns.bkash');
     Route::post('payments/webhooks/sslcommerz', SslcommerzWebhookController::class)->name('v1.payments.webhooks.sslcommerz');
     Route::post('payments/webhooks/bkash', BkashWebhookController::class)->name('v1.payments.webhooks.bkash');
     Route::post('payments/webhooks/nagad', NagadWebhookController::class)->name('v1.payments.webhooks.nagad');

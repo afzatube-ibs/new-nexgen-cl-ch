@@ -23,6 +23,8 @@ final readonly class CreateShippingRateAction
                 'shipping_method_id' => $attributes['shipping_method_id'],
                 'min_weight_grams' => $attributes['min_weight_grams'] ?? 0,
                 'max_weight_grams' => $attributes['max_weight_grams'] ?? null,
+                'min_order_amount' => $attributes['min_order_amount'] ?? 0,
+                'max_order_amount' => $attributes['max_order_amount'] ?? null,
                 'amount' => $attributes['amount'],
                 'currency_code' => $attributes['currency_code'],
             ]);
@@ -32,7 +34,7 @@ final readonly class CreateShippingRateAction
                 actorId: $actorId,
                 targetType: ShippingRate::class,
                 targetId: $rate->id,
-                after: $rate->only(['shipping_zone_id', 'shipping_method_id', 'min_weight_grams', 'max_weight_grams', 'amount', 'currency_code', 'status']),
+                after: $rate->only(['shipping_zone_id', 'shipping_method_id', 'min_weight_grams', 'max_weight_grams', 'min_order_amount', 'max_order_amount', 'amount', 'currency_code', 'status']),
             );
 
             return $rate;

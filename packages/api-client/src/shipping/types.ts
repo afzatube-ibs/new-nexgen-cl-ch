@@ -99,6 +99,9 @@ export interface ShippingRateDTO {
   minWeightGrams: number;
   /** Null means unbounded above — `ShippingRate::coversWeight()`'s own `[min, max)` semantics. */
   maxWeightGrams: number | null;
+  minOrderAmount: string;
+  /** Null means unbounded above; range semantics are [min, max). */
+  maxOrderAmount: string | null;
   amount: string;
   currencyCode: string;
   status: ShippingRateStatus;
@@ -112,6 +115,8 @@ export interface CreateShippingRateInput {
   shippingMethodId: string;
   minWeightGrams?: number;
   maxWeightGrams?: number | null;
+  minOrderAmount?: string;
+  maxOrderAmount?: string | null;
   amount: string;
   currencyCode: string;
 }
@@ -119,6 +124,8 @@ export interface CreateShippingRateInput {
 export interface UpdateShippingRateInput {
   minWeightGrams?: number;
   maxWeightGrams?: number | null;
+  minOrderAmount?: string;
+  maxOrderAmount?: string | null;
   amount?: string;
   currencyCode?: string;
   expectedVersion: number;

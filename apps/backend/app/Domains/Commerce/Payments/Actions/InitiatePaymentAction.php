@@ -85,6 +85,9 @@ final readonly class InitiatePaymentAction
         $payment = $this->claim($order, $gatewayCode, $idempotencyKey, $actorId);
 
         $callbackBase = rtrim((string) config('payments.checkout_return_url'), '/')."/payments/{$payment->id}";
+        $successCallbackUrl = $gatewayCode === 'bkash'
+            ? rtrim((string) config('payments.callback_base_url'), '/').'/api/v1/payments/returns/bkash'
+            : "{$callbackBase}/success";
 
         try {
             $result = $gateway->initiate(new GatewayInitiationRequest(
@@ -95,7 +98,7 @@ final readonly class InitiatePaymentAction
                 customerEmail: $order->customer_email,
                 customerPhone: $order->customer_phone,
                 description: "Order {$order->order_number}",
-                successCallbackUrl: "{$callbackBase}/success",
+                successCallbackUrl: $successCallbackUrl,
                 failureCallbackUrl: "{$callbackBase}/failure",
                 cancelCallbackUrl: "{$callbackBase}/cancel",
             ));

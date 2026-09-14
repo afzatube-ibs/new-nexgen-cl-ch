@@ -25,6 +25,8 @@ class ShippingRateFactory extends Factory
             'shipping_method_id' => ShippingMethodFactory::new(),
             'min_weight_grams' => 0,
             'max_weight_grams' => null,
+            'min_order_amount' => '0.0000',
+            'max_order_amount' => null,
             'amount' => fake()->randomFloat(4, 30, 500),
             'currency_code' => 'BDT',
             'status' => ShippingRate::STATUS_ACTIVE,

@@ -28,6 +28,7 @@ final class QuoteShippingOptionsRequest extends FormRequest
             'country_code' => ['required', 'string', 'regex:/^[A-Z]{2}$/i'],
             'region' => ['sometimes', 'string', 'max:100'],
             'weight_grams' => ['required', 'integer', 'min:1'],
+            'order_amount' => ['sometimes', 'numeric', 'min:0'],
         ];
     }
 }

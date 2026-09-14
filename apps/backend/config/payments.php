@@ -57,6 +57,10 @@ return [
     */
     'checkout_return_url' => env('PAYMENTS_CHECKOUT_RETURN_URL', env('APP_URL', 'http://localhost')),
 
+    // Public backend origin used for gateway callbacks. This is deliberately
+    // separate from checkout_return_url, which belongs to the storefront.
+    'callback_base_url' => env('PAYMENTS_CALLBACK_BASE_URL', env('APP_URL', 'http://localhost')),
+
     'cod' => [
         // COD-specific extension points named in the master plan's
         // Payments entry — none exercised by Phase 1's CodGateway, which

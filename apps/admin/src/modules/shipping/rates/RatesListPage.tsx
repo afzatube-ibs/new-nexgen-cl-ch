@@ -97,6 +97,7 @@ export function RatesListPage() {
       { id: 'zone', header: 'Zone', cell: (row) => <Text variant="body-strong">{zoneNameById.get(row.shippingZoneId) ?? row.shippingZoneId}</Text> },
       { id: 'method', header: 'Method', cell: (row) => methodNameById.get(row.shippingMethodId) ?? row.shippingMethodId },
       { id: 'weight', header: 'Weight band', cell: (row) => <span className="tabular-nums">{formatWeightBand(row.minWeightGrams, row.maxWeightGrams)}</span> },
+      { id: 'orderAmount', header: 'Order-value band', cell: (row) => <span className="tabular-nums">{row.minOrderAmount}–{row.maxOrderAmount ?? '∞'} {row.currencyCode}</span> },
       { id: 'amount', header: 'Amount', cell: (row) => <span className="tabular-nums">{row.amount} {row.currencyCode}</span> },
       {
         id: 'status',
