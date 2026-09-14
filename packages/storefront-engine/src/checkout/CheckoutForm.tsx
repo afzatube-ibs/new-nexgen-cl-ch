@@ -26,6 +26,16 @@ import { PAYMENT_METHOD_LABELS, PaymentMethodsRow, type PaymentMethodId } from '
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+export function safeHostedPaymentUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function isPaymentMethodId(code: string): code is PaymentMethodId {
   return code in PAYMENT_METHOD_LABELS;
 }
@@ -103,6 +113,7 @@ export function CheckoutForm() {
 
     fetchShippingOptions({
       countryCode: address.countryCode,
+      currencyCode: 'BDT',
       region: address.region,
       lines: activeLines.map((line) => ({ productId: line.productId, quantity: line.quantity })),
     })
@@ -183,6 +194,11 @@ export function CheckoutForm() {
       trackEvent({ name: 'checkout_completed', properties: { orderId: result.order.id, orderNumber: result.order.orderNumber } });
       if (typeof window !== 'undefined') window.sessionStorage.setItem(LAST_ORDER_STORAGE_KEY, JSON.stringify(result));
       clearCart();
+      const hostedPaymentUrl = safeHostedPaymentUrl(result.payment?.redirectUrl);
+      if (hostedPaymentUrl) {
+        window.location.assign(hostedPaymentUrl);
+        return;
+      }
       router.push('/checkout/success');
     } catch (error) {
       setSubmitting(false);

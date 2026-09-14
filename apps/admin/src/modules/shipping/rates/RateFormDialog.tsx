@@ -15,12 +15,19 @@ const schema = z
     minWeightGrams: z.coerce.number({ message: 'Enter a minimum weight' }).int('Whole grams only').min(0, 'Must be 0 or greater'),
     hasMaxWeight: z.boolean(),
     maxWeightGrams: z.coerce.number().int('Whole grams only').min(0).optional(),
+    minOrderAmount: z.coerce.number({ message: 'Enter a minimum order amount' }).min(0, 'Must be 0 or greater'),
+    hasMaxOrderAmount: z.boolean(),
+    maxOrderAmount: z.coerce.number().min(0).optional(),
     amount: z.coerce.number({ message: 'Enter an amount' }).min(0, 'Must be 0 or greater'),
     currencyCode: z.string().length(3, 'Enter a 3-letter currency code, e.g. BDT'),
   })
   .refine((v) => !v.hasMaxWeight || v.maxWeightGrams === undefined || v.maxWeightGrams > v.minWeightGrams, {
     message: 'Maximum weight must be greater than the minimum',
     path: ['maxWeightGrams'],
+  })
+  .refine((v) => !v.hasMaxOrderAmount || v.maxOrderAmount === undefined || v.maxOrderAmount > v.minOrderAmount, {
+    message: 'Maximum order amount must be greater than the minimum',
+    path: ['maxOrderAmount'],
   });
 type FormValues = z.infer<typeof schema>;
 
@@ -39,6 +46,9 @@ const EMPTY_VALUES: FormValues = {
   minWeightGrams: 0,
   hasMaxWeight: false,
   maxWeightGrams: undefined,
+  minOrderAmount: 0,
+  hasMaxOrderAmount: false,
+  maxOrderAmount: undefined,
   amount: Number.NaN,
   currencyCode: '',
 };
@@ -51,6 +61,9 @@ function valuesFromRate(rate?: ShippingRateDTO): FormValues {
     minWeightGrams: rate.minWeightGrams,
     hasMaxWeight: rate.maxWeightGrams !== null,
     maxWeightGrams: rate.maxWeightGrams ?? undefined,
+    minOrderAmount: Number(rate.minOrderAmount),
+    hasMaxOrderAmount: rate.maxOrderAmount !== null,
+    maxOrderAmount: rate.maxOrderAmount === null ? undefined : Number(rate.maxOrderAmount),
     amount: Number(rate.amount),
     currencyCode: rate.currencyCode,
   };
@@ -97,6 +110,7 @@ export function RateFormDialog({ open, onOpenChange, rate, zones, methods }: Rat
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: valuesFromRate(rate) });
 
   const hasMaxWeight = watch('hasMaxWeight');
+  const hasMaxOrderAmount = watch('hasMaxOrderAmount');
 
   useEffect(() => {
     if (open) reset(valuesFromRate(rate));
@@ -125,12 +139,14 @@ export function RateFormDialog({ open, onOpenChange, rate, zones, methods }: Rat
     setFormError(null);
     const amount = values.amount.toFixed(4);
     const maxWeightGrams = values.hasMaxWeight ? (values.maxWeightGrams ?? null) : null;
+    const minOrderAmount = values.minOrderAmount.toFixed(4);
+    const maxOrderAmount = values.hasMaxOrderAmount ? (values.maxOrderAmount?.toFixed(4) ?? null) : null;
     const currencyCode = values.currencyCode.toUpperCase();
     try {
       if (isEdit && rate) {
         await updateMutation.mutateAsync({
           id: rate.id,
-          input: { minWeightGrams: values.minWeightGrams, maxWeightGrams, amount, currencyCode, expectedVersion: rate.version },
+          input: { minWeightGrams: values.minWeightGrams, maxWeightGrams, minOrderAmount, maxOrderAmount, amount, currencyCode, expectedVersion: rate.version },
         });
         toast({ variant: 'success', title: 'Shipping rate updated', description: 'The rate has been saved.' });
       } else {
@@ -139,6 +155,8 @@ export function RateFormDialog({ open, onOpenChange, rate, zones, methods }: Rat
           shippingMethodId: values.shippingMethodId,
           minWeightGrams: values.minWeightGrams,
           maxWeightGrams,
+          minOrderAmount,
+          maxOrderAmount,
           amount,
           currencyCode,
         });
@@ -178,6 +196,27 @@ export function RateFormDialog({ open, onOpenChange, rate, zones, methods }: Rat
             name="shippingMethodId"
             render={({ field }) => (
               <Select label="Shipping method" value={field.value} onValueChange={field.onChange} options={methodOptions} error={errors.shippingMethodId?.message} disabled={isEdit} />
+            )}
+          />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Input type="number" min={0} step="0.0001" label="Min order amount" hint="Inclusive." error={errors.minOrderAmount?.message} {...register('minOrderAmount')} />
+            <Input
+              type="number"
+              min={0}
+              step="0.0001"
+              label="Max order amount"
+              hint={hasMaxOrderAmount ? 'Exclusive.' : 'Unbounded above.'}
+              disabled={!hasMaxOrderAmount}
+              error={errors.maxOrderAmount?.message}
+              {...register('maxOrderAmount')}
+            />
+          </div>
+          <Controller
+            control={control}
+            name="hasMaxOrderAmount"
+            render={({ field }) => (
+              <Checkbox label="Set a maximum order amount" checked={field.value} onCheckedChange={(checked) => field.onChange(Boolean(checked))} />
             )}
           />
 

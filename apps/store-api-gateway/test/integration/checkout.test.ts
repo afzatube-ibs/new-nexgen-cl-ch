@@ -48,7 +48,8 @@ describe('routes/checkout (integration — Category B, real backend response sha
 
   it('POST /v1/checkout/shipping-options composes a real Catalog weight with a real Shipping quote', async () => {
     stubBackendFetch([
-      { match: `products/${PRODUCT_ID}`, status: 200, body: { data: { id: PRODUCT_ID, weightGrams: 500 } } },
+      { match: `products/${PRODUCT_ID}`, status: 200, body: { data: { id: PRODUCT_ID, sku: 'SKU-1', weightGrams: 500 } } },
+      { match: 'pricing/lookup-many', status: 200, body: { data: [{ sku: 'SKU-1', effectivePrice: '2490.0000', basePrice: '2490.0000', compareAtPrice: null, salePrice: null, isSaleActive: false }] } },
       {
         match: 'shipping/quote-options',
         status: 200,
@@ -59,7 +60,7 @@ describe('routes/checkout (integration — Category B, real backend response sha
     const response = await app.inject({
       method: 'POST',
       url: '/v1/checkout/shipping-options',
-      payload: { countryCode: 'BD', region: 'Dhaka', lines: [{ productId: PRODUCT_ID, quantity: 1 }] },
+      payload: { countryCode: 'BD', currencyCode: 'BDT', region: 'Dhaka', lines: [{ productId: PRODUCT_ID, quantity: 1 }] },
     });
 
     expect(response.statusCode).toBe(200);
@@ -73,7 +74,7 @@ describe('routes/checkout (integration — Category B, real backend response sha
     const response = await app.inject({
       method: 'POST',
       url: '/v1/checkout/shipping-options',
-      payload: { countryCode: 'BD', lines: [{ productId: PRODUCT_ID, quantity: 1 }] },
+      payload: { countryCode: 'BD', currencyCode: 'BDT', lines: [{ productId: PRODUCT_ID, quantity: 1 }] },
     });
 
     expect(response.statusCode).toBe(200);
@@ -83,7 +84,8 @@ describe('routes/checkout (integration — Category B, real backend response sha
 
   it('POST /v1/checkout/submit runs the real saga end to end and returns a real order + payment', async () => {
     stubBackendFetch([
-      { match: `products/${PRODUCT_ID}`, status: 200, body: { data: { id: PRODUCT_ID, weightGrams: 500 } } },
+      { match: `products/${PRODUCT_ID}`, status: 200, body: { data: { id: PRODUCT_ID, sku: 'SKU-1', weightGrams: 500 } } },
+      { match: 'pricing/lookup-many', status: 200, body: { data: [{ sku: 'SKU-1', effectivePrice: '2490.0000', basePrice: '2490.0000', compareAtPrice: null, salePrice: null, isSaleActive: false }] } },
       {
         match: 'shipping/quote-options',
         status: 200,

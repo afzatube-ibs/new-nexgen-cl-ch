@@ -60,6 +60,7 @@ final readonly class CalculateShippingRateAction
         string $countryCode,
         string $region,
         int $weightGrams,
+        string $orderAmount = '0',
     ): ?ShippingRateCalculationResult {
         $method = ShippingMethod::query()->find($shippingMethodId);
 
@@ -87,7 +88,7 @@ final readonly class CalculateShippingRateAction
             return $result;
         }
 
-        $rate = $this->resolveConfiguredRate($method, $countryCode, $region, $weightGrams);
+        $rate = $this->resolveConfiguredRate($method, $countryCode, $region, $weightGrams, $orderAmount);
 
         if ($rate === null) {
             return null;
@@ -127,20 +128,20 @@ final readonly class CalculateShippingRateAction
         ));
     }
 
-    private function resolveConfiguredRate(ShippingMethod $method, string $countryCode, string $region, int $weightGrams): ?ShippingRate
+    private function resolveConfiguredRate(ShippingMethod $method, string $countryCode, string $region, int $weightGrams, string $orderAmount): ?ShippingRate
     {
         if ($region !== '') {
-            $specific = $this->findRate($method, $countryCode, $region, $weightGrams);
+            $specific = $this->findRate($method, $countryCode, $region, $weightGrams, $orderAmount);
 
             if ($specific !== null) {
                 return $specific;
             }
         }
 
-        return $this->findRate($method, $countryCode, '', $weightGrams);
+        return $this->findRate($method, $countryCode, '', $weightGrams, $orderAmount);
     }
 
-    private function findRate(ShippingMethod $method, string $countryCode, string $region, int $weightGrams): ?ShippingRate
+    private function findRate(ShippingMethod $method, string $countryCode, string $region, int $weightGrams, string $orderAmount): ?ShippingRate
     {
         return ShippingRate::query()
             ->where('shipping_method_id', $method->id)
@@ -149,11 +150,16 @@ final readonly class CalculateShippingRateAction
             ->where(function ($query) use ($weightGrams): void {
                 $query->whereNull('max_weight_grams')->orWhere('max_weight_grams', '>', $weightGrams);
             })
+            ->where('min_order_amount', '<=', $orderAmount)
+            ->where(function ($query) use ($orderAmount): void {
+                $query->whereNull('max_order_amount')->orWhere('max_order_amount', '>', $orderAmount);
+            })
             ->whereHas('shippingZone', function ($query) use ($countryCode, $region): void {
                 $query->where('country_code', $countryCode)
                     ->where('region', $region)
                     ->where('status', ShippingZone::STATUS_ACTIVE);
             })
+            ->orderByDesc('min_order_amount')
             ->orderByDesc('min_weight_grams')
             ->first();
     }

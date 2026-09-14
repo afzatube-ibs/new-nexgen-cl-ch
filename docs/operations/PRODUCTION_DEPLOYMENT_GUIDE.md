@@ -78,8 +78,14 @@ Use different values for each purpose. If the Redis password contains URL-reserv
 Before doing anything destructive, validate the Compose model:
 
 ```bash
+node scripts/production-preflight.mjs .env.production --phase=bootstrap
 docker compose --env-file .env.production -f docker-compose.production.yml config --quiet
 ```
+
+Set `DEPLOYMENT_PROTECTED_ORIGINS` to any existing site that must never be used
+as a neXgen public origin. For example, a staging deployment under subdomains
+can protect the current production storefront origin from a document-root or
+reverse-proxy mistake.
 
 ---
 
@@ -155,6 +161,13 @@ docker compose --env-file .env.production -f docker-compose.production.yml up -d
 
 This starts Gateway, Storefront, Admin, worker, and scheduler in addition to the already-running backend/data services.
 
+Run the strict launch preflight after adding both service-account tokens and
+before exposing any public traffic:
+
+```bash
+node scripts/production-preflight.mjs .env.production --phase=launch
+```
+
 ---
 
 ## 5. Go-live verification
@@ -184,6 +197,8 @@ Then verify through the **real HTTPS domains**, not only localhost:
 - `docker compose ... logs worker` and `logs scheduler` show stable processes, not restart loops.
 
 For external bKash/Nagad/SSLCommerz/courier integrations, use sandbox credentials first. A provider with missing credentials must remain unavailable rather than being presented as active.
+
+`PAYMENTS_CHECKOUT_RETURN_URL` must be the Storefront receipt URL (for example, `https://shop.example.com/checkout/success`). `PAYMENTS_CALLBACK_BASE_URL` must be the public Backend origin (for example, `https://api.example.com`); bKash returns the shopper there so NexGen can verify and execute the payment server-to-server before redirecting the browser back to the Storefront. Never point the callback base at the Storefront.
 
 ---
 

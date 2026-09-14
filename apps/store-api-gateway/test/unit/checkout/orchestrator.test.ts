@@ -43,8 +43,9 @@ function quoteOptionsEnvelope() {
 }
 
 function makeMockCatalogBackend(): BackendClient {
-  const getItem = vi.fn().mockResolvedValue({ data: { id: PRODUCT_ID, weightGrams: 500 } });
-  return { getItem, getList: vi.fn() } as unknown as BackendClient;
+  const getItem = vi.fn().mockResolvedValue({ data: { id: PRODUCT_ID, sku: 'SKU-1', weightGrams: 500 } });
+  const getList = vi.fn().mockResolvedValue({ data: [{ sku: 'SKU-1', effectivePrice: '2490.0000', basePrice: '2490.0000', compareAtPrice: null, salePrice: null, isSaleActive: false }] });
+  return { getItem, getList } as unknown as BackendClient;
 }
 
 function makeMockBackend(): CheckoutBackendClient {
@@ -89,7 +90,7 @@ describe('checkout/orchestrator', () => {
     const postCalls = (backend.post as ReturnType<typeof vi.fn>).mock.calls;
     expect(postCalls[0]?.[0]).toMatchObject({ path: 'checkout/sessions', body: { guest_email: 'shopper@example.com', guest_name: 'Test Shopper', currency_code: 'BDT' } });
     expect(postCalls[1]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/items`, body: { product_id: PRODUCT_ID, quantity: 1, expected_version: 1 } });
-    expect(postCalls[2]?.[0]).toMatchObject({ path: 'shipping/quote-options', body: { country_code: 'BD', region: 'Dhaka', weight_grams: 500 } });
+    expect(postCalls[2]?.[0]).toMatchObject({ path: 'shipping/quote-options', body: { country_code: 'BD', region: 'Dhaka', weight_grams: 500, order_amount: '2490.0000' } });
     expect(postCalls[3]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/review`, body: { expected_version: 5 } });
     expect(postCalls[4]?.[0]).toMatchObject({ path: `checkout/sessions/${SESSION_ID}/submit`, body: { idempotency_key: 'idem-1', expected_version: 6 } });
     expect(postCalls[5]?.[0]).toMatchObject({ path: 'payments', body: { order_id: ORDER_ID, gateway_code: 'cod' } });

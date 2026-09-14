@@ -34,6 +34,7 @@ const submitBodySchema = z.object({
 
 const shippingOptionsBodySchema = z.object({
   countryCode: z.string().length(2),
+  currencyCode: z.string().length(3),
   region: z.string().optional().nullable(),
   lines: z.array(z.object({ productId: z.string().uuid(), quantity: z.number().int().positive() })).min(1),
 });
@@ -84,6 +85,7 @@ export function registerCheckoutRoutes(app: FastifyInstance, checkoutBackend: Ch
         checkoutBackend,
         destination: { countryCode: body.countryCode, region: body.region },
         lines: body.lines,
+        currencyCode: body.currencyCode,
         correlationId: request.id,
       });
       return { data: options, meta: { requestId: request.id } };

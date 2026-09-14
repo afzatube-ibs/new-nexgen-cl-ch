@@ -34,11 +34,14 @@ final class CreateShippingRateRequest extends FormRequest
                 'exists:shipping_zones,id',
                 Rule::unique('shipping_rates')->where(fn ($query) => $query
                     ->where('shipping_method_id', $this->input('shipping_method_id'))
-                    ->where('min_weight_grams', $this->input('min_weight_grams', 0))),
+                    ->where('min_weight_grams', $this->input('min_weight_grams', 0))
+                    ->where('min_order_amount', $this->input('min_order_amount', 0))),
             ],
             'shipping_method_id' => ['required', 'uuid', 'exists:shipping_methods,id'],
             'min_weight_grams' => ['sometimes', 'integer', 'min:0'],
             'max_weight_grams' => ['sometimes', 'nullable', 'integer', 'gt:min_weight_grams'],
+            'min_order_amount' => ['sometimes', 'numeric', 'min:0'],
+            'max_order_amount' => ['sometimes', 'nullable', 'numeric', 'gt:min_order_amount'],
             'amount' => ['required', 'numeric', 'min:0'],
             'currency_code' => ['required', 'string', 'size:3', new IsValidCurrencyCode],
         ];

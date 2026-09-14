@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class UpdateShippingRateAction
 {
-    private const array TRACKED_FIELDS = ['min_weight_grams', 'max_weight_grams', 'amount', 'currency_code'];
+    private const array TRACKED_FIELDS = ['min_weight_grams', 'max_weight_grams', 'min_order_amount', 'max_order_amount', 'amount', 'currency_code'];
 
     public function __construct(private AuditLogger $auditLogger) {}
 

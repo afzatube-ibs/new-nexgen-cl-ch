@@ -26,6 +26,8 @@ describe('shipping rates', () => {
     shippingMethodId: 'm1',
     minWeightGrams: 0,
     maxWeightGrams: 500,
+    minOrderAmount: '0.0000',
+    maxOrderAmount: null,
     amount: '60.0000',
     currencyCode: 'BDT',
     status: 'active',
