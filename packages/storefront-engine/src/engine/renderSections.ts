@@ -129,7 +129,7 @@ export function resolveSections({ sections, theme, data }: RenderSectionsOptions
       }
     }
 
-    const sectionData = (section.key && data?.[section.key]) ?? {};
+    const sectionData = (section.key && data?.[section.key]) ?? data?.[section.type] ?? {};
     resolved.push({ key, Component: entry.component, props: { ...section.configuration, ...sectionData } });
   });
   return resolved;
