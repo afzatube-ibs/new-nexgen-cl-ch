@@ -365,6 +365,7 @@ final class DemoStoreSeeder extends Seeder
                             'heading' => 'Everything your little one needs, in one place',
                             'subheading' => 'Explore a fully populated neXgen demo store with real BDT pricing, inventory and merchant-controlled content.',
                             'cta' => ['label' => 'Shop featured', 'href' => '#featured-products'],
+                            'showFeaturedProduct' => true,
                         ],
                     ],
                     ['type' => 'CategoryGrid', 'key' => 'category-grid', 'configuration' => ['heading' => 'Shop by category']],

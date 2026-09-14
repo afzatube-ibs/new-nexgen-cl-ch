@@ -145,6 +145,7 @@ jobs:
           done
           curl -fsS http://127.0.0.1:4000/health
           curl -fsS 'http://127.0.0.1:4000/v1/homepage?currency=BDT' > /tmp/nexgen-demo/homepage.json
+          curl -fsS 'http://127.0.0.1:4000/v1/content/pages/home' > /tmp/nexgen-demo/homepage-content.json
           grep -q 'Baobaohao A10 Baby Stroller' /tmp/nexgen-demo/homepage.json
           grep -q '"currencyCode":"BDT"' /tmp/nexgen-demo/homepage.json
           grep -q '"isAvailable":true' /tmp/nexgen-demo/homepage.json
@@ -212,6 +213,8 @@ jobs:
             if ((await categoryLinks.count()) < 1) throw new Error('Homepage rendered no real category links');
             if ((await page.locator('img').count()) < 1) throw new Error('Homepage rendered no real product images');
             await page.screenshot({ path: '/tmp/nexgen-demo/screenshots/storefront-populated-home.png', fullPage: true });
+            const heroProductLink = page.getByRole('link', { name: /View .* details/ });
+            if ((await heroProductLink.count()) !== 1) throw new Error('Homepage hero did not render one featured product link');
 
             const stockedHref = await page.locator('a[href^="/products/"]', { hasText: 'Baobaohao A10 Baby Stroller - Gray' }).first().getAttribute('href');
             if (!stockedHref) throw new Error('Stocked stroller link has no href');

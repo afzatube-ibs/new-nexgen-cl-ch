@@ -10,6 +10,7 @@ interface HomepageDraft {
   heroHeading: string;
   heroSubheading: string;
   heroCtaLabel: string;
+  heroShowFeaturedProduct: boolean;
   featuredHeading: string;
   categoriesHeading: string;
   trendingHeading: string;
@@ -28,6 +29,7 @@ const DEFAULT_DRAFT: HomepageDraft = {
   heroHeading: '',
   heroSubheading: 'Browse our latest products and collections.',
   heroCtaLabel: 'Shop now',
+  heroShowFeaturedProduct: true,
   featuredHeading: 'Featured products',
   categoriesHeading: 'Shop by category',
   trendingHeading: 'Trending now',
@@ -59,6 +61,7 @@ function draftFromPage(page: CmsPageDTO, storeName: string): HomepageDraft {
     heroHeading: stringConfig(hero, 'heading', storeName),
     heroSubheading: stringConfig(hero, 'subheading', DEFAULT_DRAFT.heroSubheading),
     heroCtaLabel: ctaLabel,
+    heroShowFeaturedProduct: hero?.configuration.showFeaturedProduct !== false,
     featuredHeading: stringConfig(section(page, 'featured-products'), 'heading', DEFAULT_DRAFT.featuredHeading),
     categoriesHeading: stringConfig(section(page, 'category-grid'), 'heading', DEFAULT_DRAFT.categoriesHeading),
     trendingHeading: stringConfig(section(page, 'trending-products'), 'heading', DEFAULT_DRAFT.trendingHeading),
@@ -83,6 +86,7 @@ function buildSections(draft: HomepageDraft): CmsSectionDTO[] {
         heading: draft.heroHeading.trim(),
         subheading: draft.heroSubheading.trim(),
         cta: { label: draft.heroCtaLabel.trim() || 'Shop now', href: '#featured-products' },
+        showFeaturedProduct: draft.heroShowFeaturedProduct,
       },
     },
   ];
@@ -214,6 +218,13 @@ export function CmsHomepagePage() {
               <Input label="Headline" value={draft.heroHeading} onChange={(event) => update('heroHeading', event.target.value)} disabled={!canManage} />
               <Textarea label="Supporting text" rows={3} value={draft.heroSubheading} onChange={(event) => update('heroSubheading', event.target.value)} disabled={!canManage} />
               <Input label="Button label" value={draft.heroCtaLabel} onChange={(event) => update('heroCtaLabel', event.target.value)} disabled={!canManage} />
+              <div className="flex items-start gap-3 rounded-md border border-border p-4 text-body text-text-primary">
+                <input id="hero-show-featured-product" type="checkbox" className="mt-1" checked={draft.heroShowFeaturedProduct} onChange={(event) => update('heroShowFeaturedProduct', event.target.checked)} disabled={!canManage} />
+                <span>
+                  <label htmlFor="hero-show-featured-product" className="block font-semibold">Show a featured product in the hero</label>
+                  <span className="text-caption text-text-secondary">Uses the first available featured product, including its live price and stock state.</span>
+                </span>
+              </div>
             </CardContent>
           </Card>
 

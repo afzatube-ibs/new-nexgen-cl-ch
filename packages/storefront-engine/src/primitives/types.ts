@@ -14,6 +14,9 @@ export interface HeroProps {
   heading: string;
   subheading?: string;
   cta?: { label: string; href: string };
+  showFeaturedProduct?: boolean;
+  featuredProduct?: ProductSummary | null;
+  featuredProductHref?: string;
 }
 
 export interface ProductCardProps {
