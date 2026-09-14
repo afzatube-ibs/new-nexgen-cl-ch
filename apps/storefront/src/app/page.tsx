@@ -56,31 +56,31 @@ export default async function HomePage() {
   const hasCmsHome = Boolean(publishedHome?.content?.length);
   const featuredHeroProduct = homepage.products.find((product) => product.availability?.isAvailable !== false) ?? null;
   const heroSection = sections.find((section) => section.type === 'Hero');
-  const heroSectionKey = heroSection?.key ?? 'hero';
   const showFeaturedProduct = heroSection?.configuration.showFeaturedProduct !== false;
-
-  const resolved = resolveSections({
-    sections,
-    data: {
-      [heroSectionKey]: hasCmsHome
-        ? {
+  const hydratedSections = sections.map((section) =>
+    section.type === 'Hero'
+      ? {
+          ...section,
+          configuration: {
+            ...section.configuration,
             showFeaturedProduct,
             featuredProduct: featuredHeroProduct,
             featuredProductHref: featuredHeroProduct ? productHref(featuredHeroProduct) : undefined,
-          }
+          },
+        }
+      : section,
+  );
+
+  const resolved = resolveSections({
+    sections: hydratedSections,
+    data: {
+      hero: hasCmsHome
+        ? {}
         : {
             heading: branding.storeName,
             subheading: 'Browse products, categories, brands, and new arrivals from one trusted storefront.',
             cta: { label: 'Shop now', href: '#featured-products' },
-            showFeaturedProduct: true,
-            featuredProduct: featuredHeroProduct,
-            featuredProductHref: featuredHeroProduct ? productHref(featuredHeroProduct) : undefined,
           },
-      Hero: {
-        showFeaturedProduct,
-        featuredProduct: featuredHeroProduct,
-        featuredProductHref: featuredHeroProduct ? productHref(featuredHeroProduct) : undefined,
-      },
       'category-grid': {
         categories: homepage.categories.filter((category) => category.parentId === null),
         buildHref: categoryHref,
