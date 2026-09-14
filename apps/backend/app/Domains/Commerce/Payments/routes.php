@@ -29,8 +29,8 @@ use App\Domains\Commerce\Payments\Http\Controllers\BankTransferVerificationContr
 use App\Domains\Commerce\Payments\Http\Controllers\PaymentActionController;
 use App\Domains\Commerce\Payments\Http\Controllers\PaymentController;
 use App\Domains\Commerce\Payments\Http\Controllers\PaymentMethodController;
-use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\BkashWebhookController;
 use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\BkashReturnController;
+use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\BkashWebhookController;
 use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\NagadWebhookController;
 use App\Domains\Commerce\Payments\Http\Controllers\Webhooks\SslcommerzWebhookController;
 use Illuminate\Support\Facades\Route;
