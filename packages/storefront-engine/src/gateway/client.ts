@@ -27,6 +27,73 @@ const GATEWAY_BASE_URL = process.env.STORE_API_GATEWAY_URL ?? 'http://127.0.0.1:
 const REQUEST_TIMEOUT_MS = 5000;
 
 /**
+ * CloudLinux accounts can impose a 4 GiB virtual-address-space limit even
+ * when plenty of physical RAM is available. Node's built-in fetch lazily
+ * instantiates Undici's llhttp WebAssembly module, which can fail under that
+ * limit after V8 has reserved its address space. This opt-in transport uses
+ * Node's native HTTP stack and avoids that Wasm allocation.
+ *
+ * Keep it opt-in: the default fetch path preserves Next.js Data Cache
+ * revalidation and tags on ordinary hosts.
+ */
+const USE_NATIVE_HTTP = process.env.STOREFRONT_NATIVE_HTTP === '1';
+
+interface GatewayHttpResponse {
+  ok: boolean;
+  status: number;
+  headers: { get(name: string): string | null };
+  json(): Promise<unknown>;
+}
+
+async function nativeHttpGet(urlString: string, headers: Record<string, string>): Promise<GatewayHttpResponse> {
+  const url = new URL(urlString);
+  const transport = url.protocol === 'https:' ? await import('node:https') : await import('node:http');
+
+  return new Promise((resolve, reject) => {
+    const request = transport.request(url, { method: 'GET', headers }, (response) => {
+      const chunks: Buffer[] = [];
+
+      response.on('data', (chunk: Buffer | string) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
+      response.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        const status = response.statusCode ?? 500;
+
+        resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          headers: {
+            get(name: string): string | null {
+              const value = response.headers[name.toLowerCase()];
+              if (Array.isArray(value)) return value.join(', ');
+              return value == null ? null : String(value);
+            },
+          },
+          async json(): Promise<unknown> {
+            return JSON.parse(body);
+          },
+        });
+      });
+    });
+
+    request.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      request.destroy(new TypeError(`Gateway request timed out after ${REQUEST_TIMEOUT_MS}ms`));
+    });
+    request.on('error', (error) => {
+      if (error instanceof TypeError) {
+        reject(error);
+        return;
+      }
+      const networkError = new TypeError('Gateway request failed');
+      Object.defineProperty(networkError, 'cause', { value: error });
+      reject(networkError);
+    });
+    request.end();
+  });
+}
+
+/**
  * Next.js augments the global `fetch`'s own `RequestInit` with a `next`
  * option (`{ revalidate, tags }`) — real, and how this module implements
  * ISR/cache-tagging — but that augmentation lives in Next's own
@@ -73,7 +140,9 @@ async function attemptFetch<T>(url: string, requestInit: FetchRequestInitWithNex
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(url, { ...requestInit, signal: controller.signal });
+    const response: GatewayHttpResponse = USE_NATIVE_HTTP
+      ? await nativeHttpGet(url, requestInit.headers as Record<string, string>)
+      : await fetch(url, { ...requestInit, signal: controller.signal });
 
     // Beta Milestone 2 — implements STOREFRONT_FOUNDATION_ARCHITECTURE_
     // REVIEW.md §3.3's own recommendation: surface the Gateway's own real
