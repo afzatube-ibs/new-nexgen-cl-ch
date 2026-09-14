@@ -76,6 +76,11 @@ export default async function HomePage() {
             featuredProduct: featuredHeroProduct,
             featuredProductHref: featuredHeroProduct ? productHref(featuredHeroProduct) : undefined,
           },
+      Hero: {
+        showFeaturedProduct,
+        featuredProduct: featuredHeroProduct,
+        featuredProductHref: featuredHeroProduct ? productHref(featuredHeroProduct) : undefined,
+      },
       'category-grid': {
         categories: homepage.categories.filter((category) => category.parentId === null),
         buildHref: categoryHref,
