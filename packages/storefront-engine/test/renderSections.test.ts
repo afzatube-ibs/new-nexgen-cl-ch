@@ -38,6 +38,13 @@ describe('engine/renderSections', () => {
     expect(resolved[0]?.props).toEqual({ heading: 'from real data', subheading: 'real' });
   });
 
+  it('injects data by primitive type when a legacy CMS section has no key', () => {
+    const sections: Section[] = [{ type: 'Hero', configuration: { heading: 'from CMS' } }];
+    const [resolved] = resolveSections({ sections, data: { Hero: { featuredProductHref: '/products/one' } } });
+
+    expect(resolved?.props).toMatchObject({ heading: 'from CMS', featuredProductHref: '/products/one' });
+  });
+
   it('generates a stable fallback key from the section index when no explicit key is supplied', () => {
     const sections: Section[] = [{ type: 'Hero', configuration: {} }];
     const resolved = resolveSections({ sections });
