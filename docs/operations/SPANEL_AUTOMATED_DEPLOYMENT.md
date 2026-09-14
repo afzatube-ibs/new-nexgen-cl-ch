@@ -28,8 +28,9 @@ are not separate stores.
 - health-checks all four HTTPS origins;
 - records the last successful deployed SHA.
 
-The GitHub workflow starts automatically only after the `full-stack-smoke`
-workflow succeeds on `main`. It can also be started manually.
+The first rollout is deliberately manual-dispatch only. After one successful
+end-to-end deployment, a follow-up change may enable automatic deployment only
+after `full-stack-smoke` succeeds on `main`.
 
 ## One-time restricted SSH key
 
@@ -74,8 +75,8 @@ Never paste the private key into an issue, pull request, commit, chat, or log.
 4. Run it once manually and verify every `HEALTH_OK` line.
 5. Add the restricted public key and GitHub secrets.
 6. Run `deploy-spanel-production` manually from GitHub Actions.
-7. After the first successful run, tested changes merged to `main` deploy
-   automatically after `full-stack-smoke` succeeds.
+7. After the first successful run, enable the post-`full-stack-smoke`
+   automatic trigger in a reviewed follow-up pull request.
 
 ## Logs and state
 
