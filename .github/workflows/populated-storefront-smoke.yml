@@ -145,6 +145,7 @@ jobs:
           done
           curl -fsS http://127.0.0.1:4000/health
           curl -fsS 'http://127.0.0.1:4000/v1/homepage?currency=BDT' > /tmp/nexgen-demo/homepage.json
+          curl -fsS 'http://127.0.0.1:4000/v1/content/pages/home' > /tmp/nexgen-demo/homepage-content.json
           grep -q 'Baobaohao A10 Baby Stroller' /tmp/nexgen-demo/homepage.json
           grep -q '"currencyCode":"BDT"' /tmp/nexgen-demo/homepage.json
           grep -q '"isAvailable":true' /tmp/nexgen-demo/homepage.json
