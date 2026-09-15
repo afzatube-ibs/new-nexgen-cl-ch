@@ -267,7 +267,7 @@ export function BrandingPage() {
 
   const saving = updateStoreMutation.isPending || updateAppearanceMutation.isPending;
 
-  if (storeQuery.isLoading || appearanceQuery.isLoading || !draft || !storeDraft || !store || !appearance) {
+  if (storeQuery.isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <Spinner />
@@ -275,11 +275,45 @@ export function BrandingPage() {
     );
   }
 
+  if (storeQuery.isError) {
+    return (
+      <Alert variant="danger" title="Could not load store settings">
+        <div className="flex flex-col items-start gap-3">
+          <Text>Check the API connection and try again. This page will not keep loading indefinitely.</Text>
+          <Button type="button" variant="secondary" onClick={() => void storeQuery.refetch()}>
+            Try again
+          </Button>
+        </div>
+      </Alert>
+    );
+  }
+
   if (!store) {
     return (
       <Alert variant="warning" title="No store configured">
-        Branding needs a real store to attach to — none exists yet.
+        Create your store in Settings first, then return here to add its logo, colors, and contact information.
       </Alert>
+    );
+  }
+
+  if (appearanceQuery.isLoading || !draft || !storeDraft || !appearance) {
+    if (appearanceQuery.isError) {
+      return (
+        <Alert variant="danger" title="Could not load branding">
+          <div className="flex flex-col items-start gap-3">
+            <Text>Your store loaded, but its branding settings did not. Try the request again.</Text>
+            <Button type="button" variant="secondary" onClick={() => void appearanceQuery.refetch()}>
+              Try again
+            </Button>
+          </div>
+        </Alert>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Spinner />
+      </div>
     );
   }
 
