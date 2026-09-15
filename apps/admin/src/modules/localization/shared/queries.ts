@@ -11,6 +11,7 @@ import {
   archiveLocale,
   deleteLocale,
   listStores,
+  createStore,
   updateStore,
   type CurrencyDTO,
   type LocaleDTO,
@@ -21,6 +22,7 @@ import {
   type CreateLocaleInput,
   type UpdateLocaleInput,
   type StoreDTO,
+  type CreateStoreInput,
   type UpdateStoreInput,
   type ListEnvelope,
 } from '@nexgen/api-client';
@@ -110,6 +112,17 @@ export function useDeleteLocale(): UseMutationResult<void, unknown, { id: string
  */
 export function useCurrentStore(): UseQueryResult<StoreDTO[]> {
   return useQuery({ queryKey: ['localization-current-store'], queryFn: () => listStores(apiClient) });
+}
+
+export function useCreateStore(): UseMutationResult<StoreDTO, unknown, CreateStoreInput> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input) => createStore(apiClient, input),
+    onSuccess: (store) => {
+      queryClient.setQueryData(['localization-current-store'], [store]);
+      queryClient.setQueryData(['stores'], [store]);
+    },
+  });
 }
 
 export function useUpdateStore(): UseMutationResult<StoreDTO, unknown, { id: string; changes: UpdateStoreInput; expectedVersion: number }> {

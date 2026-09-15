@@ -14,6 +14,42 @@ export async function listStores(client: ApiClient): Promise<StoreDTO[]> {
   return response.data;
 }
 
+export interface CreateStoreInput {
+  name: string;
+  legalName?: string | null;
+  currencyCode: string;
+  locale: string;
+  timezone: string;
+  contactEmail: string;
+  contactPhone?: string | null;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  region?: string | null;
+  postalCode?: string | null;
+  countryCode: string;
+}
+
+/** `POST /stores` — creates the installation's first real store. */
+export async function createStore(client: ApiClient, input: CreateStoreInput): Promise<StoreDTO> {
+  const response = await client.post<DataEnvelope<StoreDTO>>('/stores', {
+    name: input.name,
+    legal_name: input.legalName,
+    currency_code: input.currencyCode,
+    locale: input.locale,
+    timezone: input.timezone,
+    contact_email: input.contactEmail,
+    contact_phone: input.contactPhone,
+    address_line1: input.addressLine1,
+    address_line2: input.addressLine2,
+    city: input.city,
+    region: input.region,
+    postal_code: input.postalCode,
+    country_code: input.countryCode,
+  });
+  return response.data;
+}
+
 /** Every field `UpdateStoreRequest` (apps/backend) actually accepts. */
 export interface UpdateStoreInput {
   name?: string;
