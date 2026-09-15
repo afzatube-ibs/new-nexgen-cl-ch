@@ -74,6 +74,38 @@ it('omits an active method that has no configured rate for the destination, with
     expect($response->json('data.0.shippingMethodId'))->toBe($covered->id);
 });
 
+it('selects the matching order-amount band together with destination and weight', function () {
+    $caller = userWithPermissions(['shipping.rates.view']);
+    $zone = ShippingZone::factory()->create(['country_code' => 'BD', 'region' => 'DHAKA']);
+    $method = ShippingMethod::factory()->create();
+
+    ShippingRate::factory()->create([
+        'shipping_zone_id' => $zone->id,
+        'shipping_method_id' => $method->id,
+        'min_weight_grams' => 0,
+        'min_order_amount' => '0.0000',
+        'max_order_amount' => '2000.0000',
+        'amount' => '80.0000',
+    ]);
+    ShippingRate::factory()->create([
+        'shipping_zone_id' => $zone->id,
+        'shipping_method_id' => $method->id,
+        'min_weight_grams' => 0,
+        'min_order_amount' => '2000.0000',
+        'max_order_amount' => null,
+        'amount' => '40.0000',
+    ]);
+
+    $response = $this->actingAs($caller, 'sanctum')->postJson('/api/v1/shipping/quote-options', [
+        'country_code' => 'BD',
+        'region' => 'Dhaka',
+        'weight_grams' => 500,
+        'order_amount' => '2490.0000',
+    ]);
+
+    $response->assertOk()->assertJsonPath('data.0.amount', '40.0000');
+});
+
 it('excludes an archived shipping method even if it has a configured rate', function () {
     $caller = userWithPermissions(['shipping.rates.view']);
     $zone = ShippingZone::factory()->create(['country_code' => 'BD', 'region' => '']);

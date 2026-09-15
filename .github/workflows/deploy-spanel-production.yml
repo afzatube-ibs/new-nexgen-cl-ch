@@ -1,0 +1,47 @@
+name: deploy-spanel-production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: demo-production
+    timeout-minutes: 30
+
+    steps:
+      - name: Validate deployment secrets
+        env:
+          DEPLOY_HOST: ${{ secrets.SPANEL_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.SPANEL_DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.SPANEL_DEPLOY_SSH_KEY }}
+        run: |
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          test -n "$DEPLOY_KEY"
+
+      - name: Configure restricted SSH identity
+        env:
+          DEPLOY_HOST: ${{ secrets.SPANEL_DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.SPANEL_DEPLOY_PORT }}
+          DEPLOY_KEY: ${{ secrets.SPANEL_DEPLOY_SSH_KEY }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/nexgen-deploy"
+          chmod 600 "$HOME/.ssh/nexgen-deploy"
+          ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> "$HOME/.ssh/known_hosts"
+
+      - name: Deploy tested main to sPanel
+        env:
+          DEPLOY_HOST: ${{ secrets.SPANEL_DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.SPANEL_DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.SPANEL_DEPLOY_USER }}
+        run: |
+          ssh             -o BatchMode=yes             -o ConnectTimeout=20             -p "${DEPLOY_PORT:-22}"             -i "$HOME/.ssh/nexgen-deploy"             "$DEPLOY_USER@$DEPLOY_HOST"

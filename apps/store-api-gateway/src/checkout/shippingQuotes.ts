@@ -23,6 +23,7 @@ import type { BackendClient } from '../backend/client.js';
 import type { BackendProduct } from '../backend/types.js';
 import type { CheckoutBackendClient } from '../backend/checkoutClient.js';
 import type { BackendEnvelope, BackendShippingQuoteOption } from './types.js';
+import { fetchComposedPrices } from '../composition/pricing.js';
 
 export interface ShippingQuoteLine {
   productId: string;
@@ -46,7 +47,19 @@ export interface ResolveShippingOptionsParams {
   checkoutBackend: CheckoutBackendClient;
   destination: ShippingDestination;
   lines: ShippingQuoteLine[];
+  currencyCode: string;
   correlationId: string;
+}
+
+function decimalToScale4(value: string): bigint {
+  const [whole = '0', fraction = ''] = value.split('.');
+  return BigInt(whole) * 10_000n + BigInt(fraction.padEnd(4, '0').slice(0, 4));
+}
+
+function scale4ToDecimal(value: bigint): string {
+  const whole = value / 10_000n;
+  const fraction = (value % 10_000n).toString().padStart(4, '0');
+  return `${whole}.${fraction}`;
 }
 
 /**
@@ -74,12 +87,25 @@ async function resolveTotalWeightGrams(backend: BackendClient, lines: ShippingQu
 }
 
 export async function resolveShippingOptions(params: ResolveShippingOptionsParams): Promise<ResolvedShippingOption[]> {
-  const { backend, checkoutBackend, destination, lines, correlationId } = params;
+  const { backend, checkoutBackend, destination, lines, currencyCode, correlationId } = params;
 
   if (lines.length === 0) return [];
 
   const weightGrams = await resolveTotalWeightGrams(backend, lines, correlationId);
   if (weightGrams === null || weightGrams < 1) return [];
+
+  const products = await Promise.all([...new Set(lines.map((line) => line.productId))].map(async (productId) => (
+    await backend.getItem<BackendProduct>({ module: 'catalog', path: `products/${productId}`, correlationId })
+  ).data));
+  const productById = new Map(products.map((product) => [product.id, product]));
+  const prices = await fetchComposedPrices(backend, products.map((product) => product.sku), currencyCode, correlationId);
+  let orderAmountScaled = 0n;
+  for (const line of lines) {
+    const product = productById.get(line.productId);
+    const price = product ? prices.get(product.sku.toUpperCase()) : undefined;
+    if (!price) return [];
+    orderAmountScaled += decimalToScale4(price.effectivePrice) * BigInt(line.quantity);
+  }
 
   const response = await checkoutBackend.post<BackendEnvelope<BackendShippingQuoteOption[]>>({
     module: 'shipping',
@@ -89,6 +115,7 @@ export async function resolveShippingOptions(params: ResolveShippingOptionsParam
       country_code: destination.countryCode.toUpperCase(),
       region: destination.region ?? undefined,
       weight_grams: weightGrams,
+      order_amount: scale4ToDecimal(orderAmountScaled),
     },
   });
 

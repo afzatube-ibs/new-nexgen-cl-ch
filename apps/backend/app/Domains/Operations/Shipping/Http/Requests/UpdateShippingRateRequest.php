@@ -22,6 +22,8 @@ final class UpdateShippingRateRequest extends FormRequest
         return [
             'min_weight_grams' => ['sometimes', 'integer', 'min:0'],
             'max_weight_grams' => ['sometimes', 'nullable', 'integer', 'gt:min_weight_grams'],
+            'min_order_amount' => ['sometimes', 'numeric', 'min:0'],
+            'max_order_amount' => ['sometimes', 'nullable', 'numeric', 'gt:min_order_amount'],
             'amount' => ['sometimes', 'numeric', 'min:0'],
             'currency_code' => ['sometimes', 'string', 'size:3', new IsValidCurrencyCode],
             'expected_version' => ['required', 'integer', 'min:1'],

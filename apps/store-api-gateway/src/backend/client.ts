@@ -17,6 +17,7 @@
  * publishing decision remains entirely the real backend's own.
  */
 import type { FastifyBaseLogger } from 'fastify';
+import { backendRequest } from './httpTransport.js';
 import { CircuitBreaker } from '../lib/circuitBreaker.js';
 import { BackendUpstreamError } from '../lib/errors.js';
 import type { BackendItemResponse, BackendListResponse } from './types.js';
@@ -87,7 +88,7 @@ export class BackendClient {
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
-      const response = await fetch(url, {
+      const response = await backendRequest(url, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${this.serviceToken}`,
@@ -95,7 +96,7 @@ export class BackendClient {
           'X-Correlation-Id': options.correlationId,
         },
         signal: controller.signal,
-      });
+      }, this.timeoutMs);
 
       if (!response.ok) {
         breaker.recordFailure();

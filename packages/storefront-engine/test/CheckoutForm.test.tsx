@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CheckoutForm } from '../src/checkout/CheckoutForm.js';
+import { CheckoutForm, safeHostedPaymentUrl } from '../src/checkout/CheckoutForm.js';
 import { addItem, clearCart, getCart } from '../src/cart/cartStore.js';
 import * as checkoutClient from '../src/checkout/checkoutClient.js';
 
@@ -56,6 +56,13 @@ afterEach(() => {
 });
 
 describe('checkout/CheckoutForm', () => {
+  it('accepts only credential-free HTTPS hosted-payment redirects', () => {
+    expect(safeHostedPaymentUrl('https://payment.example/checkout?id=1')).toBe('https://payment.example/checkout?id=1');
+    expect(safeHostedPaymentUrl('http://payment.example/checkout')).toBeNull();
+    expect(safeHostedPaymentUrl('javascript:alert(1)')).toBeNull();
+    expect(safeHostedPaymentUrl('https://user:pass@payment.example/checkout')).toBeNull();
+  });
+
   it('shows the honest empty-cart state when there is nothing to check out', () => {
     render(<CheckoutForm />);
     expect(screen.getByRole('heading', { name: 'Your cart is empty' })).toBeTruthy();
@@ -120,7 +127,7 @@ describe('checkout/CheckoutForm', () => {
     await waitFor(() => expect(screen.getByText('Standard Delivery')).toBeTruthy());
     expect(screen.getByText('60.0000 BDT')).toBeTruthy();
     expect(screen.getByRole<HTMLInputElement>('radio', { name: /Standard Delivery/ }).checked).toBe(true);
-    expect(fetchSpy).toHaveBeenCalledWith({ countryCode: 'BD', region: 'Dhaka', lines: [{ productId: 'p1', quantity: 1 }] });
+    expect(fetchSpy).toHaveBeenCalledWith({ countryCode: 'BD', currencyCode: 'BDT', region: 'Dhaka', lines: [{ productId: 'p1', quantity: 1 }] });
   });
 
   it('shows an honest empty state, never a fabricated rate, when no real shipping option covers this address', async () => {

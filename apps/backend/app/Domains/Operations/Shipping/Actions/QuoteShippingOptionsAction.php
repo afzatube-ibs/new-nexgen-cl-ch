@@ -32,7 +32,7 @@ final readonly class QuoteShippingOptionsAction
     /**
      * @return list<ShippingQuoteOption>
      */
-    public function execute(string $countryCode, string $region, int $weightGrams): array
+    public function execute(string $countryCode, string $region, int $weightGrams, string $orderAmount = '0'): array
     {
         $methods = ShippingMethod::query()
             ->where('status', ShippingMethod::STATUS_ACTIVE)
@@ -47,6 +47,7 @@ final readonly class QuoteShippingOptionsAction
                 countryCode: $countryCode,
                 region: $region,
                 weightGrams: $weightGrams,
+                orderAmount: $orderAmount,
             );
 
             if ($result === null) {

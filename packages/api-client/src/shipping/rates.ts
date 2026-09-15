@@ -12,6 +12,8 @@ function toCreateBody(input: CreateShippingRateInput): Record<string, unknown> {
     shipping_method_id: input.shippingMethodId,
     min_weight_grams: input.minWeightGrams,
     max_weight_grams: input.maxWeightGrams,
+    min_order_amount: input.minOrderAmount,
+    max_order_amount: input.maxOrderAmount,
     amount: input.amount,
     currency_code: input.currencyCode,
   };
@@ -22,6 +24,8 @@ function toUpdateBody(input: UpdateShippingRateInput): Record<string, unknown> {
   return {
     min_weight_grams: rest.minWeightGrams,
     max_weight_grams: rest.maxWeightGrams,
+    min_order_amount: rest.minOrderAmount,
+    max_order_amount: rest.maxOrderAmount,
     amount: rest.amount,
     currency_code: rest.currencyCode,
     expected_version: expectedVersion,

@@ -26,6 +26,7 @@
  * response envelopes.
  */
 import type { FastifyBaseLogger } from 'fastify';
+import { backendRequest } from './httpTransport.js';
 import { CircuitBreaker } from '../lib/circuitBreaker.js';
 import { BackendUpstreamError } from '../lib/errors.js';
 
@@ -99,7 +100,7 @@ export class CheckoutBackendClient {
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
-      const response = await fetch(url, {
+      const response = await backendRequest(url, {
         method,
         headers: {
           Authorization: `Bearer ${this.serviceToken}`,
@@ -109,7 +110,7 @@ export class CheckoutBackendClient {
         },
         body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
         signal: controller.signal,
-      });
+      }, this.timeoutMs);
 
       if (!response.ok) {
         breaker.recordFailure();

@@ -144,6 +144,7 @@ export async function orchestrateGuestCheckout(body: SubmitCheckoutRequestBody, 
     checkoutBackend: backend,
     destination: { countryCode: body.address.countryCode, region: body.address.region },
     lines: body.lines,
+    currencyCode: body.currencyCode,
     correlationId,
   });
   const shippingOption = shippingOptions.find((option) => option.id === body.shippingOptionId);

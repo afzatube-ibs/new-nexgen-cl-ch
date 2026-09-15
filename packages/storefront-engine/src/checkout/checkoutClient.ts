@@ -22,6 +22,7 @@ export interface CheckoutShippingOption {
 
 export interface FetchShippingOptionsParams {
   countryCode: string;
+  currencyCode: string;
   region?: string | null;
   lines: Array<{ productId: string; quantity: number }>;
 }
@@ -105,6 +106,7 @@ export interface CheckoutPayment {
   currencyCode: string;
   amount: string;
   status: string;
+  redirectUrl: string | null;
   instructions: string | null;
   failureReason: string | null;
 }

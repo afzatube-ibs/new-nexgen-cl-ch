@@ -28,6 +28,7 @@ final class ShippingQuoteOptionsController
             countryCode: $request->string('country_code')->toString(),
             region: $request->string('region', '')->toString(),
             weightGrams: (int) $request->integer('weight_grams'),
+            orderAmount: $request->string('order_amount', '0')->toString(),
         );
 
         return ShippingQuoteOptionResource::collection($options);
