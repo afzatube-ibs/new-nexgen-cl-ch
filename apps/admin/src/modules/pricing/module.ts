@@ -88,17 +88,19 @@ const routes: ModuleRoute[] = [
   },
 ];
 
-const navigation: ModuleNavItem[] = [
+/**
+ * Merchant navigation contains only recurring operational work. Diagnostic
+ * routes remain registered below for support and direct links, but do not
+ * compete with product pricing in the sidebar.
+ */
+export const pricingNavigation: ModuleNavItem[] = [
   {
     id: 'pricing',
     label: 'Pricing',
     icon: DollarSign,
     children: [
-      { id: 'pricing-price-lists', label: 'Price Lists', path: 'pricing/price-lists', permissions: ['pricing.price_lists.view'] },
-      { id: 'pricing-lookup', label: 'Price Lookup', path: 'pricing/lookup', permissions: ['pricing.price_lists.view'] },
-      { id: 'pricing-checkout-preview', label: 'Checkout Preview', path: 'pricing/checkout-preview', permissions: ['pricing.price_lists.view'] },
+      { id: 'pricing-price-lists', label: 'Product Prices', path: 'pricing/price-lists', permissions: ['pricing.price_lists.view'] },
       { id: 'pricing-missing-prices', label: 'Missing Prices', path: 'pricing/missing-prices', permissions: ['pricing.price_lists.view'] },
-      { id: 'pricing-currency-coverage', label: 'Currency Coverage', path: 'pricing/currency-coverage', permissions: ['pricing.price_lists.view'] },
       { id: 'pricing-tax-zones', label: 'Tax Zones', path: 'pricing/tax-zones', permissions: ['pricing.tax.view'] },
       { id: 'pricing-tax-classes', label: 'Tax Classes', path: 'pricing/tax-classes', permissions: ['pricing.tax.view'] },
       { id: 'pricing-tax-rates', label: 'Tax Rates', path: 'pricing/tax-rates', permissions: ['pricing.tax.view'] },
@@ -106,4 +108,4 @@ const navigation: ModuleNavItem[] = [
   },
 ];
 
-registerModule({ id: 'pricing', navigation, routes });
+registerModule({ id: 'pricing', navigation: pricingNavigation, routes });

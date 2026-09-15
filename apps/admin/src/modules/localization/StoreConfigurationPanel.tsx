@@ -4,7 +4,14 @@ import { Alert, Button, Card, CardContent, CardHeader, CardTitle, Icon, Input, S
 import { PageHeader, RequirePermission } from '../../framework/index.js';
 import { useAuth } from '../../auth/useAuth.js';
 import { localizationErrorMessage } from './shared/errors.js';
-import { useCurrentStore, useUpdateStore, useCurrencies, useLocales } from './shared/queries.js';
+import { useCreateStore, useCurrentStore, useUpdateStore, useCurrencies, useLocales } from './shared/queries.js';
+
+const BANGLADESH_DEFAULTS = {
+  currencyCode: 'BDT',
+  locale: 'en',
+  timezone: 'Asia/Dhaka',
+  countryCode: 'BD',
+};
 
 /**
  * Production Completion Plan v2, Milestone 10 (Settings Framework
@@ -29,11 +36,19 @@ export function StoreConfigurationPanel() {
   const currenciesQuery = useCurrencies({ status: 'active' });
   const localesQuery = useLocales({ status: 'active' });
   const updateStoreMutation = useUpdateStore();
+  const createStoreMutation = useCreateStore();
 
   const [currencyCode, setCurrencyCode] = useState('');
   const [locale, setLocale] = useState('');
   const [timezone, setTimezone] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [firstStore, setFirstStore] = useState({
+    name: 'Lokkisona',
+    contactEmail: '',
+    contactPhone: '',
+    addressLine1: '',
+    city: 'Dhaka',
+  });
 
   useEffect(() => {
     if (store) {
@@ -54,11 +69,63 @@ export function StoreConfigurationPanel() {
     }
   }
 
-  if (storeQuery.isLoading || !store) {
+  async function handleCreate(): Promise<void> {
+    setFormError(null);
+    if (!firstStore.name.trim() || !firstStore.contactEmail.trim() || !firstStore.addressLine1.trim() || !firstStore.city.trim()) {
+      setFormError('Store name, email, address, and city are required.');
+      return;
+    }
+    try {
+      await createStoreMutation.mutateAsync({
+        name: firstStore.name.trim(),
+        currencyCode: BANGLADESH_DEFAULTS.currencyCode,
+        locale: BANGLADESH_DEFAULTS.locale,
+        timezone: BANGLADESH_DEFAULTS.timezone,
+        contactEmail: firstStore.contactEmail.trim(),
+        contactPhone: firstStore.contactPhone.trim() || null,
+        addressLine1: firstStore.addressLine1.trim(),
+        city: firstStore.city.trim(),
+        countryCode: BANGLADESH_DEFAULTS.countryCode,
+      });
+      toast({ variant: 'success', title: 'Store created', description: 'Lokkisona is ready for branding, products, prices, and inventory.' });
+    } catch (error) {
+      setFormError(localizationErrorMessage(error));
+    }
+  }
+
+  if (storeQuery.isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <Spinner />
       </div>
+    );
+  }
+
+
+  if (storeQuery.isError) {
+    return <Alert variant="danger" title="Could not load store settings">Check the API connection and try again.</Alert>;
+  }
+
+  if (!store) {
+    return (
+      <RequirePermission anyOf={['store_configuration.stores.view']}>
+        <PageHeader title="Create your store" description="One short setup creates the store used by the admin, catalog, checkout, and storefront." />
+        {formError && <Alert variant="danger" className="mb-4" role="alert">{formError}</Alert>}
+        <Card>
+          <CardHeader className="flex-row items-center gap-2"><Icon icon={Globe} className="text-brand" /><CardTitle>Store details</CardTitle></CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input label="Store name" value={firstStore.name} onChange={(event) => setFirstStore((value) => ({ ...value, name: event.target.value }))} />
+              <Input label="Business email" type="email" value={firstStore.contactEmail} onChange={(event) => setFirstStore((value) => ({ ...value, contactEmail: event.target.value }))} />
+              <Input label="Phone" value={firstStore.contactPhone} onChange={(event) => setFirstStore((value) => ({ ...value, contactPhone: event.target.value }))} />
+              <Input label="City" value={firstStore.city} onChange={(event) => setFirstStore((value) => ({ ...value, city: event.target.value }))} />
+            </div>
+            <Input label="Business address" value={firstStore.addressLine1} onChange={(event) => setFirstStore((value) => ({ ...value, addressLine1: event.target.value }))} />
+            <Text variant="caption" className="text-text-secondary">Defaults: BDT currency, Bangladesh, Asia/Dhaka timezone. These can be changed after setup.</Text>
+            {canManage ? <div><Button onClick={() => void handleCreate()} loading={createStoreMutation.isPending}>Create store</Button></div> : <Alert variant="warning">You can view settings, but your account cannot create a store.</Alert>}
+          </CardContent>
+        </Card>
+      </RequirePermission>
     );
   }
 

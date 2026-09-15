@@ -7,8 +7,8 @@ export * from './types.js';
 export { login, logout, me } from './auth.js';
 export type { LoginResult } from './auth.js';
 
-export { listStores, updateStore } from './stores.js';
-export type { UpdateStoreInput } from './stores.js';
+export { listStores, createStore, updateStore } from './stores.js';
+export type { CreateStoreInput, UpdateStoreInput } from './stores.js';
 
 export { listUsers, listUsersPaginated, getUser, createUser, updateUser, archiveUser, deleteUser } from './users.js';
 export type { ListUsersQuery, CreateUserInput, UpdateUserInput } from './users.js';
